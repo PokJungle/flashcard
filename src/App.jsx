@@ -5,6 +5,8 @@ import {
   ArrowLeft, RotateCcw, Sparkles, Upload, X, Check
 } from 'lucide-react'
 
+const proxyImg = url => url ? `/api/proxy?url=${encodeURIComponent(url)}` : null
+
 const THEMES = [
   { id: 'sciences',     label: 'Sciences',        emoji: '🔬', color: '#4CAF82' },
   { id: 'histoire',     label: 'Histoire',         emoji: '🏛️', color: '#C0784A' },
@@ -312,6 +314,7 @@ export default function App() {
   if (screen === 'study' && activeDecks) {
     const card = activeDecks.cards[idx]
     const hasImage = card.image_url && !imgError
+    const imgSrc = proxyImg(card.image_url)
     const isLast = idx === activeDecks.cards.length - 1
 
     return (
@@ -348,7 +351,7 @@ export default function App() {
                 style={{ backfaceVisibility: 'hidden' }}>
                 {hasImage ? (
                   <>
-                    <img src={card.image_url} alt={card.front} className="flex-1 w-full object-cover"
+                    <img src={imgSrc} alt={card.front} className="flex-1 w-full object-cover"
                       onError={() => setImgError(true)} />
                     <div className="px-4 py-3 text-center border-t border-gray-100">
                       <p className="text-gray-400 text-xs">Touche pour révéler</p>
