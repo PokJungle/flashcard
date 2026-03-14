@@ -96,7 +96,9 @@ export default function App() {
       return new Date(p.next_review) <= now
     })
 
-    const toStudy = due.length > 0 ? due : cards
+    // Ordre aléatoire
+    const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+    const toStudy = shuffle(due.length > 0 ? due : cards)
     setActiveDecks({ deck, cards: toStudy, allCards: cards, progressMap })
     setIdx(0); setFlipped(false); setImgError(false)
     setScreen('study')
@@ -390,12 +392,22 @@ export default function App() {
                   😎 Facile
                 </button>
               </div>
+              <button onClick={goNext}
+                className="w-full py-3 text-white/50 text-xs font-medium active:text-white/80 transition-colors">
+                Passer sans noter →
+              </button>
             </div>
           ) : (
-            <button onClick={() => setFlipped(true)}
-              className="w-full py-4 bg-white/15 text-white rounded-full text-sm font-semibold active:scale-95 transition-transform">
-              Retourner la carte
-            </button>
+            <div className="space-y-2">
+              <button onClick={() => setFlipped(true)}
+                className="w-full py-4 bg-white/15 text-white rounded-full text-sm font-semibold active:scale-95 transition-transform">
+                Retourner la carte
+              </button>
+              <button onClick={goNext}
+                className="w-full py-3 text-white/50 text-xs font-medium active:text-white/80 transition-colors">
+                Passer sans noter →
+              </button>
+            </div>
           )}
           {isLast && !flipped && (
             <button onClick={() => setScreen('home')}
