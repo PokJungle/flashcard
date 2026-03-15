@@ -155,9 +155,17 @@ export default function Meteo() {
     if (!data || dayIdx === null) return []
     const dateStr = dates[dayIdx]
     if (!dateStr) return []
+
+    // ── FIX : pour aujourd'hui, on ne montre que l'heure courante et après ──
+    const now = new Date()
+
     return data.hourly.time
       .map((t, i) => ({ t, i }))
-      .filter(({ t }) => t.startsWith(dateStr))
+      .filter(({ t }) => {
+        if (!t.startsWith(dateStr)) return false
+        if (dayIdx === 0 && new Date(t) < now) return false
+        return true
+      })
       .map(({ t, i }) => ({
         hour: formatHour(t),
         temp: data.hourly.temperature_2m[i],
@@ -260,7 +268,6 @@ export default function Meteo() {
                 <button key={dayIdx} onClick={() => setSelectedDay(dayIdx)}
                   className="w-full bg-white rounded-2xl px-4 py-3 border border-gray-100 shadow-sm text-left active:scale-98 transition-transform">
 
-                  {/* Titre */}
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xl">{WMO_ICONS[refDay?.weathercode?.[dayIdx] ?? 0] || '🌡️'}</span>
                     <p className="text-sm font-bold text-gray-900 flex-1">{formatDay(date, dayIdx)}</p>
@@ -268,7 +275,6 @@ export default function Meteo() {
                     <ChevronRight size={14} className="text-gray-300" />
                   </div>
 
-                  {/* Moyenne */}
                   <div className="flex items-center gap-4 mb-3 px-1">
                     <div className="flex items-baseline gap-1">
                       <span className="text-blue-500 font-bold text-lg">{avg(temps_min) ?? '—'}°</span>
@@ -286,7 +292,6 @@ export default function Meteo() {
                     <span className="text-xs text-gray-300 ml-auto">{validModels.length} modèles</span>
                   </div>
 
-                  {/* Sources */}
                   <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(validModels.length, 6)}, 1fr)` }}>
                     {validModels.map(m => {
                       const d = modelData[m.id]?.daily
@@ -347,7 +352,6 @@ export default function Meteo() {
 
           {(() => {
             const dayModels = getModelsForDay(selectedDay, cc).filter(m => modelData[m.id])
-            // Référence = modèle avec le plus d'heures valides pour ce jour
             const refModelId = dayModels.reduce((best, m) => {
               const hrs = getHours(m.id, selectedDay).filter(h => h.hasData).length
               const bestHrs = getHours(best, selectedDay).filter(h => h.hasData).length
@@ -357,7 +361,6 @@ export default function Meteo() {
 
             return (
               <>
-                {/* Légende */}
                 <div className="flex flex-wrap gap-2 mb-4">
                   {dayModels.map(m => (
                     <div key={m.id} className="flex items-center gap-1 px-2 py-1 rounded-full" style={{ background: m.color + '20' }}>
@@ -370,10 +373,8 @@ export default function Meteo() {
 
                 <div className="space-y-2">
                   {refHours.map((h, i) => {
-                    // Récupérer les données de chaque modèle pour cette heure
                     const hourDataByModel = dayModels.map(m => {
                       const hrs = getHours(m.id, selectedDay)
-                      // Trouver l'heure correspondante par le timestamp
                       return hrs.find(hh => hh.hour === h.hour && hh.hasData) || null
                     }).filter(Boolean)
 
@@ -383,7 +384,6 @@ export default function Meteo() {
                     const avgRain = avgF(hourDataByModel.map(x => x.rain))
                     const avgWind = avg(hourDataByModel.map(x => x.wind))
 
-                    // Modèles valides pour cette heure
                     const validForHour = dayModels.filter(m => {
                       const hrs = getHours(m.id, selectedDay)
                       return hrs.find(hh => hh.hour === h.hour && hh.hasData)
@@ -391,7 +391,6 @@ export default function Meteo() {
 
                     return (
                       <div key={i} className="bg-white rounded-2xl px-4 py-3 border border-gray-100 shadow-sm">
-                        {/* Heure + moyenne */}
                         <div className="flex items-center gap-3 mb-2">
                           <span className="text-sm font-bold text-gray-400 w-8">{h.hour}</span>
                           <span className="text-lg">{WMO_ICONS[h.code] || '🌡️'}</span>
@@ -405,7 +404,6 @@ export default function Meteo() {
                             <span className="text-xs text-gray-500">{avgWind ?? '—'}km/h</span>
                           </div>
                         </div>
-                        {/* Sources */}
                         <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(validForHour.length, 6)}, 1fr)` }}>
                           {validForHour.map(m => {
                             const hrs = getHours(m.id, selectedDay)
