@@ -190,26 +190,80 @@ export default function Grimoire({ profile }) {
     setSaving(false)
   }
 
+  const parseIngredient = (text) => {
+    // Format: "2 poireaux" ou "200g farine" ou "2 gros poireaux"
+    const match = text.match(/^([\d,.]+)\s*(g|kg|ml|l|cl|dl|oz|lb|tsp|tbsp|cup|pincée|pincee|gousse|tranche|botte|bouquet|branche|feuille|morceau)?\s+(.+)$/i)
+    if (match) return {
+      amount: parseFloat(match[1].replace(',', '.')),
+      unit: match[2] || '',
+      name: match[3].trim(),
+      original: text
+    }
+    // Pas de quantité reconnue → tout dans name
+    return { amount: null, unit: '', name: text, original: text }
+  }
+
   const saveManualRecipe = async () => {
     if (!manualRecipe.title.trim()) return
     setSaving(true)
-    const { data } = await supabase.from('recipes').insert({
+    const toSave = {
       spoonacular_id: null,
       title: manualRecipe.title.trim(),
       image_url: manualRecipe.image_url.trim() || null,
       ready_in_minutes: parseInt(manualRecipe.ready_in_minutes) || null,
       servings: parseInt(manualRecipe.servings) || null,
       summary: null,
-      ingredients: manualRecipe.ingredients.filter(i => i.trim()).map(i => ({ original: i, name: i })),
+      ingredients: manualRecipe.ingredients.filter(i => i.trim()).map(parseIngredient),
       instructions: manualRecipe.instructions.filter(s => s.trim()),
       tags: [], vegetarian: manualRecipe.vegetarian, season,
-    }).select().single()
+    }
+    const { data } = await supabase.from('recipes').insert(toSave).select().single()
     setSavedRecipes(prev => [data, ...prev])
     setShowAddManual(false)
     setManualRecipe({ title: '', image_url: '', ready_in_minutes: '', servings: '', ingredients: [''], instructions: [''], vegetarian: false })
     setSaving(false)
   }
 
+  const [editingRecipe, setEditingRecipe] = useState(null)
+
+  const openEditRecipe = (recipe) => {
+    setManualRecipe({
+      title: recipe.title || '',
+      image_url: recipe.image_url || '',
+      ready_in_minutes: recipe.ready_in_minutes || '',
+      servings: recipe.servings || '',
+      ingredients: recipe.ingredients?.map(i => i.original || i.name) || [''],
+      instructions: Array.isArray(recipe.instructions) ? recipe.instructions : [''],
+      vegetarian: recipe.vegetarian || false,
+    })
+    setEditingRecipe(recipe)
+    setShowAddManual(true)
+  }
+
+  const updateRecipe = async () => {
+    if (!manualRecipe.title.trim() || !editingRecipe) return
+    setSaving(true)
+    const updated = {
+      title: manualRecipe.title.trim(),
+      image_url: manualRecipe.image_url.trim() || null,
+      ready_in_minutes: parseInt(manualRecipe.ready_in_minutes) || null,
+      servings: parseInt(manualRecipe.servings) || null,
+      ingredients: manualRecipe.ingredients.filter(i => i.trim()).map(i => {
+        // Parser le texte pour extraire amount/unit/name
+        const match = i.match(/^([\d,.]+)\s*([a-zA-Zéèàùêô]*)\s+(.+)$/)
+        if (match) return { amount: parseFloat(match[1].replace(',', '.')), unit: match[2] || '', name: match[3], original: i }
+        return { amount: null, unit: '', name: i, original: i }
+      }),
+      instructions: manualRecipe.instructions.filter(s => s.trim()),
+      vegetarian: manualRecipe.vegetarian,
+    }
+    await supabase.from('recipes').update(updated).eq('id', editingRecipe.id)
+    setSavedRecipes(prev => prev.map(r => r.id === editingRecipe.id ? { ...r, ...updated } : r))
+    setShowAddManual(false)
+    setEditingRecipe(null)
+    setManualRecipe({ title: '', image_url: '', ready_in_minutes: '', servings: '', ingredients: [''], instructions: [''], vegetarian: false })
+    setSaving(false)
+  }
   const removeRecipe = async (id) => {
     await supabase.from('recipes').delete().eq('id', id)
     setSavedRecipes(prev => prev.filter(r => r.id !== id))
@@ -239,13 +293,29 @@ export default function Grimoire({ profile }) {
     const all = {}
     mealPlan.forEach(({ recipe }) => {
       ;(recipe.ingredients || []).forEach(ing => {
-        const key = ing.name?.toLowerCase()
+        // Utiliser original comme clé si disponible, sinon name
+        const displayText = ing.original || ing.name || ''
+        const key = (ing.name || displayText).toLowerCase().trim()
         if (!key) return
-        if (all[key]) all[key].recipes.push(recipe.title)
-        else all[key] = { ...ing, recipes: [recipe.title] }
+        if (all[key]) {
+          if (ing.unit && all[key].unit === ing.unit && ing.amount) {
+            all[key].amount = (parseFloat(all[key].amount) || 0) + parseFloat(ing.amount)
+            all[key].original = all[key].amount + (ing.unit ? ' ' + ing.unit : '') + ' ' + ing.name
+          }
+          all[key].recipes.push(recipe.title)
+        } else {
+          all[key] = { ...ing, amount: parseFloat(ing.amount) || null, original: displayText, recipes: [recipe.title] }
+        }
       })
     })
-    return Object.values(all)
+    return Object.values(all).map(ing => ({
+      ...ing,
+      display: ing.original || [
+        ing.amount ? (Number.isInteger(ing.amount) ? ing.amount : ing.amount.toFixed(1)) : null,
+        ing.unit || null,
+        ing.name
+      ].filter(Boolean).join(' ')
+    }))
   }
 
   const isSaved = (id) => savedRecipes.some(r => r.spoonacular_id === id || r.id === id)
@@ -483,9 +553,13 @@ export default function Grimoire({ profile }) {
                         </div>
                       </div>
                     </button>
-                    <button onClick={() => removeRecipe(recipe.id)}
-                      className="absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center shadow opacity-0 hover:opacity-100 transition-opacity">
+                    <button onClick={e => { e.stopPropagation(); removeRecipe(recipe.id) }}
+                      className="absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center shadow">
                       <X size={12} className="text-red-400" />
+                    </button>
+                    <button onClick={e => { e.stopPropagation(); openEditRecipe(recipe) }}
+                      className="absolute top-2 left-2 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center shadow text-xs">
+                      ✏️
                     </button>
                   </div>
                 ))}
@@ -494,11 +568,11 @@ export default function Grimoire({ profile }) {
 
             {/* Modal ajout manuel */}
             {showAddManual && (
-              <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => setShowAddManual(false)}>
+              <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => { setShowAddManual(false); setEditingRecipe(null) }}>
                 <div className="bg-white w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center justify-between mb-5">
-                    <h2 className="font-bold text-lg">✍️ Nouvelle recette</h2>
-                    <button onClick={() => setShowAddManual(false)}><X size={20} className="text-gray-400" /></button>
+                    <h2 className="font-bold text-lg">{editingRecipe ? '✏️ Modifier la recette' : '✍️ Nouvelle recette'}</h2>
+                    <button onClick={() => { setShowAddManual(false); setEditingRecipe(null) }}><X size={20} className="text-gray-400" /></button>
                   </div>
                   <input value={manualRecipe.title} onChange={e => setManualRecipe(p => ({ ...p, title: e.target.value }))}
                     placeholder="Nom de la recette *"
@@ -558,9 +632,9 @@ export default function Grimoire({ profile }) {
                     </button>
                   </div>
 
-                  <button onClick={saveManualRecipe} disabled={!manualRecipe.title.trim() || saving}
+                  <button onClick={editingRecipe ? updateRecipe : saveManualRecipe} disabled={!manualRecipe.title.trim() || saving}
                     className="w-full py-4 bg-orange-500 text-white rounded-full font-semibold disabled:opacity-30 active:scale-95 transition-transform">
-                    {saving ? 'Sauvegarde…' : '📖 Ajouter au grimoire'}
+                    {saving ? 'Sauvegarde…' : editingRecipe ? '✏️ Modifier la recette' : '📖 Ajouter au grimoire'}
                   </button>
                 </div>
               </div>
@@ -629,8 +703,8 @@ export default function Grimoire({ profile }) {
                     {shoppingList().map((ing, i) => (
                       <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-50">
                         <div className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
-                        <p className="flex-1 text-sm text-gray-800">{ing.original || ing.name}</p>
-                        <p className="text-xs text-gray-400">{ing.recipes.length > 1 ? `×${ing.recipes.length}` : ''}</p>
+                        <p className="flex-1 text-sm text-gray-800">{ing.display || ing.original || ing.name}</p>
+                        <p className="text-xs text-gray-400">{ing.recipes.length > 1 ? `${ing.recipes.length} recettes` : ''}</p>
                       </div>
                     ))}
                   </div>
