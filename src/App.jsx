@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import Flashcards from './apps/Flashcards/index.jsx'
 import Meteo from './apps/Meteo/index.jsx'
+import Grimoire from './apps/Grimoire/index.jsx'
 import { ArrowLeft } from 'lucide-react'
 
 const APPS = [
@@ -27,7 +28,7 @@ const APPS = [
     emoji: '📖',
     description: 'Trouver et sauvegarder des recettes',
     color: '#E67E22',
-    component: () => <div className="h-full bg-gray-50 flex items-center justify-center"><p className="text-gray-400">Bientôt disponible 🍳</p></div>,
+    component: Grimoire,
   },
 ]
 
