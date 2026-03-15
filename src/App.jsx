@@ -216,7 +216,7 @@ export default function App() {
         name: json.name, theme: json.theme || 'autre', description: json.description || ''
       }).select().single()
       await supabase.from('cards').insert(
-        json.cards.map(c => ({ deck_id: deck.id, front: c.front, back: c.back }))
+        json.cards.map(c => ({ deck_id: deck.id, front: c.front, back: c.back, image_url: c.imageUrl || c.image_url || null }))
       )
       await loadDecks()
       setUploadStatus('success')
