@@ -70,6 +70,8 @@ export default function Flashcards({ profile }) {
 
   const [showUpload, setShowUpload] = useState(false)
   const [uploadStatus, setUploadStatus] = useState(null)
+  
+  const [loadingNext, setLoadingNext] = useState(false)
 
   useEffect(() => { loadDecks() }, [])
 
@@ -172,15 +174,20 @@ export default function Flashcards({ profile }) {
     setTimeout(() => { setFlipped(false); setIdx(n); setFading(false) }, 180)
   }
 
-  const goNext = () => {
-    if (idx < activeDecks.cards.length - 1) {
-      setFading(true)
-      setTimeout(() => { setFlipped(false); setIdx(i => i + 1); setFading(false) }, 180)
-    } else {
-      setScreen('home')
-    }
+const goNext = () => {
+  if (idx < activeDecks.cards.length - 1) {
+    setLoadingNext(true) // singe immédiatement
+    setFlipped(false)    // retournement
+    setTimeout(() => {   // on attend la fin du retournement
+      setIdx(i => i + 1)
+      setImgError(false)
+    }, 400)
+  } else {
+    setFlipped(false)
+    setTimeout(() => setScreen('home'), 300)
   }
-
+}
+  
   const startCuriosities = async () => {
     setLoading(true)
     const { data: curios } = await supabase.from('curiosities').select('*')
@@ -338,10 +345,17 @@ export default function Flashcards({ profile }) {
               }}>
               <div className="absolute inset-0 bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col"
                 style={{ backfaceVisibility: 'hidden' }}>
+				{loadingNext && (
+					<div className="absolute inset-0 bg-white rounded-3xl flex items-center justify-center z-10">
+						<div className="text-5xl animate-bounce">🐒</div>
+					  </div>
+				)}
                 {imgUrl ? (
                   <>
                     <div className="flex-1 min-h-0 overflow-hidden">
-                      <img src={imgUrl} alt={card.front} className="w-full h-full object-contain bg-gray-50" />
+                      <img src={imgUrl} alt={card.front} className="w-full h-full object-contain bg-gray-50"
+						  onLoad={() => setLoadingNext(false)}
+						  onError={() => { setImgError(true); setLoadingNext(false) }} />
                     </div>
                     <div className="px-4 py-2 text-center border-t border-gray-100 flex-shrink-0">
                       <p className="text-gray-400 text-xs">Touche pour révéler</p>
