@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../supabase'
 import {
   ChevronLeft, ChevronRight, Plus, BookOpen,
-  ArrowLeft, Upload, Check, Camera
+  ArrowLeft, Upload, Check, Camera, X
 } from 'lucide-react'
 
 const THEMES = [
@@ -72,6 +72,14 @@ export default function Flashcards({ profile }) {
   const [uploadStatus, setUploadStatus] = useState(null)
   
   const [loadingNext, setLoadingNext] = useState(false)
+  
+  const [manageDeck, setManageDeck] = useState(null) // deck en cours de gestion
+	const [manageDeckCards, setManageDeckCards] = useState([])
+	const [editingCard, setEditingCard] = useState(null)
+	const [editCardFront, setEditCardFront] = useState('')
+	const [editCardBack, setEditCardBack] = useState('')
+	const [manageImgCard, setManageImgCard] = useState(null)
+	const [manageCardImages, setManageCardImages] = useState([])
 
   useEffect(() => { loadDecks() }, [])
 
@@ -218,13 +226,76 @@ const goNext = () => {
         name: json.name, theme: json.theme || 'autre', description: json.description || ''
       }).select().single()
       await supabase.from('cards').insert(
-        json.cards.map(c => ({ deck_id: deck.id, front: c.front, back: c.back, image_url: c.imageUrl || c.image_url || null }))
+        json.cards.map(c => ({ deck_id: deck.id, front: c.front, back: c.back }))
       )
       await loadDecks()
       setUploadStatus('success')
       setTimeout(() => { setShowUpload(false); setUploadStatus(null) }, 2000)
     } catch { setUploadStatus('error') }
   }
+  
+  const openManage = async (deck) => {
+  const { data } = await supabase.from('cards').select('*').eq('deck_id', deck.id)
+  await loadCardImages(data || [])
+  setManageDeckCards(data || [])
+  setManageDeck(deck)
+  setScreen('manage')
+}
+
+const deleteCard = async (cardId) => {
+  await supabase.from('cards').delete().eq('id', cardId)
+  setManageDeckCards(prev => prev.filter(c => c.id !== cardId))
+}
+
+const saveEditCard = async () => {
+  if (!editingCard) return
+  if (editingCard.id === null) {
+    // Nouvelle carte
+    const { data } = await supabase.from('cards').insert({
+      deck_id: manageDeck.id,
+      front: editCardFront,
+      back: editCardBack
+    }).select().single()
+    setManageDeckCards(prev => [...prev, data])
+  } else {
+    // Modification
+    await supabase.from('cards').update({
+      front: editCardFront,
+      back: editCardBack
+    }).eq('id', editingCard.id)
+    setManageDeckCards(prev => prev.map(c => c.id === editingCard.id
+      ? { ...c, front: editCardFront, back: editCardBack }
+      : c
+    ))
+  }
+  setEditingCard(null)
+}
+
+const deleteDeck = async (deck) => {
+  await supabase.from('decks').delete().eq('id', deck.id)
+  setDecks(prev => prev.filter(d => d.id !== deck.id))
+  setScreen('home')
+}
+
+const openManageImages = async (card) => {
+  const { data } = await supabase.from('card_images').select('*').eq('card_id', card.id)
+  setManageCardImages(data || [])
+  setManageImgCard(card)
+}
+
+const deleteCardImage = async (img) => {
+  // Supprimer du storage si c'est un upload
+  if (img.url.includes('card-images')) {
+    const path = img.url.split('card-images/')[1]
+    await supabase.storage.from('card-images').remove([path])
+  }
+  await supabase.from('card_images').delete().eq('id', img.id)
+  setManageCardImages(prev => prev.filter(i => i.id !== img.id))
+  setCardImages(prev => ({
+    ...prev,
+    [img.card_id]: (prev[img.card_id] || []).filter(u => u !== img.url)
+  }))
+}
 
   const color = activeDecks ? (TC[activeDecks.deck.theme] || '#6A9BCC') : '#6A9BCC'
   const themeObj = THEMES.find(t => t.id === activeDecks?.deck?.theme)
@@ -256,28 +327,33 @@ const goNext = () => {
             </div>
           ) : (
             themesPresents.map(t => (
-              <div key={t.id} className="mb-6">
-                <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{t.emoji} {t.label}</h2>
-                <div className="space-y-2">
-                  {decks.filter(d => d.theme === t.id).map(deck => (
-                    <button key={deck.id} onClick={() => startDeck(deck)}
-                      className="w-full bg-white rounded-2xl p-4 border border-gray-100 text-left active:scale-95 transition-transform shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                          style={{ background: (TC[deck.theme] || '#7A7A8A') + '18' }}>
-                          {t.emoji}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-gray-900 text-sm truncate">{deck.name}</p>
-                          {deck.description && <p className="text-xs text-gray-400 truncate mt-0.5">{deck.description}</p>}
-                        </div>
-                        <BookOpen size={15} style={{ color: TC[deck.theme] || '#7A7A8A' }} />
-                      </div>
-                    </button>
-                  ))}
-                </div>
+  <div key={t.id} className="mb-6">
+    <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{t.emoji} {t.label}</h2>
+    <div className="space-y-2">
+      {decks.filter(d => d.theme === t.id).map(deck => (
+        <div key={deck.id} className="w-full bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+          <div className="flex items-center gap-3">
+            <button onClick={() => startDeck(deck)} className="flex items-center gap-3 flex-1 min-w-0 text-left active:scale-95 transition-transform">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                style={{ background: (TC[deck.theme] || '#7A7A8A') + '18' }}>
+                {t.emoji}
               </div>
-            ))
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 text-sm truncate">{deck.name}</p>
+                {deck.description && <p className="text-xs text-gray-400 truncate mt-0.5">{deck.description}</p>}
+              </div>
+            </button>
+            <button onClick={() => openManage(deck)}
+              className="p-2 text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0">
+              ⚙️
+            </button>
+            <BookOpen size={15} style={{ color: TC[deck.theme] || '#7A7A8A' }} className="flex-shrink-0" />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+))
           )}
         </div>
 
@@ -315,7 +391,7 @@ const goNext = () => {
   if (screen === 'study' && activeDecks) {
     const card = activeDecks.cards[idx]
     const imgs = cardImages[card.id] || []
-    const imgUrl = imgs.length > 0 ? imgs[currentImgIdx[card.id] || 0] : proxyImg(card.image_url)
+    const imgUrl = imgs.length > 0 ? imgs[currentImgIdx[card.id] || 0] : null
 
     return (
       <div className="flex flex-col" style={{ height: '100%', minHeight: 0, background: `linear-gradient(160deg, ${color}ee, ${color}aa)` }}>
@@ -559,6 +635,176 @@ const goNext = () => {
       </div>
     )
   }
+	
+	// ─── MANAGE ────────────────────────────────────────────────────────────────
+	if (screen === 'manage' && manageDeck) {
+  return (
+    <>
+      <div className="h-full bg-gray-50 overflow-y-auto">
+
+        {/* Header */}
+        <div className="bg-white border-b border-gray-100 px-5 py-4 sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setScreen('home')} className="text-gray-400 hover:text-gray-700">
+              <ArrowLeft size={20} />
+            </button>
+            <div className="flex-1">
+              <p className="font-bold text-gray-900">{manageDeck.name}</p>
+              <p className="text-xs text-gray-400">{manageDeckCards.length} cartes</p>
+            </div>
+            <button onClick={() => { setEditingCard({ id: null }); setEditCardFront(''); setEditCardBack('') }}
+              className="px-3 py-1.5 bg-gray-900 text-white rounded-full text-xs font-semibold active:scale-95 transition-transform">
+              + Carte
+            </button>
+            <button onClick={() => deleteDeck(manageDeck)}
+              className="px-3 py-1.5 bg-red-50 text-red-500 rounded-full text-xs font-semibold active:scale-95 transition-transform">
+              🗑️ Supprimer
+            </button>
+          </div>
+        </div>
+
+        {/* Liste des cartes */}
+        <div className="px-5 py-4 max-w-lg mx-auto space-y-3">
+          {manageDeckCards.map(card => {
+            const imgs = cardImages[card.id] || []
+            return (
+              <div key={card.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="flex items-center gap-3 p-4">
+                  {imgs[0] ? (
+                    <img src={imgs[0]} alt={card.front} className="w-14 h-14 object-cover rounded-xl flex-shrink-0" />
+                  ) : (
+                    <div className="w-14 h-14 bg-gray-50 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">🃏</div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{card.front}</p>
+                    <p className="text-xs text-gray-400 truncate mt-0.5">{card.back}</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => { setEditingCard(card); setEditCardFront(card.front); setEditCardBack(card.back) }}
+                      className="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center text-sm">
+                      ✏️
+                    </button>
+                    <button onClick={() => openManageImages(card)}
+                      className="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center text-sm relative">
+                      📷
+                      {imgs.length > 0 && (
+                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white rounded-full text-xs flex items-center justify-center">
+                          {imgs.length}
+                        </span>
+                      )}
+                    </button>
+                    <button onClick={() => deleteCard(card.id)}
+                      className="w-8 h-8 bg-red-50 rounded-xl flex items-center justify-center">
+                      <X size={14} className="text-red-400" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Édition inline carte existante */}
+                {editingCard?.id === card.id && (
+                  <div className="px-4 pb-4 border-t border-gray-50 pt-3 space-y-2">
+                    <input value={editCardFront} onChange={e => setEditCardFront(e.target.value)}
+                      placeholder="Question / recto"
+                      className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-gray-400 text-sm" />
+                    <textarea value={editCardBack} onChange={e => setEditCardBack(e.target.value)}
+                      placeholder="Réponse / verso" rows={2}
+                      className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-gray-400 text-sm resize-none" />
+                    <div className="flex gap-2">
+                      <button onClick={saveEditCard}
+                        className="flex-1 py-2 bg-gray-900 text-white rounded-xl text-sm font-semibold">
+                        Sauvegarder
+                      </button>
+                      <button onClick={() => setEditingCard(null)}
+                        className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm">
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Modal gestion images */}
+        {manageImgCard && (
+          <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => setManageImgCard(null)}>
+            <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold text-lg">📷 {manageImgCard.front}</h2>
+                <button onClick={() => setManageImgCard(null)}><X size={20} className="text-gray-400" /></button>
+              </div>
+              {manageCardImages.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {manageCardImages.map((img, i) => (
+                    <div key={i} className="relative">
+                      <img src={img.url} alt="" className="w-full h-24 object-cover rounded-xl" />
+                      <button onClick={() => deleteCardImage(img)}
+                        className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center shadow">
+                        <X size={12} className="text-white" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm text-center py-4 mb-4">Aucune photo pour cette carte</p>
+              )}
+              <label className="flex items-center gap-3 w-full py-3.5 px-4 bg-gray-900 text-white rounded-2xl mb-3 cursor-pointer active:scale-95 transition-transform">
+                <Camera size={18} />
+                <span className="font-semibold text-sm">Uploader une photo</span>
+                <input type="file" accept="image/*" className="hidden"
+                  onChange={async (e) => {
+                    setUploadingCard(manageImgCard.id)
+                    await handleImageUpload(e)
+                    const { data } = await supabase.from('card_images').select('*').eq('card_id', manageImgCard.id)
+                    setManageCardImages(data || [])
+                  }} />
+              </label>
+              <div className="flex gap-2">
+                <input value={imgUrlInput} onChange={e => setImgUrlInput(e.target.value)}
+                  placeholder="Coller une URL d'image…"
+                  className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none text-sm" />
+                <button onClick={async () => {
+                  if (!imgUrlInput.trim()) return
+                  await supabase.from('card_images').insert({ card_id: manageImgCard.id, url: imgUrlInput.trim() })
+                  const { data } = await supabase.from('card_images').select('*').eq('card_id', manageImgCard.id)
+                  setManageCardImages(data || [])
+                  setCardImages(prev => ({ ...prev, [manageImgCard.id]: data.map(i => i.url) }))
+                  setImgUrlInput('')
+                }} disabled={!imgUrlInput.trim()}
+                  className="px-4 py-3 bg-gray-100 text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-30">
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Modal nouvelle carte — en dehors du overflow pour éviter le fond noir */}
+      {editingCard?.id === null && (
+        <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => setEditingCard(null)}>
+          <div className="bg-white w-full rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-lg">✨ Nouvelle carte</h2>
+              <button onClick={() => setEditingCard(null)}><X size={20} className="text-gray-400" /></button>
+            </div>
+            <input value={editCardFront} onChange={e => setEditCardFront(e.target.value)}
+              placeholder="Question / recto"
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-gray-400 text-sm mb-3" />
+            <textarea value={editCardBack} onChange={e => setEditCardBack(e.target.value)}
+              placeholder="Réponse / verso" rows={3}
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-gray-400 text-sm resize-none mb-4" />
+            <button onClick={saveEditCard} disabled={!editCardFront.trim()}
+              className="w-full py-3.5 bg-gray-900 text-white rounded-full font-semibold text-sm disabled:opacity-30">
+              Ajouter la carte
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
 
   return null
 }
