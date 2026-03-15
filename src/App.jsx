@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './supabase'
 import Flashcards from './apps/Flashcards/index.jsx'
 import Meteo from './apps/Meteo/index.jsx'
 import Grimoire from './apps/Grimoire/index.jsx'
-import { ArrowLeft } from 'lucide-react'
+import Bisou from './apps/Bisou/index.jsx'
 
 const APPS = [
   {
@@ -30,13 +30,40 @@ const APPS = [
     color: '#E67E22',
     component: Grimoire,
   },
+  {
+    id: 'bisou',
+    name: 'Bisou',
+    emoji: '💌',
+    description: 'Un emoji, un mot doux',
+    color: '#F093FB',
+    component: Bisou,
+  },
 ]
 
 export default function App() {
   const [activeApp, setActiveApp] = useState(null)
   const [profiles, setProfiles] = useState([])
   const [profile, setProfile] = useState(null)
-  const [screen, setScreen] = useState('profiles') // profiles | hub
+  const [screen, setScreen] = useState('profiles')
+  const [bisouBadge, setBisouBadge] = useState(false)
+
+  const checkBisouBadge = useCallback(async (currentProfile) => {
+    if (!currentProfile) return
+    const { data } = await supabase
+      .from('bisou_messages')
+      .select('created_at, profile_id')
+      .neq('profile_id', currentProfile.id)  // messages des autres
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (!data) return
+    const lastSeen = localStorage.getItem(`bisou-last-seen-${currentProfile.id}`)
+    if (!lastSeen || new Date(data.created_at) > new Date(lastSeen)) {
+      setBisouBadge(true)
+    } else {
+      setBisouBadge(false)
+    }
+  }, [])
 
   useEffect(() => {
     supabase.from('profiles').select('*').then(({ data }) => {
@@ -44,7 +71,7 @@ export default function App() {
       const saved = localStorage.getItem('flashcard-profile')
       if (saved) {
         const p = (data || []).find(p => p.id === saved)
-        if (p) { setProfile(p); setScreen('hub') }
+        if (p) { setProfile(p); setScreen('hub'); checkBisouBadge(p) }
       }
     })
   }, [])
@@ -53,9 +80,9 @@ export default function App() {
     setProfile(p)
     localStorage.setItem('flashcard-profile', p.id)
     setScreen('hub')
+    checkBisouBadge(p)
   }
 
-  // Si une app est active, on lui passe le contrôle
   if (activeApp) {
     const app = APPS.find(a => a.id === activeApp)
     const Component = app.component
@@ -75,7 +102,7 @@ export default function App() {
           <div className="w-9" />
         </div>
         <div className="flex-1 overflow-y-auto">
-          <Component profile={profile} />
+          <Component profile={profile} onSeen={activeApp === 'bisou' ? () => setBisouBadge(false) : undefined} />
         </div>
       </div>
     )
@@ -121,7 +148,10 @@ export default function App() {
         <div className="grid grid-cols-2 gap-4">
           {APPS.map(app => (
             <button key={app.id} onClick={() => setActiveApp(app.id)}
-              className="bg-white rounded-2xl p-5 border border-gray-100 text-left shadow-sm active:scale-95 transition-transform">
+              className="bg-white rounded-2xl p-5 border border-gray-100 text-left shadow-sm active:scale-95 transition-transform relative">
+              {app.id === 'bisou' && bisouBadge && (
+                <span className="absolute top-2 right-2 text-lg animate-bounce">💗</span>
+              )}
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl mb-3"
                 style={{ background: app.color + '18' }}>
                 {app.emoji}
