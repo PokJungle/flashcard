@@ -7,19 +7,27 @@ import { ArrowLeft } from 'lucide-react'
 const APPS = [
   {
     id: 'flashcards',
-    name: 'Flashcards',
-    emoji: '🃏',
+    name: 'Mémoire de Singe',
+    emoji: '🐒',
     description: 'Apprendre par répétition espacée',
     color: '#6A9BCC',
     component: Flashcards,
   },
   {
     id: 'meteo',
-    name: 'Météo',
-    emoji: '🌤️',
-    description: 'Météo agrégée pour tes lieux favoris',
+    name: 'Parapluie ou Claquettes ?',
+    emoji: '🌦️',
+    description: 'Météo agrégée multi-modèles',
     color: '#4CAF82',
     component: Meteo,
+  },
+  {
+    id: 'recettes',
+    name: 'Le Grimoire Gourmand',
+    emoji: '📖',
+    description: 'Trouver et sauvegarder des recettes',
+    color: '#E67E22',
+    component: () => <div className="h-full bg-gray-50 flex items-center justify-center"><p className="text-gray-400">Bientôt disponible 🍳</p></div>,
   },
 ]
 
