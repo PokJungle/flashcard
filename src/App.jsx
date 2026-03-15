@@ -1,11 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 import {
   ChevronLeft, ChevronRight, Plus, BookOpen,
-  ArrowLeft, RotateCcw, Sparkles, Upload, X, Check
+  ArrowLeft, RotateCcw, Upload, X, Check, Camera
 } from 'lucide-react'
-
-const proxyImg = url => url ? `/api/proxy?url=${encodeURIComponent(url)}` : null
 
 const THEMES = [
   { id: 'sciences',     label: 'Sciences',        emoji: '🔬', color: '#4CAF82' },
@@ -19,7 +17,29 @@ const THEMES = [
 ]
 const TC = Object.fromEntries(THEMES.map(t => [t.id, t.color]))
 
-// Algorithme répétition espacée simple
+// Compression image avant upload
+async function compressImage(file, maxPx = 800, quality = 0.7) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      canvas.toBlob(blob => {
+        URL.revokeObjectURL(url)
+        resolve(blob)
+      }, 'image/jpeg', quality)
+    }
+    img.src = url
+  })
+}
+
+// Algorithme répétition espacée
 function nextReview(level, rating) {
   const newLevel = rating === 'easy' ? level + 2 : rating === 'medium' ? level + 1 : Math.max(0, level - 1)
   const days = rating === 'easy' ? Math.pow(2, newLevel) : rating === 'medium' ? newLevel + 1 : 0.25
@@ -28,17 +48,24 @@ function nextReview(level, rating) {
   return { newLevel, next }
 }
 
+const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+
 export default function App() {
   const [screen, setScreen] = useState('profiles')
   const [profiles, setProfiles] = useState([])
   const [profile, setProfile] = useState(null)
   const [decks, setDecks] = useState([])
-  const [activeDecks, setActiveDecks] = useState(null) // { deck, cards }
+  const [activeDecks, setActiveDecks] = useState(null)
   const [idx, setIdx] = useState(0)
   const [flipped, setFlipped] = useState(false)
   const [fading, setFading] = useState(false)
-  const [imgError, setImgError] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  // Images
+  const [cardImages, setCardImages] = useState({}) // { card_id: [url, url, ...] }
+  const [currentImgIdx, setCurrentImgIdx] = useState({}) // { card_id: randomIndex }
+  const [uploadingCard, setUploadingCard] = useState(null)
+  const fileInputRef = useRef()
 
   // Curiosités
   const [dailyCards, setDailyCards] = useState([])
@@ -50,11 +77,9 @@ export default function App() {
   const [showUpload, setShowUpload] = useState(false)
   const [uploadStatus, setUploadStatus] = useState(null)
 
-  // Chargement initial
   useEffect(() => {
     supabase.from('profiles').select('*').then(({ data }) => {
       setProfiles(data || [])
-      // Restaurer profil mémorisé
       const saved = localStorage.getItem('flashcard-profile')
       if (saved) {
         const p = (data || []).find(p => p.id === saved)
@@ -63,9 +88,7 @@ export default function App() {
     })
   }, [])
 
-  useEffect(() => {
-    if (profile) loadDecks()
-  }, [profile])
+  useEffect(() => { if (profile) loadDecks() }, [profile])
 
   const loadDecks = async () => {
     const { data } = await supabase.from('decks').select('*').order('created_at')
@@ -78,41 +101,68 @@ export default function App() {
     setScreen('home')
   }
 
-  // Démarrer un jeu thématique
+  // Charger les images d'un set de cartes
+  const loadCardImages = async (cards) => {
+    const ids = cards.map(c => c.id)
+    const { data } = await supabase.from('card_images').select('*').in('card_id', ids)
+    const map = {}
+    const idxMap = {}
+    for (const id of ids) {
+      const imgs = (data || []).filter(i => i.card_id === id).map(i => i.url)
+      map[id] = imgs
+      if (imgs.length > 0) idxMap[id] = Math.floor(Math.random() * imgs.length)
+    }
+    setCardImages(map)
+    setCurrentImgIdx(idxMap)
+  }
+
+  // Upload image pour une carte
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file || !uploadingCard) return
+    try {
+      const blob = await compressImage(file)
+      const path = `${uploadingCard}/${Date.now()}.jpg`
+      const { error } = await supabase.storage.from('card-images').upload(path, blob, { contentType: 'image/jpeg' })
+      if (error) throw error
+      const { data: { publicUrl } } = supabase.storage.from('card-images').getPublicUrl(path)
+      await supabase.from('card_images').insert({ card_id: uploadingCard, url: publicUrl })
+      // Mettre à jour le state local
+      setCardImages(prev => ({
+        ...prev,
+        [uploadingCard]: [...(prev[uploadingCard] || []), publicUrl]
+      }))
+      setCurrentImgIdx(prev => ({ ...prev, [uploadingCard]: (cardImages[uploadingCard] || []).length }))
+    } catch (err) {
+      alert('Erreur upload : ' + err.message)
+    }
+    setUploadingCard(null)
+    e.target.value = ''
+  }
+
   const startDeck = async (deck) => {
     setLoading(true)
     const { data: cards } = await supabase.from('cards').select('*').eq('deck_id', deck.id)
-    // Récupérer la progression
-    const { data: progress } = await supabase
-      .from('card_progress').select('*')
-      .eq('profile_id', profile.id)
-      .in('card_id', cards.map(c => c.id))
-
+    const { data: progress } = await supabase.from('card_progress').select('*')
+      .eq('profile_id', profile.id).in('card_id', cards.map(c => c.id))
     const progressMap = Object.fromEntries((progress || []).map(p => [p.card_id, p]))
     const now = new Date()
-
-    // Cartes dues aujourd'hui
     const due = cards.filter(c => {
       const p = progressMap[c.id]
-      if (!p) return true
-      return new Date(p.next_review) <= now
+      return !p || new Date(p.next_review) <= now
     })
-
-    // Ordre aléatoire
-    const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
     const toStudy = shuffle(due.length > 0 ? due : cards)
-    setActiveDecks({ deck, cards: toStudy, allCards: cards, progressMap })
-    setIdx(0); setFlipped(false); setImgError(false)
+    await loadCardImages(toStudy)
+    setActiveDecks({ deck, cards: toStudy, progressMap })
+    setIdx(0); setFlipped(false)
     setScreen('study')
     setLoading(false)
   }
 
-  // Notation répétition espacée
   const rateCard = async (rating) => {
     const card = activeDecks.cards[idx]
     const existing = activeDecks.progressMap[card.id]
     const { newLevel, next } = nextReview(existing?.level || 0, rating)
-
     if (existing) {
       await supabase.from('card_progress').update({
         level: newLevel, next_review: next.toISOString(), last_reviewed: new Date().toISOString()
@@ -129,30 +179,21 @@ export default function App() {
   const goNext = () => {
     if (idx < activeDecks.cards.length - 1) {
       setFading(true)
-      setTimeout(() => { setFlipped(false); setImgError(false); setIdx(i => i + 1); setFading(false) }, 180)
+      setTimeout(() => { setFlipped(false); setIdx(i => i + 1); setFading(false) }, 180)
     } else {
       setScreen('home')
     }
   }
 
-  // Curiosités du jour
   const startCuriosities = async () => {
     setLoading(true)
-    // 5 curiosités perso
-    const { data: curios } = await supabase
-      .from('curiosities').select('*').eq('profile_id', profile.id).order('created_at', { ascending: false }).limit(20)
-
-    // 5 cartes aléatoires dans les jeux
-    const { data: randomCards } = await supabase
-      .from('cards').select('*').limit(50)
-
-    const shuffledCurios = (curios || []).sort(() => Math.random() - 0.5).slice(0, 5)
-    const shuffledCards = (randomCards || []).sort(() => Math.random() - 0.5).slice(0, 5)
-
-    const mixed = [...shuffledCurios.map(c => ({ front: c.question, back: c.answer, isCuriosity: true })),
-                   ...shuffledCards.map(c => ({ front: c.front, back: c.back }))
+    const { data: curios } = await supabase.from('curiosities').select('*')
+      .eq('profile_id', profile.id).order('created_at', { ascending: false }).limit(20)
+    const { data: randomCards } = await supabase.from('cards').select('*').limit(50)
+    const mixed = [
+      ...shuffle(curios || []).slice(0, 5).map(c => ({ front: c.question, back: c.answer, isCuriosity: true })),
+      ...shuffle(randomCards || []).slice(0, 5).map(c => ({ front: c.front, back: c.back }))
     ].sort(() => Math.random() - 0.5)
-
     setDailyCards(mixed)
     setIdx(0); setFlipped(false)
     setScreen('curiosities')
@@ -165,21 +206,18 @@ export default function App() {
     setNewQ(''); setNewA(''); setShowAddCuriosity(false)
   }
 
-  // Upload JSON
   const handleUploadJSON = async (e) => {
     const file = e.target.files[0]
     if (!file) return
     setUploadStatus('loading')
     try {
-      const text = await file.text()
-      const json = JSON.parse(text)
-      // Insérer le deck
+      const json = JSON.parse(await file.text())
       const { data: deck } = await supabase.from('decks').insert({
         name: json.name, theme: json.theme || 'autre', description: json.description || ''
       }).select().single()
-      // Insérer les cartes
-      const cards = json.cards.map(c => ({ deck_id: deck.id, front: c.front, back: c.back, image_url: c.imageUrl || c.image_url || null }))
-      await supabase.from('cards').insert(cards)
+      await supabase.from('cards').insert(
+        json.cards.map(c => ({ deck_id: deck.id, front: c.front, back: c.back }))
+      )
       await loadDecks()
       setUploadStatus('success')
       setTimeout(() => { setShowUpload(false); setUploadStatus(null) }, 2000)
@@ -225,7 +263,7 @@ export default function App() {
                 className="p-2.5 bg-gray-100 rounded-xl text-gray-600 active:scale-95 transition-transform">
                 <Upload size={18} />
               </button>
-              <button onClick={() => setProfile(null) || setScreen('profiles')}
+              <button onClick={() => { setProfile(null); setScreen('profiles') }}
                 className="p-2.5 bg-gray-100 rounded-xl text-gray-600 active:scale-95 transition-transform">
                 <X size={18} />
               </button>
@@ -234,7 +272,6 @@ export default function App() {
         </div>
 
         <div className="px-5 py-5 max-w-lg mx-auto">
-          {/* Curiosités du jour */}
           <button onClick={startCuriosities}
             className="w-full mb-6 rounded-2xl p-5 text-left text-white active:scale-95 transition-transform shadow-lg"
             style={{ background: 'linear-gradient(135deg, #f093fb, #f5576c)' }}>
@@ -248,7 +285,6 @@ export default function App() {
             </div>
           </button>
 
-          {/* Jeux thématiques */}
           {decks.length === 0 ? (
             <div className="text-center py-16">
               <div className="text-5xl mb-3">🎴</div>
@@ -272,9 +308,7 @@ export default function App() {
                           <p className="font-semibold text-gray-900 text-sm truncate">{deck.name}</p>
                           {deck.description && <p className="text-xs text-gray-400 truncate mt-0.5">{deck.description}</p>}
                         </div>
-                        <div className="text-xs font-semibold flex items-center gap-1 flex-shrink-0" style={{ color: TC[deck.theme] || '#7A7A8A' }}>
-                          <BookOpen size={13} />
-                        </div>
+                        <BookOpen size={15} style={{ color: TC[deck.theme] || '#7A7A8A' }} />
                       </div>
                     </button>
                   ))}
@@ -284,18 +318,18 @@ export default function App() {
           )}
         </div>
 
-        {/* Modal upload */}
+        {/* Modal upload JSON */}
         {showUpload && (
           <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => setShowUpload(false)}>
             <div className="bg-white w-full rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
               <h2 className="font-bold text-lg text-gray-900 mb-2">Importer un jeu</h2>
-              <p className="text-gray-400 text-sm mb-5">Sélectionne un fichier JSON généré par Claude</p>
+              <p className="text-gray-400 text-sm mb-5">Sélectionne un fichier JSON</p>
               {uploadStatus === 'success' ? (
                 <div className="flex items-center gap-2 text-green-600 font-semibold justify-center py-4">
-                  <Check size={20} /> Jeu importé avec succès !
+                  <Check size={20} /> Jeu importé !
                 </div>
               ) : uploadStatus === 'error' ? (
-                <p className="text-red-500 text-center py-4">Erreur — vérifie le format du fichier</p>
+                <p className="text-red-500 text-center py-4">Erreur — vérifie le format</p>
               ) : (
                 <label className="block w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-center text-gray-500 cursor-pointer hover:border-gray-400 transition-colors">
                   <Upload size={24} className="mx-auto mb-2 text-gray-400" />
@@ -310,12 +344,11 @@ export default function App() {
     )
   }
 
-  // ─── STUDY (répétition espacée) ───────────────────────────────────────────
+  // ─── STUDY ────────────────────────────────────────────────────────────────
   if (screen === 'study' && activeDecks) {
     const card = activeDecks.cards[idx]
-    const hasImage = card.image_url && !imgError
-    const imgSrc = proxyImg(card.image_url)
-    const isLast = idx === activeDecks.cards.length - 1
+    const imgs = cardImages[card.id] || []
+    const imgUrl = imgs.length > 0 ? imgs[currentImgIdx[card.id] || 0] : null
 
     return (
       <div className="min-h-screen flex flex-col" style={{ background: `linear-gradient(160deg, ${color}ee, ${color}aa)` }}>
@@ -340,7 +373,8 @@ export default function App() {
             style={{ perspective: '1000px' }}>
             <div onClick={() => setFlipped(f => !f)}
               style={{
-                height: hasImage ? '22rem' : '16rem', cursor: 'pointer',
+                height: imgUrl ? '22rem' : '16rem',
+                cursor: 'pointer',
                 transformStyle: 'preserve-3d',
                 transition: 'transform 0.55s cubic-bezier(.4,0,.2,1)',
                 transform: flipped ? 'rotateX(180deg)' : 'rotateX(0deg)',
@@ -349,11 +383,10 @@ export default function App() {
               {/* Recto */}
               <div className="absolute inset-0 bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col"
                 style={{ backfaceVisibility: 'hidden' }}>
-                {hasImage ? (
+                {imgUrl ? (
                   <>
-                    <img src={imgSrc} alt={card.front} className="flex-1 w-full object-cover"
-                      onError={() => setImgError(true)} />
-                    <div className="px-4 py-3 text-center border-t border-gray-100">
+                    <img src={imgUrl} alt={card.front} className="flex-1 w-full object-cover" />
+                    <div className="px-4 py-3 text-center border-t border-gray-100 flex items-center justify-center gap-3">
                       <p className="text-gray-400 text-xs">Touche pour révéler</p>
                     </div>
                   </>
@@ -369,11 +402,20 @@ export default function App() {
               <div className="absolute inset-0 bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center p-7"
                 style={{ backfaceVisibility: 'hidden', transform: 'rotateX(180deg)' }}>
                 <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color }}>Réponse</p>
-                {hasImage && <p className="text-sm font-semibold text-gray-400 mb-3">{card.front}</p>}
+                {imgUrl && <p className="text-base font-bold text-gray-600 mb-3">{card.front}</p>}
                 <p className="text-lg text-gray-700 text-center leading-relaxed">{card.back}</p>
               </div>
             </div>
           </div>
+
+          {/* Bouton ajout photo */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setUploadingCard(card.id); fileInputRef.current?.click() }}
+            className="mt-4 flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-full text-xs font-medium active:scale-95 transition-transform">
+            <Camera size={14} />
+            {imgs.length > 0 ? `${imgs.length} photo${imgs.length > 1 ? 's' : ''} · Ajouter` : 'Ajouter une photo'}
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
         </div>
 
         {/* Boutons notation */}
@@ -412,12 +454,6 @@ export default function App() {
               </button>
             </div>
           )}
-          {isLast && !flipped && (
-            <button onClick={() => setScreen('home')}
-              className="w-full mt-3 flex items-center justify-center gap-2 py-3 text-white/60 text-sm">
-              <RotateCcw size={14} /> Terminer la session
-            </button>
-          )}
         </div>
       </div>
     )
@@ -453,9 +489,8 @@ export default function App() {
           <div className="flex-1 flex flex-col items-center justify-center text-white text-center px-8">
             <div className="text-5xl mb-4">✨</div>
             <p className="font-bold text-lg mb-2">Aucune curiosité encore</p>
-            <p className="text-white/70 text-sm mb-6">Ajoute ta première curiosité !</p>
             <button onClick={() => setShowAddCuriosity(true)}
-              className="px-6 py-3 bg-white/20 rounded-full font-semibold text-sm">
+              className="px-6 py-3 bg-white/20 rounded-full font-semibold text-sm mt-4">
               + Ajouter une curiosité
             </button>
           </div>
@@ -509,7 +544,6 @@ export default function App() {
           </>
         )}
 
-        {/* Modal ajout curiosité */}
         {showAddCuriosity && (
           <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => setShowAddCuriosity(false)}>
             <div className="bg-white w-full rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
