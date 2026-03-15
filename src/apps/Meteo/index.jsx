@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react'
 import { Search, StarOff, Wind, Droplets, ChevronRight, ArrowLeft, X } from 'lucide-react'
 
-const DEFAULT_CITY = { name: 'Saint-Antonin-sur-Bayon', lat: 43.5308, lon: 5.6078, country: 'FR' }
+// URLs préconfigurées pour certaines villes
+const CITY_URLS = {
+  'Saint-Antonin-sur-Bayon': {
+    meteociel: 'https://www.meteociel.fr/previsions/3548/saint_antonin_sur_bayon.htm',
+    weather24: 'https://meteofrance.com/previsions-meteo-france/saint-antonin-sur-bayon/13100',
+  }
+}
+
+const DEFAULT_CITY = { name: 'Saint-Antonin-sur-Bayon', lat: 43.5308, lon: 5.6078, country: 'FR', isDefault: true }
 
 const ALL_MODELS = [
   { id: 'arome_france',         label: 'AROME',    precision: '1km',   horizon: 2,  color: '#E74C3C', countries: ['FR'] },
@@ -174,9 +182,13 @@ export default function Meteo() {
     return valid.length ? (valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(1) : null
   }
 
+  const cityName = activeCity.name.split(',')[0]
+  const cityUrls = CITY_URLS[cityName] || {}
   const windy = `https://www.windy.com/?${activeCity.lat},${activeCity.lon},12`
-  const meteoCiel = `https://www.meteociel.fr/previsions/${activeCity.name.split(',')[0].toLowerCase().replace(/ /g,'-')}.htm`
-  const weather24 = `https://fr.weather24.com/france/${activeCity.name.split(',')[0].toLowerCase().replace(/ /g,'-')}`
+  const meteoCiel = cityUrls.meteociel || `https://www.google.com/search?q=meteociel+${encodeURIComponent(cityName)}`
+  const weather24 = cityUrls.weather24 || `https://www.google.com/search?q=weather24+${encodeURIComponent(cityName)}`
+  const meteoCielLabel = cityUrls.meteociel ? '🌦️ MétéoCiel' : '🔍 MétéoCiel'
+  const weather24Label = cityUrls.weather24 ? '🇫🇷 Météo France' : '🔍 Weather24'
 
   return (
     <div className="h-full bg-gray-50 overflow-y-auto">
@@ -212,7 +224,7 @@ export default function Meteo() {
               <h2 className="text-lg font-bold text-gray-900">{activeCity.name.split(',')[0]}</h2>
               <p className="text-xs text-gray-400">Modèles adaptés à l'horizon · 7 jours</p>
             </div>
-            {favorites.length > 1 && (
+            {!activeCity.isDefault && favorites.length > 1 && (
               <button onClick={() => removeFavorite(activeCity)} className="p-2 text-gray-300 hover:text-red-400">
                 <StarOff size={18} />
               </button>
@@ -309,7 +321,11 @@ export default function Meteo() {
           {/* Liens externes */}
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Voir aussi</p>
           <div className="grid grid-cols-3 gap-2 mb-6">
-            {[{label:'🌬️ Windy',url:windy},{label:'🌦️ MétéoCiel',url:meteoCiel},{label:'🌡️ Weather24',url:weather24}].map((l,i) => (
+            {[
+              { label: meteoCielLabel, url: meteoCiel },
+              { label: '🌬️ Windy', url: windy },
+              { label: weather24Label, url: weather24 },
+            ].map((l,i) => (
               <a key={i} href={l.url} target="_blank" rel="noopener noreferrer"
                 className="bg-white rounded-xl py-3 text-center text-xs font-semibold text-gray-700 border border-gray-100 shadow-sm">
                 {l.label}
