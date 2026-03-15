@@ -348,7 +348,10 @@ export default function App() {
   if (screen === 'study' && activeDecks) {
     const card = activeDecks.cards[idx]
     const imgs = cardImages[card.id] || []
-    const imgUrl = imgs.length > 0 ? imgs[currentImgIdx[card.id] || 0] : null
+    // Priorité : photos uploadées > image_url Wikipedia
+    const imgUrl = imgs.length > 0
+      ? imgs[currentImgIdx[card.id] || 0]
+      : proxyImg(card.image_url)
 
     return (
       <div className="min-h-screen flex flex-col" style={{ background: `linear-gradient(160deg, ${color}ee, ${color}aa)` }}>
