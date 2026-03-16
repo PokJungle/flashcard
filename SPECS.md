@@ -7,6 +7,28 @@
 
 ---
 
+## 🗂️ Fichiers du projet
+
+| Fichier | URL raw |
+|---------|---------|
+| `src/App.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/App.jsx |
+| `src/supabase.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/supabase.js |
+| `src/apps/Flashcards/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/index.jsx |
+| `src/apps/Flashcards/constants.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/constants.js |
+| `src/apps/Flashcards/hooks/useFlashcards.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/hooks/useFlashcards.js |
+| `src/apps/Flashcards/screens/HomeScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/HomeScreen.jsx |
+| `src/apps/Flashcards/screens/StudyScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/StudyScreen.jsx |
+| `src/apps/Flashcards/screens/CuriositiesScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/CuriositiesScreen.jsx |
+| `src/apps/Flashcards/screens/ManageScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/ManageScreen.jsx |
+| `src/apps/Flashcards/components/FlipCard.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/components/FlipCard.jsx |
+| `src/apps/Flashcards/components/ImageModal.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/components/ImageModal.jsx |
+| `src/apps/Flashcards/components/UploadModal.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/components/UploadModal.jsx |
+| `src/apps/Meteo/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Meteo/index.jsx |
+| `src/apps/Grimoire/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Grimoire/index.jsx |
+| `src/apps/Bisou/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Bisou/index.jsx |
+
+---
+
 ## ✅ Apps existantes
 
 ### 🐒 Mémoire de Singe
@@ -33,7 +55,7 @@
 - Multi-modèles météo (AROME, ICON, ECMWF, GFS, Météo France)
 - Vue 7 jours + heure par heure
 - Favoris multi-villes
-- Filtre heures passées sur le jour courant ✅ *(corrigé)*
+- Filtre heures passées sur le jour courant ✅
 
 **Améliorations prévues**
 - Liens MétéoCiel / Weather24 configurables par ville
@@ -57,17 +79,14 @@
 
 ---
 
-## 🔨 Apps à construire
-
 ### 💌 Bisou
 > Tableau d'humeur partagé entre les deux profils
 
-**Specs**
+**Ce qui marche**
 - Emoji du moment + message optionnel (140 caractères max)
 - Historique des derniers messages
 - Badge 💗 animé sur la tuile du hub si message non lu
-- Badge par profil (chacun son propre last-seen)
-- Pas de notifications push — on voit en ouvrant l'app
+- Badge par profil (chacun son propre last-seen localStorage)
 
 **Table Supabase**
 ```sql
@@ -82,6 +101,8 @@ create table bisou_messages (
 
 ---
 
+## 🔨 Apps à construire
+
 ### 🗞️ Demandez le Programme !
 > Agenda partagé entre les deux profils
 
@@ -91,7 +112,7 @@ create table bisou_messages (
 - Chaque événement : emoji + titre + date + compte à rebours ("dans 3 jours")
 - Événements passés masqués automatiquement
 - Événements proches (≤ 3 jours) mis en avant visuellement
-- Widget sur l'accueil : prochain événement cliquable
+- Widget sur l'accueil du hub : prochain événement cliquable
 
 **Ajouter un événement**
 - Titre + emoji + date + heure (optionnelle) + note (optionnelle)
@@ -102,7 +123,7 @@ create table bisou_messages (
 - Pas de catégories
 - Pas de rappels push
 - Pas de synchronisation Google Calendar
-- Récurrence uniquement annuelle (pas hebdo / mensuel)
+- Récurrence uniquement annuelle
 
 ---
 
@@ -135,8 +156,8 @@ create table bisou_messages (
 **Specs**
 - Liste de tâches commune
 - Chaque profil définit son top 3 de priorité
-- La liste s'affiche triée selon les priorités combinées
-- Une tâche mise en top 3 par les **deux** profils remonte encore plus haut
+- Liste triée selon les priorités combinées
+- Tâche en top 3 des deux profils → remonte encore plus haut
 
 ---
 
@@ -177,34 +198,5 @@ create table bisou_messages (
 **Specs**
 - Proposer et planifier une soirée / activité couple à l'avance
 - Adapté aux casaniers : week-end cosy, soirée canapé
-- Notion d'anticipation (pas "ce soir" mais "ce week-end" / "le mois prochain")
+- Notion d'anticipation (pas "ce soir" mais "ce week-end")
 - *(specs à affiner)*
-
----
-
-## 🗂️ Structure du projet
-
-```
-src/
-├── App.jsx
-├── supabase.js
-├── main.jsx
-└── apps/
-    ├── Flashcards/
-    │   ├── index.jsx
-    │   ├── constants.js
-    │   ├── hooks/useFlashcards.js
-    │   ├── screens/HomeScreen.jsx
-    │   ├── screens/StudyScreen.jsx
-    │   ├── screens/CuriositiesScreen.jsx
-    │   ├── screens/ManageScreen.jsx
-    │   ├── components/FlipCard.jsx
-    │   ├── components/ImageModal.jsx
-    │   └── components/UploadModal.jsx
-    ├── Meteo/
-    │   └── index.jsx
-    ├── Grimoire/
-    │   └── index.jsx
-    └── Bisou/
-        └── index.jsx
-```

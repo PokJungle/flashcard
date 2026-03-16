@@ -1,16 +1,75 @@
-# React + Vite
+# 🏠 Mes Apps
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Plateforme d'applications personnelles pour **Be🐒** et **Princesse chat🚀**.
 
-Currently, two official plugins are available:
+🌐 [flashcard-ten-virid.vercel.app](https://flashcard-ten-virid.vercel.app)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **React + Vite** — UI
+- **Tailwind CSS** — styles
+- **Supabase** — base de données & stockage
+- **Vercel** — déploiement
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Apps
+
+| App | Description | Statut |
+|-----|-------------|--------|
+| 🐒 Mémoire de Singe | Flashcards par répétition espacée | ✅ En ligne |
+| 🌦️ Parapluie ou Claquettes | Météo agrégée multi-modèles | ✅ En ligne |
+| 📖 Le Grimoire Gourmand | Recettes saisonnières via Spoonacular | ✅ En ligne |
+| 💌 Bisou | Messagerie emoji intime entre profils | ✅ En ligne |
+| 🗞️ Demandez le Programme ! | Agenda partagé avec compte à rebours | 🔨 À construire |
+| 🍵 Tisane et Chauffeuse | Films & séries via TMDB | 🔨 À construire |
+| 💥 Mise en Orbite | Sport converti en Props 🚀, défis | 🔨 À construire |
+| 🐌 Ça Traîne | Todo partagée avec priorités croisées | 🔨 À construire |
+| 🎸 Jukebox | Playlist et humeur musicale partagées | 🔨 À construire |
+| 👣 Nos Empreintes | Carte des lieux visités ensemble | 🔨 À construire |
+| 💧 Arrose-moi | Suivi arrosage des plantes intérieur | 🔨 À construire |
+| 🌙 Parenthèse | Planifier une soirée spéciale à l'avance | 🔨 À construire |
+
+> Specs détaillées → [SPECS.md](./SPECS.md)
+
+---
+
+## Structure
+
+```
+src/
+├── App.jsx
+├── supabase.js
+└── apps/
+    ├── Flashcards/
+    │   ├── index.jsx
+    │   ├── constants.js
+    │   ├── hooks/useFlashcards.js
+    │   ├── screens/
+    │   └── components/
+    ├── Meteo/
+    │   └── index.jsx
+    ├── Grimoire/
+    │   └── index.jsx
+    └── Bisou/
+        └── index.jsx
+```
+
+---
+
+## Démarrage local
+
+```bash
+npm install
+npm run dev
+```
+
+Variables d'environnement à créer dans `.env` :
+
+```
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+VITE_SPOONACULAR_API_KEY=...
+```
