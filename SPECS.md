@@ -64,6 +64,7 @@
 **Améliorations prévues**
 - Liens MétéoCiel / Weather24 configurables par ville
 - Vue "résumé de la semaine"
+- Ville par défaut Saint Antonin pour fusée et Fuveau pour Be
 
 ---
 
@@ -91,6 +92,7 @@
 - Historique des derniers messages
 - Badge 💗 animé sur la tuile du hub si message non lu
 - Badge par profil (chacun son propre last-seen localStorage)
+- Widget hub : bouton cœur 💗 clignotant à gauche du widget Programme si message non lu de l'autre profil
 
 **Table Supabase**
 ```sql
@@ -147,6 +149,61 @@ create table programme_events (
 
 ---
 
+### 💥 Mise en Orbite
+> Suivi sportif et défis entre profils
+
+**Ce qui marche**
+- Activités trackées : 🚶 Marche (pas), 🏃 Course (km ou min), 🏋️ Renfo (min ou séances)
+- Conversion en Props 🚀 avec taux configurables par profil
+- Saisie manuelle avec aperçu Props en temps réel
+- Face-à-face Be🐒 vs Princesse🚀 : barres de progression semaine en cours
+- Streak 🔥 : jours consécutifs où l'objectif de Props journalier est atteint
+- Message d'encouragement pour le profil qui est derrière
+- Mission décollage 🚀 : barre de progression fusée commune (objectif 10 000 Props/semaine)
+- Historique des 8 dernières semaines : vainqueur 🏆 + badge DÉCOLLAGE si objectif atteint
+- Réglages : taux de conversion par activité + objectif journalier streak
+- Widget sur le hub : face-à-face mini + barre fusée (visible dès qu'il y a des activités cette semaine)
+
+**Tables Supabase**
+```sql
+create table orbite_activities (
+  id uuid default gen_random_uuid() primary key,
+  profile_id uuid references profiles(id),
+  type text not null,     -- 'walk' | 'run' | 'workout'
+  value numeric not null,
+  unit text not null,     -- 'steps' | 'km' | 'min' | 'sessions'
+  props integer not null,
+  created_at timestamp with time zone default now()
+);
+
+create table orbite_settings (
+  profile_id uuid references profiles(id) primary key,
+  daily_goal integer default 1000,
+  rate_walk numeric default 1,
+  rate_run_km numeric default 1000,
+  rate_run_min numeric default 50,
+  rate_workout_min numeric default 20,
+  rate_workout_sessions numeric default 300
+);
+```
+
+**Fichiers**
+| Fichier | URL raw |
+|---------|---------|
+| `src/apps/Orbite/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/index.jsx |
+| `src/apps/Orbite/hooks/useOrbite.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/hooks/useOrbite.js |
+| `src/apps/Orbite/screens/DashboardScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/DashboardScreen.jsx |
+| `src/apps/Orbite/screens/LogScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/LogScreen.jsx |
+| `src/apps/Orbite/screens/HistoryScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/HistoryScreen.jsx |
+| `src/apps/Orbite/screens/SettingsScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/SettingsScreen.jsx |
+
+**Améliorations prévues**
+- Suppression d'une activité depuis le dashboard
+- Défis ponctuels (objectif commun sur une durée libre)
+- Notifications / rappel streak
+
+---
+
 ## 🔨 Apps à construire
 
 ### 🍵 Tisane et Chauffeuse
@@ -157,18 +214,6 @@ create table programme_events (
 - Recherche via API TMDB (gratuite)
 - Like / dislike par profil pour trouver un film en commun
 - Notes après visionnage
-
----
-
-### 💥 Mise en Orbite
-> Suivi sportif et défis entre profils
-
-**Specs**
-- Les activités sont converties en **Props** (propergol 🚀)
-- Exemples : 1000 pas = 1000 Props, renfo 15 min = x Props
-- Défis Be🐒 vs Princesse chat🚀
-- Classement par jour / semaine / mois
-- Streak
 
 ---
 
