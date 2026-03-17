@@ -110,33 +110,48 @@ create table bisou_messages (
 **Améliorations prévues**
 - La notification est un peu aléatoire
 
+🗞️ Demandez le Programme !
+
+Agenda partagé entre les deux profils
+
+Ce qui marche
+
+Vue liste des événements à venir, triés par date
+Événements passés masqués automatiquement
+Événements proches (≤ 3 jours) mis en avant visuellement (section "🔥 Très bientôt")
+Ajout : emoji + titre + date + heure optionnelle + note optionnelle + récurrence annuelle
+Suppression d'un événement
+Widget hub : prochain événement + compte à rebours cliquable
+Hub condensé 3 colonnes sans sous-texte
+
+Améliorations prévues
+
+Vue mois (calendrier visuel)
+Modifier un événement existant
+Badge sur la tuile hub si événement dans les 3 jours
+
+Table Supabase
+sqlcreate table programme_events (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  emoji text not null default '📅',
+  event_date date not null,
+  event_time time,
+  note text,
+  is_annual boolean default false,
+  created_by uuid references profiles(id),
+  created_at timestamp with time zone default now()
+);
+Ce qu'on n'inclut pas
+
+Pas de catégories
+Pas de rappels push
+Pas de synchronisation Google Calendar
+Récurrence uniquement annuelle
+
 ---
 
 ## 🔨 Apps à construire
-
-### 🗞️ Demandez le Programme !
-> Agenda partagé entre les deux profils
-
-**Specs**
-- Vue liste des événements à venir, triés par date
-- Vue semaine / mois (switch)
-- Chaque événement : emoji + titre + date + compte à rebours ("dans 3 jours")
-- Événements passés masqués automatiquement
-- Événements proches (≤ 3 jours) mis en avant visuellement
-- Widget sur l'accueil du hub : prochain événement cliquable
-
-**Ajouter un événement**
-- Titre + emoji + date + heure (optionnelle) + note (optionnelle)
-- Option récurrence annuelle (pour les anniversaires)
-- Visible par les deux profils
-
-**Ce qu'on n'inclut pas**
-- Pas de catégories
-- Pas de rappels push
-- Pas de synchronisation Google Calendar
-- Récurrence uniquement annuelle
-
----
 
 ### 🍵 Tisane et Chauffeuse
 > Films & séries à regarder ensemble
