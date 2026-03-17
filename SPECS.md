@@ -68,19 +68,22 @@
 
 **Ce qui marche**
 - Inspiration saisonnière via Spoonacular
-- Sauvegarde de recettes
-- Planning semaine
-- Liste de courses avec agrégation (carottes, oignons…)
+- Sauvegarde de recettes (Spoonacular + saisie manuelle)
+- Planning semaine avec popup de sélection directe depuis le jour
+- Bouton ✏️ Modifier accessible depuis la vue recette
+- Liste de courses avec agrégation et exclusion placard configurable
 - Cache sessionStorage 1h (recherches, détails, traductions, titres)
 - Traduction par appels individuels, robuste
-- Boutons suggestions FR, recherche EN sans appel superflu
-- Affichage ingrédients : nom principal + note grise italique (virgule, parenthèses, **)
-- Exclusion placard (huile d'olive, sel, poivre) de la liste de courses
-- Normalisation unités Spoonacular (botanical, cuisine, nom=unité)
+- Affichage ingrédients : nom principal + note grise italique
+
+**Table Supabase**
+- `recipes` : recettes sauvegardées
+- `meal_plan` : planning semaine par profil
+- `grimoire_settings` : paramètres par profil (placard)
 
 **Améliorations prévues**
-- Traduction encore perfectible (termes anglais résiduels type "glugs")
-- Quantités recettes manuelles à saisir pour un meilleur regroupement
+- Traduction encore perfectible (termes anglais résiduels)
+- Agrégation liste de courses perfectible pour recettes manuelles
 
 ---
 
