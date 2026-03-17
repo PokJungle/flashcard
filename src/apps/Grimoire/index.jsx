@@ -432,30 +432,76 @@ export default function Grimoire({ profile }) {
 
   const shoppingList = () => {
     const all = {}
+
+    const PANTRY = ["huile d'olive", 'huile', 'sel', 'poivre', 'sel et poivre', 'olive oil', 'salt', 'pepper']
+    // Unités botaniques/physiques que Spoonacular met dans unit mais qui ne sont pas des mesures
+    const BOTANICAL = ['tige', 'gousse', 'brin', 'feuille', 'tranche', 'morceau', 'bouquet', 'botte']
+    // Unités de cuisine (mesures) — on les ignore pour l'affichage et l'agrégation
+    const KITCHEN_RE = /cuill|tasse|cup|tsp|tbsp/i
+
+    const removeAccents = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+    const stripQty = (str) => str
+      .replace(/^[\d\s\/\-,.]+\s*\b(grammes?|kilos?|kg|millilitres?|ml|centilitres?|cl|d\u00e9cilitres?|dl|litres?|l\b|oz|lb|tsp|tbsp|cups?|tasses?|tiges?|brins?|feuilles?|gousses?|pinc\u00e9es?|cuill\u00e8res?\s+\u00e0\s+soupe|cuill\u00e8res?\s+\u00e0\s+caf\u00e9|cuill\u00e8res?|g\b)\s*(de\s|d'|du\s|des\s)?/i, '')
+      .replace(/^[\d\s\/\-,.]+\s*/, '')
+      .replace(/^ou\s+[\d]+\s*(gr?|kg|ml|cl|l)\s*/i, '')
+      .trim()
+
+    const stripQualifiers = (str) => str
+      .replace(/\s+(de\s+(taille|grande|petite|grosse?|moyen{1,2}e?|bonne?)\s*\w*)\s*$/i, '')
+      .trim()
+
+    const toKey = (str) => removeAccents(stripQualifiers(stripQty(str)).toLowerCase())
+      .replace(/eaux$/, 'eau').replace(/aux$/, 'al').replace(/s$/, '')
+      .trim()
+
     mealPlan.forEach(({ recipe }) => {
       ;(recipe.ingredients || []).forEach(ing => {
-        const displayText = ing.original || ing.name || ''
-        const key = (ing.name || displayText).toLowerCase().trim()
+        const rawText = ing.original || ing.name || ''
+        if (!rawText.trim()) return
+
+        const { main } = parseIngredientDisplay(rawText)
+        const nameOnly = stripQualifiers(stripQty(main))
+        const key = toKey(main)
         if (!key) return
+
+        if (PANTRY.some(p => removeAccents(key).includes(removeAccents(p)))) return
+
+        const amount = parseFloat(ing.amount) || null
+        const rawUnit = (ing.unit || '').toLowerCase().trim()
+
+        // Normaliser l'unité :
+        // - unité = nom de l'ingrédient (Spoonacular bug ex: unit="oignon") → ignorer
+        // - unité botanique (tige, gousse...) → ignorer
+        // - unité de cuisine (cuillères, tasses...) → ignorer + pas de quantité
+        const unitIsName = rawUnit && key.startsWith(rawUnit.replace(/s$/, ''))
+        const isBotanical = BOTANICAL.includes(rawUnit.replace(/s$/, ''))
+        const isKitchen = KITCHEN_RE.test(rawUnit)
+
+        const unit = (unitIsName || isBotanical || isKitchen) ? '' : rawUnit
+        const effectiveAmount = isKitchen ? null : amount
+
         if (all[key]) {
-          if (ing.unit && all[key].unit === ing.unit && ing.amount) {
-            all[key].amount = (parseFloat(all[key].amount) || 0) + parseFloat(ing.amount)
-            all[key].original = all[key].amount + (ing.unit ? ' ' + ing.unit : '') + ' ' + ing.name
+          if (effectiveAmount && all[key].unit === unit) {
+            all[key].amount = (all[key].amount || 0) + effectiveAmount
           }
-          all[key].recipes.push(recipe.title)
+          if (!all[key].recipes.includes(recipe.title)) {
+            all[key].recipes.push(recipe.title)
+          }
         } else {
-          all[key] = { ...ing, amount: parseFloat(ing.amount) || null, original: displayText, recipes: [recipe.title] }
+          const label = nameOnly.charAt(0).toUpperCase() + nameOnly.slice(1)
+          all[key] = { label, amount: effectiveAmount, unit, recipes: [recipe.title] }
         }
       })
     })
-    return Object.values(all).map(ing => ({
-      ...ing,
-      display: ing.original || [
-        ing.amount ? (Number.isInteger(ing.amount) ? ing.amount : ing.amount.toFixed(1)) : null,
-        ing.unit || null,
-        ing.name
-      ].filter(Boolean).join(' ')
-    }))
+
+    return Object.values(all).map(ing => {
+      const qty = ing.amount
+        ? (Number.isInteger(ing.amount) ? ing.amount : parseFloat(ing.amount.toFixed(1)))
+        : null
+      const display = (qty && qty > 1) ? `${qty} ${ing.label}` : ing.label
+      return { ...ing, display }
+    })
   }
 
   const isSaved = (id) => savedRecipes.some(r => r.spoonacular_id === id || r.id === id)
@@ -849,11 +895,9 @@ export default function Grimoire({ profile }) {
                   <p className="text-xs text-gray-400 mb-4">{mealPlan.length} repas · {shoppingList().length} ingrédients</p>
                   <div className="space-y-2">
                     {shoppingList().map((ing, i) => (
-                      <div key={i} className="flex items-start gap-3 py-2 border-b border-gray-50">
-                        <div className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0 mt-1.5" />
-                        <p className="flex-1 text-sm text-gray-800">
-                          <IngredientText text={ing.display || ing.original || ing.name} />
-                        </p>
+                      <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-50">
+                        <div className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
+                        <p className="flex-1 text-sm text-gray-800">{ing.display}</p>
                         <p className="text-xs text-gray-400 flex-shrink-0">{ing.recipes.length > 1 ? `${ing.recipes.length} recettes` : ''}</p>
                       </div>
                     ))}
