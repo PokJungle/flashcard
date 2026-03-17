@@ -71,11 +71,13 @@
 - Sauvegarde de recettes
 - Planning semaine
 - Liste de courses
+- Cache sessionStorage (1h) : recherches, détails, traductions, titres
+- Traduction par appels individuels (plus de chunking), robuste
+- Boutons suggestions en FR, recherche en EN sans appel superflu
+- Affichage ingrédients : partie principale + note grise italique (virgule, parenthèses, **)
 
 **Améliorations prévues**
-- Traduction encore perfectible
 - Agrégation liste de courses à affiner
-- Recettes Spoonacular parfois en anglais
 
 ---
 
@@ -98,6 +100,9 @@ create table bisou_messages (
   created_at timestamp with time zone default now()
 );
 ```
+
+**Améliorations prévues**
+- La notification est un peu aléatoire
 
 ---
 

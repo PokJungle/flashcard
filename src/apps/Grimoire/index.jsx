@@ -3,6 +3,83 @@ import { supabase } from '../../supabase'
 import { ArrowLeft, Search, BookOpen, ShoppingCart, Plus, X, Check, Clock, Users } from 'lucide-react'
 
 const SPOONACULAR_KEY = import.meta.env.VITE_SPOONACULAR_KEY
+const CACHE_PREFIX = 'grimoire_cache_'
+const CACHE_TTL = 60 * 60 * 1000 // 1 heure
+
+// ─── CACHE PERSISTANT (sessionStorage) ────────────────────────────────────────
+
+function cacheGet(key) {
+  try {
+    const raw = sessionStorage.getItem(CACHE_PREFIX + key)
+    if (!raw) return null
+    const { value, ts } = JSON.parse(raw)
+    if (Date.now() - ts > CACHE_TTL) { sessionStorage.removeItem(CACHE_PREFIX + key); return null }
+    return value
+  } catch { return null }
+}
+
+function cacheSet(key, value) {
+  try {
+    sessionStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ value, ts: Date.now() }))
+  } catch {
+    try {
+      const keys = Object.keys(sessionStorage).filter(k => k.startsWith(CACHE_PREFIX))
+      if (keys.length > 0) {
+        sessionStorage.removeItem(keys[0])
+        sessionStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ value, ts: Date.now() }))
+      }
+    } catch { /* tant pis */ }
+  }
+}
+
+// ─── NETTOYAGE INGRÉDIENTS ────────────────────────────────────────────────────
+
+// Découpe un texte d'ingrédient en partie principale + note optionnelle
+// Note = tout ce qui est après la première virgule, entre () ou après **
+function parseIngredientDisplay(text) {
+  if (!text) return { main: '', note: '' }
+
+  let t = text.toLowerCase()
+  let noteParts = []
+
+  // 1. Extraire ce qui suit ** comme note
+  const starIdx = t.indexOf('**')
+  if (starIdx !== -1) {
+    noteParts.push(t.slice(starIdx + 2).trim().replace(/^\*+/, '').trim())
+    t = t.slice(0, starIdx).trim()
+  }
+
+  // 2. Extraire le contenu entre parenthèses comme note
+  const parenMatch = t.match(/^(.*?)\s*\((.+)\)\s*$/)
+  if (parenMatch) {
+    noteParts.push(parenMatch[2].trim())
+    t = parenMatch[1].trim()
+  }
+
+  // 3. Extraire tout ce qui est après la première virgule comme note
+  const commaIdx = t.indexOf(',')
+  if (commaIdx !== -1) {
+    noteParts.push(t.slice(commaIdx + 1).trim())
+    t = t.slice(0, commaIdx).trim()
+  }
+
+  const main = t.charAt(0).toUpperCase() + t.slice(1)
+  const note = noteParts.filter(Boolean).join(' — ')
+  return { main, note }
+}
+
+// Composant d'affichage d'un ingrédient avec note à la ligne en gris italique
+function IngredientText({ text }) {
+  const { main, note } = parseIngredientDisplay(text)
+  return (
+    <span className="flex flex-col">
+      <span>{main}</span>
+      {note && <span className="text-xs text-gray-400 italic leading-snug">{note}</span>}
+    </span>
+  )
+}
+
+// ─── SAISONS ──────────────────────────────────────────────────────────────────
 
 function getCurrentSeason() {
   const now = new Date()
@@ -22,72 +99,108 @@ const SEASON_INGREDIENTS = {
 }
 const SEASON_EMOJIS = { printemps: '🌸', été: '☀️', automne: '🍂', hiver: '❄️' }
 
-async function translateToEn(text) {
+// ─── TRADUCTION ───────────────────────────────────────────────────────────────
+
+// Traduit un texte unique EN→FR (ou FR→EN) avec cache
+async function translateOne(text, langpair = 'en|fr') {
+  if (!text?.trim()) return text
+  const cacheKey = `tr_${langpair}_${text.slice(0, 120)}`
+  const cached = cacheGet(cacheKey)
+  if (cached) return cached
   try {
-    const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=fr|en`)
+    const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langpair}`)
     const d = await r.json()
-    return d.responseData?.translatedText || text
+    const result = d.responseData?.translatedText || text
+    cacheSet(cacheKey, result)
+    return result
   } catch { return text }
 }
 
-async function translateChunk(text) {
-  try {
-    const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|fr`)
-    const d = await r.json()
-    return d.responseData?.translatedText || text
-  } catch { return text }
+// Traduit un tableau de textes en parallèle, par batch pour ne pas spammer l'API
+async function translateBatch(texts, langpair = 'en|fr', batchSize = 4, delayMs = 250) {
+  const results = new Array(texts.length)
+  for (let i = 0; i < texts.length; i += batchSize) {
+    const batch = texts.slice(i, i + batchSize)
+    const translated = await Promise.all(batch.map(t => translateOne(t, langpair)))
+    translated.forEach((t, j) => { results[i + j] = t })
+    if (i + batchSize < texts.length) await new Promise(r => setTimeout(r, delayMs))
+  }
+  return results
 }
 
+// Traduit une recette complète : titre + ingrédients + étapes, chacun individuellement
 async function translateRecipe(recipe) {
-  const SEP_IN = ' <s/> '
-  const SEP_OUT = /<s\s*\/?>/gi
   const ingredients = recipe.extendedIngredients?.map(i => i.original) || []
   const steps = recipe.analyzedInstructions?.[0]?.steps?.map(s => s.step) || []
-  const parts = [recipe.title, ...ingredients, ...steps]
-  const chunks = []
-  let current = ''
-  for (const part of parts) {
-    const candidate = current ? current + SEP_IN + part : part
-    if (candidate.length > 400 && current) { chunks.push(current); current = part }
-    else current = candidate
-  }
-  if (current) chunks.push(current)
-  const translated = []
-  for (const chunk of chunks) {
-    const result = await translateChunk(chunk)
-    translated.push(...result.split(SEP_OUT).map(s => s.trim()))
-    await new Promise(r => setTimeout(r, 200))
-  }
+
+  // Tout en parallèle par batch — chaque texte est traduit séparément, pas de chunking
+  const allTexts = [recipe.title, ...ingredients, ...steps]
+  const allTranslated = await translateBatch(allTexts)
+
   return {
-    title: translated[0] || recipe.title,
-    ingredients: translated.slice(1, 1 + ingredients.length),
-    steps: translated.slice(1 + ingredients.length),
+    title: allTranslated[0] || recipe.title,
+    ingredients: allTranslated.slice(1, 1 + ingredients.length),
+    steps: allTranslated.slice(1 + ingredients.length),
   }
 }
 
-const recipeCache = {}
+async function translateToEn(text) {
+  return translateOne(text, 'fr|en')
+}
+
+// ─── API SPOONACULAR (avec cache persistant) ──────────────────────────────────
 
 async function searchRecipes(query, filters = {}) {
   const key = `search_${query}_${JSON.stringify(filters)}`
-  if (recipeCache[key]) return recipeCache[key]
+  const cached = cacheGet(key)
+  if (cached) return cached
   const params = new URLSearchParams({ apiKey: SPOONACULAR_KEY, query, number: 12 })
   if (filters.vegetarian) params.set('diet', 'vegetarian')
   if (filters.maxTime) params.set('maxReadyTime', filters.maxTime)
   const r = await fetch(`https://api.spoonacular.com/recipes/complexSearch?${params}`)
   const d = await r.json()
   const results = d.results || []
-  recipeCache[key] = results
+  cacheSet(key, results)
   return results
 }
 
 async function getRecipeDetails(id) {
   const key = `detail_${id}`
-  if (recipeCache[key]) return recipeCache[key]
+  const cached = cacheGet(key)
+  if (cached) return cached
   const r = await fetch(`https://api.spoonacular.com/recipes/${id}/information?apiKey=${SPOONACULAR_KEY}&includeNutrition=false`)
   const d = await r.json()
-  recipeCache[key] = d
+  cacheSet(key, d)
   return d
 }
+
+// Détail traduit en cache — évite de re-traduire si on rouvre la même recette
+async function getTranslatedRecipeDetails(id) {
+  const key = `translated_${id}`
+  const cached = cacheGet(key)
+  if (cached) return cached
+
+  const details = await getRecipeDetails(id)
+  const translated = await translateRecipe(details)
+
+  const result = {
+    ...details,
+    title: translated.title,
+    extendedIngredients: (details.extendedIngredients || []).map((ing, i) => ({
+      ...ing,
+      original: translated.ingredients[i] || ing.original,
+    })),
+    analyzedInstructions: [{
+      steps: (translated.steps || []).map((step, i) => ({ step, number: i + 1 })),
+    }],
+    _translated: true,
+  }
+
+  cacheSet(key, result)
+  return result
+}
+
+// ─── PLANNING ─────────────────────────────────────────────────────────────────
 
 function getStartOfWeek() {
   const d = new Date()
@@ -98,6 +211,8 @@ function getStartOfWeek() {
 }
 
 const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+
+// ─── COMPOSANT PRINCIPAL ──────────────────────────────────────────────────────
 
 export default function Grimoire({ profile }) {
   const [tab, setTab] = useState('inspiration')
@@ -112,6 +227,7 @@ export default function Grimoire({ profile }) {
   const [showFilters, setShowFilters] = useState(false)
   const [showShoppingList, setShowShoppingList] = useState(false)
   const [showAddManual, setShowAddManual] = useState(false)
+  const [editingRecipe, setEditingRecipe] = useState(null)
   const [manualRecipe, setManualRecipe] = useState({
     title: '', image_url: '', ready_in_minutes: '', servings: '',
     ingredients: [''], instructions: [''], vegetarian: false
@@ -132,39 +248,42 @@ export default function Grimoire({ profile }) {
     setMealPlan(data?.meals || [])
   }
 
-  const searchSeason = async (forceQuery = null) => {
+  // forceEnQuery : terme déjà en anglais (boutons suggestion), évite un appel translateToEn
+  const searchSeason = async (forceEnQuery = null) => {
     setLoading(true)
     const seasonData = SEASON_INGREDIENTS[season]
-    let q = forceQuery || query.trim()
-    if (!q) q = seasonData.en[Math.floor(Math.random() * seasonData.en.length)]
-    else q = await translateToEn(q)
-    const results = await searchRecipes(q, filters)
-    if (results.length > 0) {
-      const groupSize = 3
-      for (let i = 0; i < results.length; i += groupSize) {
-        const group = results.slice(i, i + groupSize)
-        const combined = group.map((r, j) => `[${j}] ${r.title}`).join(' | ')
-        const translated = await translateChunk(combined)
-        group.forEach((r, j) => {
-          const match = translated.match(new RegExp(`\\[${j}\\]\\s*([^\\[|]+)`))
-          if (match) r.titleFr = match[1].trim().replace(/\s*\|$/, '')
-        })
-        await new Promise(r => setTimeout(r, 200))
-      }
+    let q = forceEnQuery
+    if (!q) {
+      const raw = query.trim()
+      if (!raw) q = seasonData.en[Math.floor(Math.random() * seasonData.en.length)]
+      else q = await translateToEn(raw)
     }
+
+    const results = await searchRecipes(q, filters)
+
+    // Traduction des titres : un appel individuel par titre, par batch de 4
+    if (results.length > 0) {
+      const titles = results.map(r => r.title)
+      const translatedTitles = await translateBatch(titles, 'en|fr', 4, 300)
+      results.forEach((r, i) => { r.titleFr = translatedTitles[i] || r.title })
+    }
+
     setRecipes(results)
     setLoading(false)
   }
 
   const openRecipe = async (recipe) => {
     setLoading(true)
-    const saved = savedRecipes.find(r => r.spoonacular_id === recipe.id || r.id === recipe.id || r.spoonacular_id === recipe.spoonacular_id)
+    // Recette déjà en base → affichage direct, zéro appel API
+    const saved = savedRecipes.find(r =>
+      r.spoonacular_id === recipe.id ||
+      r.id === recipe.id ||
+      r.spoonacular_id === recipe.spoonacular_id
+    )
     if (saved) { setSelectedRecipe({ ...saved, fromDB: true }); setLoading(false); return }
-    const details = await getRecipeDetails(recipe.id || recipe.spoonacular_id)
-    const translated = await translateRecipe(details)
-    details.title = translated.title
-    details.extendedIngredients = (details.extendedIngredients || []).map((ing, i) => ({ ...ing, original: translated.ingredients[i] || ing.original }))
-    details.analyzedInstructions = [{ steps: (translated.steps || []).map((step, i) => ({ step, number: i + 1 })) }]
+
+    // Recette Spoonacular → détails traduits (avec cache)
+    const details = await getTranslatedRecipeDetails(recipe.id || recipe.spoonacular_id)
     setSelectedRecipe(details)
     setLoading(false)
   }
@@ -172,26 +291,48 @@ export default function Grimoire({ profile }) {
   const saveRecipe = async (recipe) => {
     if (savedRecipes.find(r => r.spoonacular_id === recipe.id)) return
     setSaving(true)
-    const translated = await translateRecipe(recipe)
+
+    let title, ingredientsList, stepsList
+
+    if (recipe._translated) {
+      // Déjà traduit via openRecipe — réutilisation directe, zéro appel API
+      title = recipe.title
+      ingredientsList = recipe.extendedIngredients || []
+      stepsList = recipe.analyzedInstructions?.[0]?.steps?.map(s => s.step) || []
+    } else {
+      const translated = await translateRecipe(recipe)
+      title = translated.title
+      ingredientsList = (recipe.extendedIngredients || []).map((ing, i) => ({
+        ...ing,
+        original: translated.ingredients[i] || ing.original,
+      }))
+      stepsList = translated.steps || []
+    }
+
     const { data } = await supabase.from('recipes').insert({
       spoonacular_id: recipe.id,
-      title: translated.title,
+      title,
       image_url: recipe.image,
       ready_in_minutes: recipe.readyInMinutes,
       servings: recipe.servings,
       summary: recipe.summary?.replace(/<[^>]*>/g, '').slice(0, 300),
-      ingredients: (recipe.extendedIngredients || []).map((ing, i) => ({ name: ing.name, amount: ing.amount, unit: ing.unit, original: translated.ingredients[i] || ing.original })),
-      instructions: translated.steps,
+      ingredients: ingredientsList.map(ing => ({
+        name: ing.name,
+        amount: ing.amount,
+        unit: ing.unit,
+        original: ing.original,
+      })),
+      instructions: stepsList,
       tags: [...(recipe.dishTypes || []), ...(recipe.cuisines || [])],
       vegetarian: recipe.vegetarian || false,
       season,
     }).select().single()
+
     setSavedRecipes(prev => [data, ...prev])
     setSaving(false)
   }
 
   const parseIngredient = (text) => {
-    // Format: "2 poireaux" ou "200g farine" ou "2 gros poireaux"
     const match = text.match(/^([\d,.]+)\s*(g|kg|ml|l|cl|dl|oz|lb|tsp|tbsp|cup|pincée|pincee|gousse|tranche|botte|bouquet|branche|feuille|morceau)?\s+(.+)$/i)
     if (match) return {
       amount: parseFloat(match[1].replace(',', '.')),
@@ -199,7 +340,6 @@ export default function Grimoire({ profile }) {
       name: match[3].trim(),
       original: text
     }
-    // Pas de quantité reconnue → tout dans name
     return { amount: null, unit: '', name: text, original: text }
   }
 
@@ -224,8 +364,6 @@ export default function Grimoire({ profile }) {
     setSaving(false)
   }
 
-  const [editingRecipe, setEditingRecipe] = useState(null)
-
   const openEditRecipe = (recipe) => {
     setManualRecipe({
       title: recipe.title || '',
@@ -249,7 +387,6 @@ export default function Grimoire({ profile }) {
       ready_in_minutes: parseInt(manualRecipe.ready_in_minutes) || null,
       servings: parseInt(manualRecipe.servings) || null,
       ingredients: manualRecipe.ingredients.filter(i => i.trim()).map(i => {
-        // Parser le texte pour extraire amount/unit/name
         const match = i.match(/^([\d,.]+)\s*([a-zA-Zéèàùêô]*)\s+(.+)$/)
         if (match) return { amount: parseFloat(match[1].replace(',', '.')), unit: match[2] || '', name: match[3], original: i }
         return { amount: null, unit: '', name: i, original: i }
@@ -264,6 +401,7 @@ export default function Grimoire({ profile }) {
     setManualRecipe({ title: '', image_url: '', ready_in_minutes: '', servings: '', ingredients: [''], instructions: [''], vegetarian: false })
     setSaving(false)
   }
+
   const removeRecipe = async (id) => {
     await supabase.from('recipes').delete().eq('id', id)
     setSavedRecipes(prev => prev.filter(r => r.id !== id))
@@ -286,14 +424,16 @@ export default function Grimoire({ profile }) {
 
   const saveMealPlan = async (meals) => {
     const week = getStartOfWeek()
-    await supabase.from('meal_plan').upsert({ profile_id: profile.id, week_start: week, meals }, { onConflict: 'profile_id,week_start' })
+    await supabase.from('meal_plan').upsert(
+      { profile_id: profile.id, week_start: week, meals },
+      { onConflict: 'profile_id,week_start' }
+    )
   }
 
   const shoppingList = () => {
     const all = {}
     mealPlan.forEach(({ recipe }) => {
       ;(recipe.ingredients || []).forEach(ing => {
-        // Utiliser original comme clé si disponible, sinon name
         const displayText = ing.original || ing.name || ''
         const key = (ing.name || displayText).toLowerCase().trim()
         if (!key) return
@@ -323,7 +463,8 @@ export default function Grimoire({ profile }) {
   // ─── DÉTAIL RECETTE ───────────────────────────────────────────────────────
   if (selectedRecipe) {
     const saved = selectedRecipe.fromDB || isSaved(selectedRecipe.id) || isSaved(selectedRecipe.spoonacular_id)
-    const ingredients = selectedRecipe.ingredients || selectedRecipe.extendedIngredients?.map(i => ({ original: i.original, name: i.name })) || []
+    const ingredients = selectedRecipe.ingredients ||
+      selectedRecipe.extendedIngredients?.map(i => ({ original: i.original, name: i.name })) || []
     const steps = Array.isArray(selectedRecipe.instructions)
       ? selectedRecipe.instructions
       : selectedRecipe.analyzedInstructions?.[0]?.steps?.map(s => s.step) || []
@@ -341,7 +482,7 @@ export default function Grimoire({ profile }) {
           {!saved ? (
             <button onClick={() => saveRecipe(selectedRecipe)} disabled={saving}
               className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-semibold shadow active:scale-95 transition-transform disabled:opacity-50">
-              <BookOpen size={14} /> {saving ? 'Traduction…' : 'Sauvegarder'}
+              <BookOpen size={14} /> {saving ? 'Sauvegarde…' : 'Sauvegarder'}
             </button>
           ) : (
             <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-2 bg-green-500 text-white rounded-full text-xs font-semibold shadow">
@@ -390,9 +531,9 @@ export default function Grimoire({ profile }) {
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Ingrédients</p>
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-2">
                 {ingredients.map((ing, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-gray-700">
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0" />
-                    {ing.original || ing.name}
+                  <div key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0 mt-1.5" />
+                    <IngredientText text={ing.original || ing.name} />
                   </div>
                 ))}
               </div>
@@ -478,12 +619,19 @@ export default function Grimoire({ profile }) {
                 <p className="text-gray-600 font-semibold mb-1">C'est {season} !</p>
                 <p className="text-gray-400 text-sm mb-4">Des idées avec les produits de saison ?</p>
                 <div className="flex flex-wrap gap-2 justify-center mb-5">
-                  {SEASON_INGREDIENTS[season].fr.map((ing, i) => (
-                    <button key={ing} onClick={() => { const e = SEASON_INGREDIENTS[season].en[i]; setQuery(e); searchSeason(e) }}
-                      className="px-3 py-1.5 bg-orange-50 text-orange-600 rounded-full text-xs font-medium border border-orange-100 hover:bg-orange-100 transition-colors">
-                      {ing}
-                    </button>
-                  ))}
+                  {SEASON_INGREDIENTS[season].fr.map((ingFr, i) => {
+                    const ingEn = SEASON_INGREDIENTS[season].en[i]
+                    return (
+                      <button key={ingFr}
+                        onClick={() => {
+                          setQuery(ingFr)       // affiche le FR dans l'input
+                          searchSeason(ingEn)   // cherche avec l'EN sans passer par translateToEn
+                        }}
+                        className="px-3 py-1.5 bg-orange-50 text-orange-600 rounded-full text-xs font-medium border border-orange-100 hover:bg-orange-100 transition-colors">
+                        {ingFr}
+                      </button>
+                    )
+                  })}
                 </div>
                 <button onClick={() => searchSeason()}
                   className="px-6 py-3 bg-orange-500 text-white rounded-full font-semibold text-sm active:scale-95 transition-transform">
@@ -566,7 +714,7 @@ export default function Grimoire({ profile }) {
               </div>
             )}
 
-            {/* Modal ajout manuel */}
+            {/* Modal ajout / édition manuel */}
             {showAddManual && (
               <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => { setShowAddManual(false); setEditingRecipe(null) }}>
                 <div className="bg-white w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -701,10 +849,12 @@ export default function Grimoire({ profile }) {
                   <p className="text-xs text-gray-400 mb-4">{mealPlan.length} repas · {shoppingList().length} ingrédients</p>
                   <div className="space-y-2">
                     {shoppingList().map((ing, i) => (
-                      <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-50">
-                        <div className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
-                        <p className="flex-1 text-sm text-gray-800">{ing.display || ing.original || ing.name}</p>
-                        <p className="text-xs text-gray-400">{ing.recipes.length > 1 ? `${ing.recipes.length} recettes` : ''}</p>
+                      <div key={i} className="flex items-start gap-3 py-2 border-b border-gray-50">
+                        <div className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0 mt-1.5" />
+                        <p className="flex-1 text-sm text-gray-800">
+                          <IngredientText text={ing.display || ing.original || ing.name} />
+                        </p>
+                        <p className="text-xs text-gray-400 flex-shrink-0">{ing.recipes.length > 1 ? `${ing.recipes.length} recettes` : ''}</p>
                       </div>
                     ))}
                   </div>
