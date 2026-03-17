@@ -77,6 +77,19 @@ export default function useProgramme() {
     await fetchEvents()
   }
 
+  const updateEvent = async (id, { title, emoji, event_date, event_time, note, is_annual }) => {
+    const { error } = await supabase.from('programme_events').update({
+      title,
+      emoji: emoji || '📅',
+      event_date,
+      event_time: event_time || null,
+      note: note || null,
+      is_annual: is_annual || false,
+    }).eq('id', id)
+    if (error) throw error
+    await fetchEvents()
+  }
+
   const deleteEvent = async (id) => {
     const { error } = await supabase.from('programme_events').delete().eq('id', id)
     if (error) throw error
@@ -86,5 +99,5 @@ export default function useProgramme() {
   // Prochain événement absolu (pour le widget hub)
   const nextEvent = events[0] || null
 
-  return { events, loading, error, addEvent, deleteEvent, nextEvent, refresh: fetchEvents }
+  return { events, loading, error, addEvent, updateEvent, deleteEvent, nextEvent, refresh: fetchEvents }
 }

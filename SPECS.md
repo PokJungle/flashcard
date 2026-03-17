@@ -26,6 +26,10 @@
 | `src/apps/Meteo/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Meteo/index.jsx |
 | `src/apps/Grimoire/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Grimoire/index.jsx |
 | `src/apps/Bisou/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Bisou/index.jsx |
+| `src/apps/Programme/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Programme/index.jsx |
+| `src/apps/Programme/hooks/useProgramme.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Programme/hooks/useProgramme.js |
+| `src/apps/Programme/screens/HomeScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Programme/screens/HomeScreen.jsx |
+| `src/apps/Programme/screens/AddEventModal.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Programme/screens/AddEventModal.jsx |
 
 ---
 
@@ -68,22 +72,14 @@
 
 **Ce qui marche**
 - Inspiration saisonnière via Spoonacular
-- Sauvegarde de recettes (Spoonacular + saisie manuelle)
-- Planning semaine avec popup de sélection directe depuis le jour
-- Bouton ✏️ Modifier accessible depuis la vue recette
-- Liste de courses avec agrégation et exclusion placard configurable
-- Cache sessionStorage 1h (recherches, détails, traductions, titres)
-- Traduction par appels individuels, robuste
-- Affichage ingrédients : nom principal + note grise italique
-
-**Table Supabase**
-- `recipes` : recettes sauvegardées
-- `meal_plan` : planning semaine par profil
-- `grimoire_settings` : paramètres par profil (placard)
+- Sauvegarde de recettes
+- Planning semaine
+- Liste de courses
 
 **Améliorations prévues**
-- Traduction encore perfectible (termes anglais résiduels)
-- Agrégation liste de courses perfectible pour recettes manuelles
+- Traduction encore perfectible
+- Agrégation liste de courses à affiner
+- Recettes Spoonacular parfois en anglais
 
 ---
 
@@ -107,31 +103,30 @@ create table bisou_messages (
 );
 ```
 
+---
+
+### 🗞️ Demandez le Programme !
+> Agenda partagé entre les deux profils
+
+**Ce qui marche**
+- Vue liste des événements à venir, triés par date
+- Vue mois avec calendrier visuel (navigation mois, pastilles événements, détail au clic)
+- Événements passés masqués automatiquement
+- Événements proches (≤ 3 jours) mis en avant visuellement (section "🔥 Très bientôt")
+- Ajout : emoji + titre + date + heure optionnelle + note optionnelle + récurrence annuelle
+- Suppression d'un événement
+- Widget hub : prochain événement + compte à rebours cliquable
+- Hub condensé 3 colonnes sans sous-texte
+
 **Améliorations prévues**
-- La notification est un peu aléatoire
+- Modifier un événement existant
+- Badge sur la tuile hub si événement dans les 3 jours
+- Afficher l'âge pour les anniversaires (récurrence annuelle)
+- Événements sur plusieurs jours (date de début + date de fin)
 
-🗞️ Demandez le Programme !
-
-Agenda partagé entre les deux profils
-
-Ce qui marche
-
-Vue liste des événements à venir, triés par date
-Événements passés masqués automatiquement
-Événements proches (≤ 3 jours) mis en avant visuellement (section "🔥 Très bientôt")
-Ajout : emoji + titre + date + heure optionnelle + note optionnelle + récurrence annuelle
-Suppression d'un événement
-Widget hub : prochain événement + compte à rebours cliquable
-Hub condensé 3 colonnes sans sous-texte
-
-Améliorations prévues
-
-Vue mois (calendrier visuel)
-Modifier un événement existant
-Badge sur la tuile hub si événement dans les 3 jours
-
-Table Supabase
-sqlcreate table programme_events (
+**Table Supabase**
+```sql
+create table programme_events (
   id uuid default gen_random_uuid() primary key,
   title text not null,
   emoji text not null default '📅',
@@ -142,12 +137,13 @@ sqlcreate table programme_events (
   created_by uuid references profiles(id),
   created_at timestamp with time zone default now()
 );
-Ce qu'on n'inclut pas
+```
 
-Pas de catégories
-Pas de rappels push
-Pas de synchronisation Google Calendar
-Récurrence uniquement annuelle
+**Ce qu'on n'inclut pas**
+- Pas de catégories
+- Pas de rappels push
+- Pas de synchronisation Google Calendar
+- Récurrence uniquement annuelle
 
 ---
 

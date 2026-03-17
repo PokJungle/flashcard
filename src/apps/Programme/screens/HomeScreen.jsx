@@ -1,7 +1,26 @@
 import { useState } from 'react'
-import { Plus, Trash2, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
 import { daysUntil, getNextOccurrence } from '../hooks/useProgramme'
 import AddEventModal from './AddEventModal'
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function getNextOccurrenceLabel(days) {
+  const months = Math.round(days / 30)
+  if (months < 12) return `Dans ~${months} mois`
+  return `Dans ~${Math.round(days / 365)} an(s)`
+}
+
+function formatDate(event) {
+  const next = getNextOccurrence(event)
+  const opts = { day: 'numeric', month: 'long' }
+  if (!event.is_annual) opts.year = 'numeric'
+  let label = next.toLocaleDateString('fr-FR', opts)
+  if (event.event_time) label += ` à ${event.event_time.slice(0, 5)}`
+  return label
+}
+
+// ─── Composants partagés ─────────────────────────────────────────────────────
 
 function CountdownBadge({ days }) {
   if (days === 0) return (
@@ -25,30 +44,9 @@ function CountdownBadge({ days }) {
     </span>
   )
   if (days > 365) return (
-    <span className="text-xs text-gray-400">
-      {getNextOccurrenceLabel(days)}
-    </span>
+    <span className="text-xs text-gray-400">{getNextOccurrenceLabel(days)}</span>
   )
-  return (
-    <span className="text-xs text-gray-400">Dans {days} jours</span>
-  )
-}
-
-function getNextOccurrenceLabel(days) {
-  const months = Math.round(days / 30)
-  if (months < 12) return `Dans ~${months} mois`
-  return `Dans ~${Math.round(days / 365)} an(s)`
-}
-
-function formatDate(event) {
-  const next = getNextOccurrence(event)
-  const opts = { day: 'numeric', month: 'long' }
-  if (!event.is_annual) opts.year = 'numeric'
-  let label = next.toLocaleDateString('fr-FR', opts)
-  if (event.event_time) {
-    label += ` à ${event.event_time.slice(0, 5)}`
-  }
-  return label
+  return <span className="text-xs text-gray-400">Dans {days} jours</span>
 }
 
 function EventCard({ event, onDelete }) {
@@ -58,12 +56,9 @@ function EventCard({ event, onDelete }) {
   return (
     <div className={`bg-white rounded-2xl p-4 border transition-all ${isUrgent ? 'border-amber-200 shadow-amber-50 shadow-md' : 'border-gray-100 shadow-sm'}`}>
       <div className="flex items-start gap-3">
-        {/* Emoji */}
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${isUrgent ? 'bg-amber-50' : 'bg-gray-50'}`}>
           {event.emoji}
         </div>
-
-        {/* Contenu */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -75,7 +70,6 @@ function EventCard({ event, onDelete }) {
               <Trash2 size={14} />
             </button>
           </div>
-
           <div className="flex items-center gap-2 mt-2">
             <CountdownBadge days={days} />
             {event.is_annual && (
@@ -84,7 +78,6 @@ function EventCard({ event, onDelete }) {
               </span>
             )}
           </div>
-
           {event.note && (
             <p className="text-xs text-gray-400 mt-2 italic leading-snug">{event.note}</p>
           )}
@@ -94,55 +87,200 @@ function EventCard({ event, onDelete }) {
   )
 }
 
-export default function HomeScreen({ events, loading, onAdd, onDelete, profile }) {
-  const [showModal, setShowModal] = useState(false)
+// ─── Vue Liste ───────────────────────────────────────────────────────────────
 
-  // Séparer les événements urgents (≤3j) des autres
+function ListView({ events, loading, onDelete }) {
   const urgent = events.filter(e => daysUntil(e) <= 3)
   const upcoming = events.filter(e => daysUntil(e) > 3)
 
-  return (
-    <div className="px-5 py-6 max-w-lg mx-auto pb-24">
+  if (loading) return (
+    <div className="text-center py-20 text-gray-400">
+      <div className="text-4xl mb-3 animate-spin">⏳</div>
+      <p className="text-sm">Chargement…</p>
+    </div>
+  )
 
-      {/* En avant pour bientôt */}
+  if (events.length === 0) return (
+    <div className="text-center py-20 text-gray-400">
+      <div className="text-5xl mb-4">🗓️</div>
+      <p className="font-semibold text-gray-600">Aucun événement</p>
+      <p className="text-sm mt-1">Ajoute votre prochain rendez-vous !</p>
+    </div>
+  )
+
+  return (
+    <div>
       {urgent.length > 0 && (
         <div className="mb-6">
           <p className="text-xs font-bold text-amber-600 uppercase tracking-wide mb-3">🔥 Très bientôt</p>
           <div className="space-y-3">
-            {urgent.map(e => (
-              <EventCard key={e.id} event={e} onDelete={onDelete} />
-            ))}
+            {urgent.map(e => <EventCard key={e.id} event={e} onDelete={onDelete} />)}
           </div>
         </div>
       )}
-
-      {/* À venir */}
       {upcoming.length > 0 && (
         <div className="mb-6">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">À venir</p>
           <div className="space-y-3">
-            {upcoming.map(e => (
-              <EventCard key={e.id} event={e} onDelete={onDelete} />
-            ))}
+            {upcoming.map(e => <EventCard key={e.id} event={e} onDelete={onDelete} />)}
           </div>
         </div>
       )}
+    </div>
+  )
+}
 
-      {/* État vide */}
-      {!loading && events.length === 0 && (
-        <div className="text-center py-20 text-gray-400">
-          <div className="text-5xl mb-4">🗓️</div>
-          <p className="font-semibold text-gray-600">Aucun événement</p>
-          <p className="text-sm mt-1">Ajoute votre prochain rendez-vous !</p>
+// ─── Vue Mois ────────────────────────────────────────────────────────────────
+
+const JOURS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+const MOIS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+
+function MonthView({ events, onDelete }) {
+  const today = new Date()
+  const [year, setYear] = useState(today.getFullYear())
+  const [month, setMonth] = useState(today.getMonth()) // 0-indexed
+  const [selected, setSelected] = useState(null) // date string YYYY-MM-DD
+
+  // Construire la grille du mois
+  const firstDay = new Date(year, month, 1)
+  // Lundi = 0, ..., Dimanche = 6
+  const startOffset = (firstDay.getDay() + 6) % 7
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+  // Map date → events pour ce mois (en tenant compte récurrence annuelle)
+  const eventsByDate = {}
+  events.forEach(e => {
+    const next = getNextOccurrence(e)
+    if (next.getFullYear() === year && next.getMonth() === month) {
+      const key = next.getDate()
+      if (!eventsByDate[key]) eventsByDate[key] = []
+      eventsByDate[key].push(e)
+    }
+  })
+
+  const prevMonth = () => {
+    if (month === 0) { setYear(y => y - 1); setMonth(11) }
+    else setMonth(m => m - 1)
+    setSelected(null)
+  }
+  const nextMonth = () => {
+    if (month === 11) { setYear(y => y + 1); setMonth(0) }
+    else setMonth(m => m + 1)
+    setSelected(null)
+  }
+
+  const todayStr = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`
+
+  // Événements du jour sélectionné
+  const selectedEvents = selected !== null ? (eventsByDate[selected] || []) : []
+
+  // Construire les cellules
+  const cells = []
+  for (let i = 0; i < startOffset; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+
+  return (
+    <div>
+      {/* Navigation mois */}
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={prevMonth}
+          className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-gray-100 shadow-sm active:scale-95 transition-transform">
+          <ChevronLeft size={18} className="text-gray-500" />
+        </button>
+        <p className="font-bold text-gray-900">{MOIS_FR[month]} {year}</p>
+        <button onClick={nextMonth}
+          className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-gray-100 shadow-sm active:scale-95 transition-transform">
+          <ChevronRight size={18} className="text-gray-500" />
+        </button>
+      </div>
+
+      {/* En-têtes jours */}
+      <div className="grid grid-cols-7 mb-1">
+        {JOURS.map((j, i) => (
+          <div key={i} className="text-center text-xs font-bold text-gray-300 py-1">{j}</div>
+        ))}
+      </div>
+
+      {/* Grille */}
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((d, i) => {
+          if (d === null) return <div key={`empty-${i}`} />
+          const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear()
+          const hasEvents = !!eventsByDate[d]
+          const isSelected = selected === d
+          const evts = eventsByDate[d] || []
+          const isUrgent = evts.some(e => daysUntil(e) <= 3)
+
+          return (
+            <button key={d} onClick={() => setSelected(isSelected ? null : d)}
+              className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-medium transition-all active:scale-95
+                ${isSelected ? 'bg-indigo-500 text-white shadow-md' : isToday ? 'bg-indigo-50 text-indigo-600 font-bold' : 'bg-white text-gray-700 border border-gray-100'}
+                ${hasEvents && !isSelected ? 'shadow-sm' : ''}
+              `}>
+              {d}
+              {hasEvents && (
+                <div className={`absolute bottom-1 flex gap-0.5 justify-center`}>
+                  {evts.slice(0, 3).map((e, idx) => (
+                    <div key={idx}
+                      className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white/70' : isUrgent ? 'bg-amber-400' : 'bg-indigo-400'}`} />
+                  ))}
+                </div>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Détail du jour sélectionné */}
+      {selected !== null && (
+        <div className="mt-5">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">
+            {selected} {MOIS_FR[month]}
+          </p>
+          {selectedEvents.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">Aucun événement ce jour</p>
+          ) : (
+            <div className="space-y-3">
+              {selectedEvents.map(e => <EventCard key={e.id} event={e} onDelete={onDelete} />)}
+            </div>
+          )}
         </div>
       )}
 
-      {loading && (
-        <div className="text-center py-20 text-gray-400">
-          <div className="text-4xl mb-3 animate-spin">⏳</div>
-          <p className="text-sm">Chargement…</p>
-        </div>
+      {/* Résumé du mois */}
+      {Object.keys(eventsByDate).length === 0 && (
+        <p className="text-sm text-gray-400 text-center mt-8">Aucun événement ce mois-ci</p>
       )}
+    </div>
+  )
+}
+
+// ─── Shell principal ──────────────────────────────────────────────────────────
+
+export default function HomeScreen({ events, loading, onAdd, onDelete, profile }) {
+  const [showModal, setShowModal] = useState(false)
+  const [view, setView] = useState('list') // 'list' | 'month'
+
+  return (
+    <div className="px-5 py-6 max-w-lg mx-auto pb-24">
+
+      {/* Switch vue */}
+      <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
+        <button onClick={() => setView('list')}
+          className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${view === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}>
+          📋 Liste
+        </button>
+        <button onClick={() => setView('month')}
+          className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${view === 'month' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}>
+          🗓️ Mois
+        </button>
+      </div>
+
+      {view === 'list'
+        ? <ListView events={events} loading={loading} onDelete={onDelete} />
+        : <MonthView events={events} onDelete={onDelete} />
+      }
 
       {/* FAB */}
       <button
