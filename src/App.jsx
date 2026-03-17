@@ -83,7 +83,7 @@ function ProgrammeWidget({ onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left rounded-2xl p-4 border flex items-center gap-3 mb-4 transition-all active:scale-95 ${
+      className={`flex-1 text-left rounded-2xl p-4 border flex items-center gap-3 transition-all active:scale-95 ${
         isUrgent ? 'bg-amber-50 border-amber-200 shadow-sm' : 'bg-white border-gray-100 shadow-sm'
       }`}
     >
@@ -109,6 +109,7 @@ export default function App() {
   const [profile, setProfile] = useState(null)
   const [screen, setScreen] = useState('profiles')
   const [bisouBadge, setBisouBadge] = useState(false)
+  const [programmeHasEvent, setProgrammeHasEvent] = useState(false)
 
   useEffect(() => {
     supabase.from('profiles').select('*').then(({ data }) => {
@@ -139,6 +140,15 @@ export default function App() {
         }
       })
   }, [profile])
+
+  // Savoir si Programme a un événement (pour afficher la ligne widgets)
+  useEffect(() => {
+    supabase
+      .from('programme_events')
+      .select('id')
+      .limit(1)
+      .then(({ data }) => setProgrammeHasEvent(!!(data?.length)))
+  }, [])
 
   const selectProfile = (p) => {
     setProfile(p)
@@ -193,6 +203,9 @@ export default function App() {
   )
 
   // ─── HUB ──────────────────────────────────────────────────────────────────
+  // La ligne widgets s'affiche si Programme a un event OU si badge Bisou
+  const showWidgetRow = programmeHasEvent || bisouBadge
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100 px-5 py-4 sticky top-0 z-10">
@@ -211,8 +224,26 @@ export default function App() {
       </div>
 
       <div className="px-5 py-6 max-w-lg mx-auto">
-        {/* Widget prochain événement */}
-        <ProgrammeWidget onClick={() => setActiveApp('programme')} />
+
+        {/* Ligne widgets : cœur Bisou + Programme côte à côte */}
+        {showWidgetRow && (
+          <div className="flex items-stretch gap-3 mb-4">
+
+            {/* Bouton cœur Bisou — seulement si badge non lu */}
+            {bisouBadge && (
+              <button
+                onClick={() => setActiveApp('bisou')}
+                className="w-14 flex-shrink-0 bg-white border border-pink-200 rounded-2xl flex items-center justify-center shadow-sm active:scale-95 transition-transform"
+              >
+                <span className="text-2xl animate-pulse">💗</span>
+              </button>
+            )}
+
+            {/* Widget Programme */}
+            <ProgrammeWidget onClick={() => setActiveApp('programme')} />
+
+          </div>
+        )}
 
         {/* Grille condensée 3 colonnes */}
         <div className="grid grid-cols-3 gap-3">
@@ -224,7 +255,7 @@ export default function App() {
                 {app.emoji}
               </div>
               <p className="font-semibold text-gray-800 text-xs leading-tight">{app.name}</p>
-              {/* Badge Bisou non-lu */}
+              {/* Pastille Bisou non-lu */}
               {app.id === 'bisou' && bisouBadge && (
                 <span className="absolute top-2 right-2 w-3 h-3 bg-pink-500 rounded-full animate-pulse" />
               )}
