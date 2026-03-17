@@ -159,10 +159,16 @@ create table programme_events (
 - Face-à-face Be🐒 vs Princesse🚀 : barres de progression semaine en cours
 - Streak 🔥 : jours consécutifs où l'objectif de Props journalier est atteint
 - Message d'encouragement pour le profil qui est derrière
-- Mission décollage 🚀 : barre de progression fusée commune (objectif 10 000 Props/semaine)
+- Mission décollage 💥 : barre de progression fusée commune, objectif configurable
 - Historique des 8 dernières semaines : vainqueur 🏆 + badge DÉCOLLAGE si objectif atteint
-- Réglages : taux de conversion par activité + objectif journalier streak
-- Widget sur le hub : face-à-face mini + barre fusée (visible dès qu'il y a des activités cette semaine)
+- Réglages : taux de conversion par activité + objectif journalier + objectif fusée hebdo
+- Widget sur le hub en bas de page : face-à-face mini + barre fusée (visible dès qu'il y a des activités cette semaine)
+
+**Bugs connus / améliorations prévues**
+- Bug saisie dans les paramètres (champ qui perd le focus) → à corriger
+- Widget hub à clarifier visuellement
+- Suppression d'une activité depuis le dashboard
+- Défis ponctuels (objectif commun sur une durée libre)
 
 **Tables Supabase**
 ```sql
@@ -179,11 +185,12 @@ create table orbite_activities (
 create table orbite_settings (
   profile_id uuid references profiles(id) primary key,
   daily_goal integer default 1000,
+  weekly_rocket_target integer default 10000,
   rate_walk numeric default 1,
-  rate_run_km numeric default 1000,
-  rate_run_min numeric default 50,
-  rate_workout_min numeric default 20,
-  rate_workout_sessions numeric default 300
+  rate_run_km numeric default 1750,
+  rate_run_min numeric default 250,
+  rate_workout_min numeric default 150,
+  rate_workout_sessions numeric default 500
 );
 ```
 
@@ -196,11 +203,6 @@ create table orbite_settings (
 | `src/apps/Orbite/screens/LogScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/LogScreen.jsx |
 | `src/apps/Orbite/screens/HistoryScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/HistoryScreen.jsx |
 | `src/apps/Orbite/screens/SettingsScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/SettingsScreen.jsx |
-
-**Améliorations prévues**
-- Suppression d'une activité depuis le dashboard
-- Défis ponctuels (objectif commun sur une durée libre)
-- Notifications / rappel streak
 
 ---
 

@@ -599,14 +599,14 @@ const CSS = `
   .orbite-setting-field-label { font-size: 13px; color: #e8eaf0; }
   .orbite-setting-field-hint { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 2px; }
   .orbite-setting-input {
-    width: 80px;
+    width: 110px;
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 8px;
     padding: 8px 10px;
     color: #ff7a1e;
     font-family: 'Orbitron', monospace;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     text-align: right;
     outline: none;

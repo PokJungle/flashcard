@@ -3,14 +3,13 @@ import { supabase } from '../../../supabase'
 
 const DEFAULT_SETTINGS = {
   daily_goal: 1000,
+  weekly_rocket_target: 10000,
   rate_walk: 1,
-  rate_run_km: 1000,
-  rate_run_min: 50,
-  rate_workout_min: 20,
-  rate_workout_sessions: 300,
+  rate_run_km: 1750,
+  rate_run_min: 250,
+  rate_workout_min: 150,
+  rate_workout_sessions: 500,
 }
-
-const WEEKLY_ROCKET_TARGET = 10000
 
 function getWeekStart(date = new Date()) {
   const d = new Date(date)
@@ -42,11 +41,9 @@ export function useOrbite(profile) {
     if (!profile) return
     setLoading(true)
 
-    // Fetch all profiles
     const { data: profilesData } = await supabase.from('profiles').select('*')
     setAllProfiles(profilesData || [])
 
-    // Fetch this week's activities for ALL profiles
     const { data: acts } = await supabase
       .from('orbite_activities')
       .select('*')
@@ -55,7 +52,6 @@ export function useOrbite(profile) {
       .order('created_at', { ascending: false })
     setActivities(acts || [])
 
-    // Fetch settings for current profile
     const { data: settingsData } = await supabase
       .from('orbite_settings')
       .select('*')
@@ -63,7 +59,7 @@ export function useOrbite(profile) {
       .single()
     if (settingsData) setSettings({ ...DEFAULT_SETTINGS, ...settingsData })
 
-    // Fetch last 8 weeks of history
+    // Historique 8 semaines
     const eightWeeksAgo = new Date(weekStart)
     eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56)
     const { data: histActs } = await supabase
@@ -73,7 +69,8 @@ export function useOrbite(profile) {
       .lt('created_at', weekStart.toISOString())
       .order('created_at', { ascending: false })
 
-    // Build week history
+    const target = settingsData?.weekly_rocket_target ?? DEFAULT_SETTINGS.weekly_rocket_target
+
     const weeks = []
     for (let i = 1; i <= 8; i++) {
       const wStart = new Date(weekStart)
@@ -94,11 +91,10 @@ export function useOrbite(profile) {
         propsByProfile,
         totalProps,
         winner: winner ? winner[0] : null,
-        rocketLaunched: totalProps >= WEEKLY_ROCKET_TARGET,
+        rocketLaunched: totalProps >= target,
       })
     }
     setWeekHistory(weeks)
-
     setLoading(false)
   }, [profile])
 
@@ -126,9 +122,7 @@ export function useOrbite(profile) {
       unit,
       props,
     }).select().single()
-    if (!error) {
-      setActivities(prev => [data, ...prev])
-    }
+    if (!error) setActivities(prev => [data, ...prev])
     return { props, error }
   }, [profile, computeProps])
 
@@ -147,27 +141,26 @@ export function useOrbite(profile) {
     return { error }
   }, [])
 
-  // Compute stats
+  // Stats semaine courante
   const propsByProfile = {}
   activities.forEach(a => {
     propsByProfile[a.profile_id] = (propsByProfile[a.profile_id] || 0) + a.props
   })
-
   const myProps = propsByProfile[profile?.id] || 0
   const totalProps = Object.values(propsByProfile).reduce((s, v) => s + v, 0)
-  const rocketProgress = Math.min(totalProps / WEEKLY_ROCKET_TARGET, 1)
-  const rocketLaunched = totalProps >= WEEKLY_ROCKET_TARGET
+  const weeklyTarget = settings.weekly_rocket_target || DEFAULT_SETTINGS.weekly_rocket_target
+  const rocketProgress = Math.min(totalProps / weeklyTarget, 1)
+  const rocketLaunched = totalProps >= weeklyTarget
 
-  // Streak calculation
+  // Streak
   const computeStreak = useCallback((profileId) => {
-    const profileActivities = activities.filter(a => a.profile_id === profileId)
-    // group by day
     const dayProps = {}
-    profileActivities.forEach(a => {
-      const day = new Date(a.created_at).toDateString()
-      dayProps[day] = (dayProps[day] || 0) + a.props
-    })
-    // Also need historical data for streak — simplified: count from today backwards
+    activities
+      .filter(a => a.profile_id === profileId)
+      .forEach(a => {
+        const day = new Date(a.created_at).toDateString()
+        dayProps[day] = (dayProps[day] || 0) + a.props
+      })
     let streak = 0
     const today = new Date()
     for (let i = 0; i < 30; i++) {
@@ -208,7 +201,7 @@ export function useOrbite(profile) {
     rocketProgress,
     rocketLaunched,
     weekStart,
-    WEEKLY_ROCKET_TARGET,
+    weeklyTarget,
     logActivity,
     saveSettings,
     deleteActivity,

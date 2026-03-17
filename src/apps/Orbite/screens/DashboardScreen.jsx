@@ -6,15 +6,14 @@ const ACTIVITY_LABELS = {
   workout: { emoji: '🏋️', label: 'Renfo', unitLabel: { min: 'min', sessions: 'séances' } },
 }
 
-function RocketLaunch({ progress, launched }) {
+function RocketLaunch({ progress, launched, weeklyTarget }) {
   const pct = Math.round(progress * 100)
-  const flameH = 20 + progress * 40
 
   return (
     <div className="orbite-rocket-container">
       <div className="orbite-rocket-track">
         <div className="orbite-rocket-label">
-          {launched ? '🚀 DÉCOLLAGE !' : `Mission : ${pct}%`}
+          {launched ? '💥 DÉCOLLAGE !' : `Mission : ${pct}%`}
         </div>
         <div className="orbite-rocket-bar-wrap">
           <div className="orbite-rocket-bar-bg">
@@ -22,21 +21,21 @@ function RocketLaunch({ progress, launched }) {
           </div>
           <div
             className={`orbite-rocket-icon ${launched ? 'orbite-rocket-launched' : ''}`}
-            style={{ left: `calc(${pct}% - 14px)` }}
+            style={{ left: `calc(${Math.min(pct, 95)}% - 14px)` }}
           >
-            🚀
+            {launched ? '💥' : '🚀'}
           </div>
         </div>
         <div className="orbite-rocket-targets">
           <span>0</span>
-          <span>Objectif : 10 000 Props</span>
+          <span>Objectif : {(weeklyTarget || 10000).toLocaleString()} Props</span>
         </div>
       </div>
     </div>
   )
 }
 
-function ProfileBar({ profile, props, maxProps, isMe, streak, dailyGoal }) {
+function ProfileBar({ profile, props, maxProps, isMe, streak }) {
   const pct = maxProps > 0 ? Math.round((props / maxProps) * 100) : 0
   const streakOk = streak > 0
 
@@ -62,22 +61,19 @@ function ProfileBar({ profile, props, maxProps, isMe, streak, dailyGoal }) {
 export default function DashboardScreen({ profile, hook, onLog }) {
   const {
     allProfiles, propsByProfile, totalProps, rocketProgress, rocketLaunched,
-    activities, computeStreak, encouragementMessage, settings, weekStart,
+    activities, computeStreak, encouragementMessage, settings, weekStart, weeklyTarget,
   } = hook
 
   const maxProps = Math.max(...allProfiles.map(p => propsByProfile[p.id] || 0), 1)
   const msg = encouragementMessage()
-
   const recentAll = activities.slice(0, 8)
 
   return (
     <div className="orbite-dashboard">
-      {/* Header semaine */}
       <div className="orbite-week-label">
         Semaine du {weekStart.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
       </div>
 
-      {/* Message d'encouragement */}
       {msg && (
         <div className="orbite-encourage">
           <span className="orbite-encourage-icon">⚡</span>
@@ -99,7 +95,6 @@ export default function DashboardScreen({ profile, hook, onLog }) {
                 maxProps={maxProps}
                 isMe={p.id === profile.id}
                 streak={computeStreak(p.id)}
-                dailyGoal={settings.daily_goal}
               />
             ))}
         </div>
@@ -110,8 +105,12 @@ export default function DashboardScreen({ profile, hook, onLog }) {
 
       {/* Fusée */}
       <div className="orbite-section">
-        <div className="orbite-section-title">MISSION DÉCOLLAGE 🚀</div>
-        <RocketLaunch progress={rocketProgress} launched={rocketLaunched} />
+        <div className="orbite-section-title">MISSION DÉCOLLAGE</div>
+        <RocketLaunch
+          progress={rocketProgress}
+          launched={rocketLaunched}
+          weeklyTarget={weeklyTarget}
+        />
       </div>
 
       {/* Activités récentes */}
@@ -124,7 +123,6 @@ export default function DashboardScreen({ profile, hook, onLog }) {
             {recentAll.map(a => {
               const act = ACTIVITY_LABELS[a.type]
               const p = allProfiles.find(x => x.id === a.profile_id)
-              const date = new Date(a.created_at)
               return (
                 <div key={a.id} className="orbite-activity-item">
                   <span className="orbite-activity-emoji">{act?.emoji}</span>
@@ -145,7 +143,6 @@ export default function DashboardScreen({ profile, hook, onLog }) {
         )}
       </div>
 
-      {/* CTA log */}
       <button className="orbite-fab" onClick={onLog}>
         + Logger une activité
       </button>

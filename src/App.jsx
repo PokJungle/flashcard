@@ -160,53 +160,49 @@ function OrbiteWidget({ profile, onClick }) {
       className="w-full text-left rounded-2xl border active:scale-95 transition-all overflow-hidden shadow-sm"
       style={{ background: 'linear-gradient(135deg, #0d1320, #0a0e18)', borderColor: 'rgba(255,122,30,0.2)' }}
     >
-      {/* Header */}
-      <div className="px-4 pt-3 pb-1 flex items-center justify-between">
-        <span className="text-xs font-bold" style={{ fontFamily: 'monospace', color: '#ff7a1e', letterSpacing: '0.1em' }}>
-          💥 MISE EN ORBITE
+      <div className="px-3 py-2 flex items-center gap-3">
+        {/* Label */}
+        <span className="text-xs font-bold flex-shrink-0" style={{ fontFamily: 'monospace', color: '#ff7a1e', letterSpacing: '0.08em' }}>
+          💥
         </span>
-        <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>cette semaine</span>
-      </div>
 
-      {/* Barres face-à-face */}
-      <div className="px-4 pb-2 flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-base w-6 text-center flex-shrink-0">{profile.avatar}</span>
-          <div className="flex-1 h-2 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }}>
-            <div className="h-full rounded-full transition-all" style={{ width: `${myPct}%`, background: 'linear-gradient(90deg, #ff7a1e, #ffb34d)' }} />
-          </div>
-          <span className="text-xs w-16 text-right flex-shrink-0" style={{ fontFamily: 'monospace', color: '#ff7a1e' }}>
-            {data.myProps.toLocaleString()}
-          </span>
-        </div>
-        {data.other && (
-          <div className="flex items-center gap-2">
-            <span className="text-base w-6 text-center flex-shrink-0">{data.other.avatar}</span>
-            <div className="flex-1 h-2 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }}>
-              <div className="h-full rounded-full transition-all" style={{ width: `${otherPct}%`, background: 'linear-gradient(90deg, #4a8cff, #8ab4ff)' }} />
+        {/* Barres face-à-face compactes */}
+        <div className="flex-1 flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm w-5 text-center flex-shrink-0">{profile.avatar}</span>
+            <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }}>
+              <div className="h-full rounded-full" style={{ width: `${myPct}%`, background: 'linear-gradient(90deg, #ff7a1e, #ffb34d)' }} />
             </div>
-            <span className="text-xs w-16 text-right flex-shrink-0" style={{ fontFamily: 'monospace', color: '#8ab4ff' }}>
-              {data.otherProps.toLocaleString()}
+            <span className="text-xs w-14 text-right flex-shrink-0" style={{ fontFamily: 'monospace', color: '#ff7a1e', fontSize: 11 }}>
+              {data.myProps.toLocaleString()}
             </span>
           </div>
-        )}
-      </div>
+          {data.other && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm w-5 text-center flex-shrink-0">{data.other.avatar}</span>
+              <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }}>
+                <div className="h-full rounded-full" style={{ width: `${otherPct}%`, background: 'linear-gradient(90deg, #4a8cff, #8ab4ff)' }} />
+              </div>
+              <span className="text-xs w-14 text-right flex-shrink-0" style={{ fontFamily: 'monospace', color: '#8ab4ff', fontSize: 11 }}>
+                {data.otherProps.toLocaleString()}
+              </span>
+            </div>
+          )}
+        </div>
 
-      {/* Barre fusée mission */}
-      <div className="px-4 pb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xs flex-shrink-0" style={{ color: 'rgba(255,255,255,0.3)' }}>🚀</span>
+        {/* Barre fusée + % */}
+        <div className="flex items-center gap-1.5 flex-shrink-0" style={{ width: 70 }}>
           <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
             <div
               className="h-full rounded-full"
               style={{
                 width: `${data.rocketPct}%`,
                 background: 'linear-gradient(90deg, #ff4500, #ff7a1e)',
-                boxShadow: data.rocketPct > 0 ? '0 0 6px rgba(255,122,30,0.5)' : 'none',
+                boxShadow: data.rocketPct > 0 ? '0 0 4px rgba(255,122,30,0.6)' : 'none',
               }}
             />
           </div>
-          <span className="text-xs flex-shrink-0" style={{ color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace' }}>
+          <span style={{ color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', fontSize: 10 }}>
             {Math.round(data.rocketPct)}%
           </span>
         </div>
@@ -364,11 +360,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Widget Orbite — visible dès qu'il y a des activités cette semaine */}
-        {orbiteHasData && (
-          <OrbiteWidget profile={profile} onClick={() => setActiveApp('orbite')} />
-        )}
-
         {/* Grille 3 colonnes */}
         <div className="grid grid-cols-3 gap-3">
           {APPS.map(app => (
@@ -385,6 +376,11 @@ export default function App() {
             </button>
           ))}
         </div>
+
+        {/* Widget Orbite compact — en bas, visible dès qu'il y a des activités cette semaine */}
+        {orbiteHasData && (
+          <OrbiteWidget profile={profile} onClick={() => setActiveApp('orbite')} />
+        )}
 
       </div>
     </div>
