@@ -69,7 +69,7 @@ const APPS = [
   { id:'orbite',     name:'Mise en Orbite',            emoji:'💥', color:'#FF7A1E', component:Orbite },
 ]
 const HUB_APPS   = APPS.filter(a => a.id !== 'bisou')
-const HUB_LABELS = { flashcards:'Mémoire', meteo:'Météo', recettes:'Grimoire', programme:'Programme', orbite:'Orbite' }
+const HUB_LABELS = { flashcards:'Mémoire de Singe', meteo:'Claquettes ou Parapluie ?', recettes:'Le Grimoire Gourmand', programme:'Demandez le Programme !', orbite:'Mise en Orbite' }
 const APPS_EN_PREP = [
   { emoji:'🍵', name:'Tisane & Chauffeuse' },
   { emoji:'🐌', name:'Ça Traîne' },
