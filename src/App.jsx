@@ -9,48 +9,12 @@ import Orbite from './apps/Orbite/index.jsx'
 import { getNextOccurrence, daysUntil } from './apps/Programme/hooks/useProgramme.js'
 
 const APPS = [
-  {
-    id: 'flashcards',
-    name: 'Mémoire de Singe',
-    emoji: '🐒',
-    color: '#6A9BCC',
-    component: Flashcards,
-  },
-  {
-    id: 'meteo',
-    name: 'Parapluie ou Claquettes ?',
-    emoji: '🌦️',
-    color: '#4CAF82',
-    component: Meteo,
-  },
-  {
-    id: 'recettes',
-    name: 'Le Grimoire Gourmand',
-    emoji: '📖',
-    color: '#E67E22',
-    component: Grimoire,
-  },
-  {
-    id: 'bisou',
-    name: 'Bisou',
-    emoji: '💌',
-    color: '#E91E8C',
-    component: Bisou,
-  },
-  {
-    id: 'programme',
-    name: 'Demandez le Programme !',
-    emoji: '🗞️',
-    color: '#8B5CF6',
-    component: Programme,
-  },
-  {
-    id: 'orbite',
-    name: 'Mise en Orbite',
-    emoji: '💥',
-    color: '#FF7A1E',
-    component: Orbite,
-  },
+  { id: 'flashcards', name: 'Mémoire de Singe',         emoji: '🐒', color: '#6A9BCC', component: Flashcards },
+  { id: 'meteo',      name: 'Parapluie ou Claquettes ?', emoji: '🌦️', color: '#4CAF82', component: Meteo },
+  { id: 'recettes',   name: 'Le Grimoire Gourmand',      emoji: '📖', color: '#E67E22', component: Grimoire },
+  { id: 'bisou',      name: 'Bisou',                     emoji: '💌', color: '#E91E8C', component: Bisou },
+  { id: 'programme',  name: 'Demandez le Programme !',   emoji: '🗞️', color: '#8B5CF6', component: Programme },
+  { id: 'orbite',     name: 'Mise en Orbite',            emoji: '💥', color: '#FF7A1E', component: Orbite },
 ]
 
 // ─── Widget Programme ──────────────────────────────────────────────────────
@@ -59,10 +23,7 @@ function ProgrammeWidget({ onClick }) {
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    supabase
-      .from('programme_events')
-      .select('*')
-      .order('event_date', { ascending: true })
+    supabase.from('programme_events').select('*').order('event_date', { ascending: true })
       .then(({ data }) => {
         if (!data) { setLoaded(true); return }
         const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -78,10 +39,8 @@ function ProgrammeWidget({ onClick }) {
   }, [])
 
   if (!loaded || !nextEvent) return null
-
   const days = daysUntil(nextEvent)
   const isUrgent = days <= 3
-
   let countdownLabel
   if (days === 0) countdownLabel = "Aujourd'hui ! 🎉"
   else if (days === 1) countdownLabel = 'Demain'
@@ -89,12 +48,10 @@ function ProgrammeWidget({ onClick }) {
   else countdownLabel = `Dans ~${Math.round(days / 30)} mois`
 
   return (
-    <button
-      onClick={onClick}
+    <button onClick={onClick}
       className={`flex-1 text-left rounded-2xl p-4 border flex items-center gap-3 transition-all active:scale-95 ${
         isUrgent ? 'bg-amber-50 border-amber-200 shadow-sm' : 'bg-white border-gray-100 shadow-sm'
-      }`}
-    >
+      }`}>
       <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 ${isUrgent ? 'bg-amber-100' : 'bg-violet-50'}`}>
         {nextEvent.emoji}
       </div>
@@ -111,21 +68,19 @@ function ProgrammeWidget({ onClick }) {
   )
 }
 
-// ─── Widget Orbite ─────────────────────────────────────────────────────────
+// ─── Widget Orbite : jauge verticale bicolore ──────────────────────────────
 function OrbiteWidget({ profile, onClick }) {
   const [data, setData] = useState(null)
 
   useEffect(() => {
     if (!profile) return
-
     const now = new Date()
     const day = now.getDay()
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1)
     const weekStart = new Date(now)
-    weekStart.setDate(diff)
+    weekStart.setDate(now.getDate() - day + (day === 0 ? -6 : 1))
     weekStart.setHours(0, 0, 0, 0)
     const weekEnd = new Date(weekStart)
-    weekEnd.setDate(weekEnd.getDate() + 6)
+    weekEnd.setDate(weekStart.getDate() + 6)
     weekEnd.setHours(23, 59, 59, 999)
 
     Promise.all([
@@ -133,9 +88,11 @@ function OrbiteWidget({ profile, onClick }) {
         .gte('created_at', weekStart.toISOString())
         .lte('created_at', weekEnd.toISOString()),
       supabase.from('profiles').select('*'),
-    ]).then(([actsRes, profilesRes]) => {
+      supabase.from('orbite_settings').select('weekly_rocket_target').eq('profile_id', profile.id).maybeSingle(),
+    ]).then(([actsRes, profilesRes, settingsRes]) => {
       const acts = actsRes.data || []
       const profiles = profilesRes.data || []
+      const target = settingsRes.data?.weekly_rocket_target || 10000
       const propsByProfile = {}
       acts.forEach(a => {
         propsByProfile[a.profile_id] = (propsByProfile[a.profile_id] || 0) + a.props
@@ -144,68 +101,87 @@ function OrbiteWidget({ profile, onClick }) {
       const myProps = propsByProfile[profile.id] || 0
       const other = profiles.find(p => p.id !== profile.id)
       const otherProps = other ? (propsByProfile[other.id] || 0) : 0
-      setData({ myProps, otherProps, total, other, rocketPct: Math.min(total / 10000 * 100, 100) })
+      setData({ myProps, otherProps, total, other, target, launched: total >= target })
     })
   }, [profile])
 
   if (!data || (data.myProps === 0 && data.otherProps === 0)) return null
 
-  const maxProps = Math.max(data.myProps, data.otherProps, 1)
-  const myPct = Math.round(data.myProps / maxProps * 100)
-  const otherPct = Math.round(data.otherProps / maxProps * 100)
+  const totalPct = Math.min(data.total / data.target, 1)
+  const myShare = data.total > 0 ? data.myProps / data.total : 0.5
 
   return (
     <button
       onClick={onClick}
-      className="w-full text-left rounded-2xl border active:scale-95 transition-all overflow-hidden shadow-sm"
-      style={{ background: 'linear-gradient(135deg, #0d1320, #0a0e18)', borderColor: 'rgba(255,122,30,0.2)' }}
+      className="active:scale-95 transition-all flex-shrink-0"
+      style={{
+        width: 52,
+        borderRadius: 16,
+        background: 'linear-gradient(180deg, #0d1320, #0a0e18)',
+        border: '1px solid rgba(255,122,30,0.25)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '10px 0 8px',
+        gap: 5,
+        boxShadow: '0 2px 12px rgba(0,0,0,0.25)',
+      }}
     >
-      <div className="px-3 py-2 flex items-center gap-3">
-        {/* Label */}
-        <span className="text-xs font-bold flex-shrink-0" style={{ fontFamily: 'monospace', color: '#ff7a1e', letterSpacing: '0.08em' }}>
-          💥
-        </span>
+      {/* Emoji état */}
+      <span style={{ fontSize: 15 }}>{data.launched ? '💥' : '🚀'}</span>
 
-        {/* Barres face-à-face compactes */}
-        <div className="flex-1 flex flex-col gap-1.5">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm w-5 text-center flex-shrink-0">{profile.avatar}</span>
-            <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }}>
-              <div className="h-full rounded-full" style={{ width: `${myPct}%`, background: 'linear-gradient(90deg, #ff7a1e, #ffb34d)' }} />
-            </div>
-            <span className="text-xs w-14 text-right flex-shrink-0" style={{ fontFamily: 'monospace', color: '#ff7a1e', fontSize: 11 }}>
-              {data.myProps.toLocaleString()}
-            </span>
+      {/* Jauge verticale bicolore */}
+      <div style={{
+        flex: 1,
+        width: 18,
+        borderRadius: 99,
+        background: 'rgba(255,255,255,0.07)',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-end',
+        minHeight: 90,
+      }}>
+        {totalPct > 0 && (
+          <div style={{ width: '100%', height: `${totalPct * 100}%`, display: 'flex', flexDirection: 'column' }}>
+            {/* Orange (moi) — en haut */}
+            <div style={{
+              flex: myShare,
+              background: 'linear-gradient(180deg, #ffb34d, #ff7a1e)',
+            }} />
+            {/* Bleu (autre) — en bas */}
+            {data.other && (
+              <div style={{
+                flex: 1 - myShare,
+                background: 'linear-gradient(180deg, #6aa8ff, #4a8cff)',
+              }} />
+            )}
           </div>
-          {data.other && (
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm w-5 text-center flex-shrink-0">{data.other.avatar}</span>
-              <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }}>
-                <div className="h-full rounded-full" style={{ width: `${otherPct}%`, background: 'linear-gradient(90deg, #4a8cff, #8ab4ff)' }} />
-              </div>
-              <span className="text-xs w-14 text-right flex-shrink-0" style={{ fontFamily: 'monospace', color: '#8ab4ff', fontSize: 11 }}>
-                {data.otherProps.toLocaleString()}
-              </span>
-            </div>
-          )}
-        </div>
+        )}
+      </div>
 
-        {/* Barre fusée + % */}
-        <div className="flex items-center gap-1.5 flex-shrink-0" style={{ width: 70 }}>
-          <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${data.rocketPct}%`,
-                background: 'linear-gradient(90deg, #ff4500, #ff7a1e)',
-                boxShadow: data.rocketPct > 0 ? '0 0 4px rgba(255,122,30,0.6)' : 'none',
-              }}
-            />
-          </div>
-          <span style={{ color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', fontSize: 10 }}>
-            {Math.round(data.rocketPct)}%
-          </span>
+      {/* % */}
+      <span style={{
+        fontFamily: 'monospace',
+        fontSize: 9,
+        fontWeight: 700,
+        color: data.launched ? '#ff7a1e' : 'rgba(255,255,255,0.35)',
+      }}>
+        {Math.round(totalPct * 100)}%
+      </span>
+
+      {/* Avatars + pastille couleur */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff7a1e', flexShrink: 0 }} />
+          <span style={{ fontSize: 11 }}>{profile.avatar}</span>
         </div>
+        {data.other && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4a8cff', flexShrink: 0 }} />
+            <span style={{ fontSize: 11 }}>{data.other.avatar}</span>
+          </div>
+        )}
       </div>
     </button>
   )
@@ -232,42 +208,31 @@ export default function App() {
     })
   }, [])
 
-  // Badge Bisou
   useEffect(() => {
     if (!profile) return
-    supabase
-      .from('bisou_messages')
-      .select('created_at, profile_id')
-      .order('created_at', { ascending: false })
-      .limit(1)
+    supabase.from('bisou_messages').select('created_at, profile_id')
+      .order('created_at', { ascending: false }).limit(1)
       .then(({ data }) => {
         if (!data?.length) return
         const last = data[0]
         if (last.profile_id === profile.id) return
         const seen = localStorage.getItem(`bisou-last-seen-${profile.id}`)
-        if (!seen || new Date(last.created_at) > new Date(seen)) {
-          setBisouBadge(true)
-        }
+        if (!seen || new Date(last.created_at) > new Date(seen)) setBisouBadge(true)
       })
   }, [profile])
 
-  // Programme a-t-il des events ?
   useEffect(() => {
     supabase.from('programme_events').select('id').limit(1)
       .then(({ data }) => setProgrammeHasEvent(!!(data?.length)))
   }, [])
 
-  // Orbite a-t-il des activités cette semaine ?
   useEffect(() => {
     const now = new Date()
     const day = now.getDay()
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1)
     const weekStart = new Date(now)
-    weekStart.setDate(diff)
+    weekStart.setDate(now.getDate() - day + (day === 0 ? -6 : 1))
     weekStart.setHours(0, 0, 0, 0)
-    supabase.from('orbite_activities').select('id')
-      .gte('created_at', weekStart.toISOString())
-      .limit(1)
+    supabase.from('orbite_activities').select('id').gte('created_at', weekStart.toISOString()).limit(1)
       .then(({ data }) => setOrbiteHasData(!!(data?.length)))
   }, [])
 
@@ -283,10 +248,8 @@ export default function App() {
     return (
       <div className="h-screen flex flex-col overflow-hidden">
         <div className="bg-white border-b border-gray-100 px-5 py-3 flex items-center justify-between flex-shrink-0">
-          <button
-            onClick={() => setActiveApp(null)}
-            className="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-xl text-gray-500 hover:text-gray-900 active:scale-95 transition-all"
-          >
+          <button onClick={() => setActiveApp(null)}
+            className="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-xl text-gray-500 hover:text-gray-900 active:scale-95 transition-all">
             🏠
           </button>
           <div className="text-center">
@@ -296,16 +259,12 @@ export default function App() {
           <div className="w-9" />
         </div>
         <div className="flex-1 overflow-y-auto">
-          <Component
-            profile={profile}
-            onSeen={activeApp === 'bisou' ? () => setBisouBadge(false) : undefined}
-          />
+          <Component profile={profile} onSeen={activeApp === 'bisou' ? () => setBisouBadge(false) : undefined} />
         </div>
       </div>
     )
   }
 
-  // ─── PROFILS ──────────────────────────────────────────────────────────────
   if (screen === 'profiles') return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
       <div className="text-5xl mb-4">🏠</div>
@@ -334,10 +293,8 @@ export default function App() {
             <h1 className="text-lg font-bold text-gray-900">🏠 Mes Apps</h1>
             <p className="text-xs text-gray-400">{profile?.avatar} {profile?.name}</p>
           </div>
-          <button
-            onClick={() => { setProfile(null); setScreen('profiles') }}
-            className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
-          >
+          <button onClick={() => { setProfile(null); setScreen('profiles') }}
+            className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
             Changer
           </button>
         </div>
@@ -349,10 +306,8 @@ export default function App() {
         {showWidgetRow && (
           <div className="flex items-stretch gap-3">
             {bisouBadge && (
-              <button
-                onClick={() => setActiveApp('bisou')}
-                className="w-14 flex-shrink-0 bg-white border border-pink-200 rounded-2xl flex items-center justify-center shadow-sm active:scale-95 transition-transform"
-              >
+              <button onClick={() => setActiveApp('bisou')}
+                className="w-14 flex-shrink-0 bg-white border border-pink-200 rounded-2xl flex items-center justify-center shadow-sm active:scale-95 transition-transform">
                 <span className="text-2xl animate-pulse">💗</span>
               </button>
             )}
@@ -360,28 +315,37 @@ export default function App() {
           </div>
         )}
 
-        {/* Grille 3 colonnes */}
-        <div className="grid grid-cols-3 gap-3">
-          {APPS.map(app => (
-            <button key={app.id} onClick={() => setActiveApp(app.id)}
-              className="relative bg-white rounded-2xl p-4 border border-gray-100 text-center shadow-sm active:scale-95 transition-transform flex flex-col items-center gap-2">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl"
-                style={{ background: app.color + '18' }}>
-                {app.emoji}
-              </div>
-              <p className="font-semibold text-gray-800 text-xs leading-tight">{app.name}</p>
-              {app.id === 'bisou' && bisouBadge && (
-                <span className="absolute top-2 right-2 w-3 h-3 bg-pink-500 rounded-full animate-pulse" />
-              )}
-            </button>
-          ))}
+        {/* Grille apps + jauge Orbite en colonne DROITE */}
+        <div className="flex gap-3 items-stretch">
+
+          {/* Grille 2 ou 3 colonnes selon présence jauge */}
+          <div className={`flex-1 grid gap-3 ${orbiteHasData ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            {APPS.map(app => (
+              <button key={app.id} onClick={() => setActiveApp(app.id)}
+                className="relative bg-white rounded-2xl p-4 border border-gray-100 text-center shadow-sm active:scale-95 transition-transform flex flex-col items-center gap-2">
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl"
+                  style={{ background: app.color + '18' }}>
+                  {app.emoji}
+                </div>
+                <p className="font-semibold text-gray-800 text-xs leading-tight">{app.name}</p>
+                {/* Pastille couleur de l'app sous le nom */}
+                <span style={{
+                  width: 16, height: 4, borderRadius: 99,
+                  background: app.color, opacity: 0.5, flexShrink: 0
+                }} />
+                {app.id === 'bisou' && bisouBadge && (
+                  <span className="absolute top-2 right-2 w-3 h-3 bg-pink-500 rounded-full animate-pulse" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Jauge Orbite verticale — colonne droite */}
+          {orbiteHasData && (
+            <OrbiteWidget profile={profile} onClick={() => setActiveApp('orbite')} />
+          )}
+
         </div>
-
-        {/* Widget Orbite compact — en bas, visible dès qu'il y a des activités cette semaine */}
-        {orbiteHasData && (
-          <OrbiteWidget profile={profile} onClick={() => setActiveApp('orbite')} />
-        )}
-
       </div>
     </div>
   )

@@ -162,13 +162,8 @@ create table programme_events (
 - Mission décollage 💥 : barre de progression fusée commune, objectif configurable
 - Historique des 8 dernières semaines : vainqueur 🏆 + badge DÉCOLLAGE si objectif atteint
 - Réglages : taux de conversion par activité + objectif journalier + objectif fusée hebdo
-- Widget sur le hub en bas de page : face-à-face mini + barre fusée (visible dès qu'il y a des activités cette semaine)
-
-**Bugs connus / améliorations prévues**
-- Bug saisie dans les paramètres (champ qui perd le focus) → à corriger
-- Widget hub à clarifier visuellement
-- Suppression d'une activité depuis le dashboard
-- Défis ponctuels (objectif commun sur une durée libre)
+- Widget hub : jauge verticale bicolore (orange 🐒 / bleu 🚀) en colonne droite, cliquable
+- Pastille couleur sous chaque app dans la grille du hub
 
 **Tables Supabase**
 ```sql
@@ -194,9 +189,14 @@ create table orbite_settings (
 );
 ```
 
+**Améliorations prévues**
+- Suppression d'une activité depuis le dashboard
+- Défis ponctuels (objectif commun sur une durée libre)
+
 **Fichiers**
 | Fichier | URL raw |
 |---------|---------|
+| `src/App.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/App.jsx |
 | `src/apps/Orbite/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/index.jsx |
 | `src/apps/Orbite/hooks/useOrbite.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/hooks/useOrbite.js |
 | `src/apps/Orbite/screens/DashboardScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/DashboardScreen.jsx |
