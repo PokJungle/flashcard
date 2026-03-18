@@ -436,7 +436,7 @@ const FETES_SPECIALES = [
   { nom:'Toussaint',          icon:'🕯️' },
   { nom:'Nicolas',            icon:'🎅' },
   { nom:'Lucie',              icon:'🔆' },
-  { nom:'Cyrille',              icon:'😡' },
+  { nom:'Hervé',              icon:'😡' },
   { nom:"Jour de l'an",       icon:'🥂' },
   { nom:'Fête de la musique', icon:'🎵' },
   { nom:'Fête Nationale',     icon:'🎆' },
