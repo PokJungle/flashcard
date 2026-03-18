@@ -94,7 +94,7 @@ function getCountryCode(city) {
   return (city.country_code || city.country || 'XX').toUpperCase()
 }
 
-export default function Meteo() {
+export default function Meteo({ initialCity }) {
   const [favorites, setFavorites] = useState(() => {
     try { return JSON.parse(localStorage.getItem('meteo-fav2') || 'null') || [DEFAULT_CITY] }
     catch { return [DEFAULT_CITY] }
@@ -107,6 +107,18 @@ export default function Meteo() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [searching, setSearching] = useState(false)
+  
+  // Appliquer la ville initiale passée depuis le hub
+	useEffect(() => {
+	  if (!initialCity) return
+	  const match = favorites.find(f => f.lat === initialCity.lat)
+	  if (match) setActiveCity(match)
+	  else {
+		// La ville n'est pas dans les favoris → on l'ajoute temporairement
+		const c = { name: initialCity.name, lat: initialCity.lat, lon: initialCity.lon, country: initialCity.country || 'FR' }
+		setActiveCity(c)
+	  }
+	}, []) // une seule fois au mount
 
   useEffect(() => { localStorage.setItem('meteo-fav2', JSON.stringify(favorites)) }, [favorites])
   useEffect(() => { if (activeCity) loadWeather() }, [activeCity])

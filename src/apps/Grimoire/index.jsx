@@ -171,9 +171,11 @@ const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'D
 const DEFAULT_PANTRY = ["huile d'olive", 'huile', 'sel', 'poivre', 'sel et poivre']
 
 // ─── COMPOSANT PRINCIPAL ──────────────────────────────────────────────────────
+// initialShoppingList : si true, ouvre directement l'onglet Semaine + le modal liste de courses
 
-export default function Grimoire({ profile }) {
-  const [tab, setTab] = useState('inspiration')
+export default function Grimoire({ profile, initialShoppingList }) {
+  // ← MODIF 1 : tab initial
+  const [tab, setTab] = useState(initialShoppingList ? 'semaine' : 'inspiration')
   const [recipes, setRecipes] = useState([])
   const [savedRecipes, setSavedRecipes] = useState([])
   const [mealPlan, setMealPlan] = useState([])
@@ -187,9 +189,7 @@ export default function Grimoire({ profile }) {
   const [showAddManual, setShowAddManual] = useState(false)
   const [editingRecipe, setEditingRecipe] = useState(null)
   const [manualRecipe, setManualRecipe] = useState({ title: '', image_url: '', ready_in_minutes: '', servings: '', ingredients: [''], instructions: [''], vegetarian: false })
-  // Popup planning : quel jour on est en train de choisir
   const [pickingDay, setPickingDay] = useState(null)
-  // Gestion placard
   const [pantry, setPantry] = useState(DEFAULT_PANTRY)
   const [showPantry, setShowPantry] = useState(false)
   const [newPantryItem, setNewPantryItem] = useState('')
@@ -206,6 +206,8 @@ export default function Grimoire({ profile }) {
     const week = getStartOfWeek()
     const { data } = await supabase.from('meal_plan').select('*').eq('profile_id', profile.id).eq('week_start', week).maybeSingle()
     setMealPlan(data?.meals || [])
+    // ← MODIF 2 : ouvrir le modal liste de courses après chargement
+    if (initialShoppingList) setShowShoppingList(true)
   }
 
   const loadPantry = async () => {
@@ -341,7 +343,6 @@ export default function Grimoire({ profile }) {
     }
     await supabase.from('recipes').update(updated).eq('id', editingRecipe.id)
     setSavedRecipes(prev => prev.map(r => r.id === editingRecipe.id ? { ...r, ...updated } : r))
-    // Mettre à jour aussi dans selectedRecipe si c'est la recette ouverte
     if (selectedRecipe?.id === editingRecipe.id) setSelectedRecipe(prev => ({ ...prev, ...updated, fromDB: true }))
     setShowAddManual(false)
     setEditingRecipe(null)
@@ -501,7 +502,7 @@ export default function Grimoire({ profile }) {
     </div>
   )
 
-  // ─── FORMULAIRE RECETTE (réutilisé ajout + modif) ─────────────────────────
+  // ─── FORMULAIRE RECETTE ───────────────────────────────────────────────────
   const RecipeForm = () => (
     <>
       <div className="flex items-center justify-between mb-5">
@@ -570,7 +571,6 @@ export default function Grimoire({ profile }) {
     </>
   )
 
-
   // ─── DÉTAIL RECETTE ───────────────────────────────────────────────────────
   if (selectedRecipe) {
     const saved = selectedRecipe.fromDB || isSaved(selectedRecipe.id) || isSaved(selectedRecipe.spoonacular_id)
@@ -633,7 +633,6 @@ export default function Grimoire({ profile }) {
             )}
             {selectedRecipe.vegetarian && <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">🌿 Végétarien</span>}
           </div>
-
           {saved && (
             <div className="mb-5">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Ajouter au planning</p>
@@ -651,7 +650,6 @@ export default function Grimoire({ profile }) {
               </div>
             </div>
           )}
-
           {ingredients.length > 0 && (
             <div className="mb-5">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Ingrédients</p>
@@ -665,7 +663,6 @@ export default function Grimoire({ profile }) {
               </div>
             </div>
           )}
-
           {steps.length > 0 && (
             <div className="mb-8">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Préparation</p>
@@ -726,7 +723,6 @@ export default function Grimoire({ profile }) {
                 {loading ? '…' : 'Go'}
               </button>
             </div>
-
             {showFilters && (
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm mb-4 flex flex-wrap gap-2">
                 <button onClick={() => setFilters(f => ({ ...f, vegetarian: !f.vegetarian }))}
@@ -741,7 +737,6 @@ export default function Grimoire({ profile }) {
                 ))}
               </div>
             )}
-
             {recipes.length === 0 && !loading && (
               <div className="text-center py-8">
                 <div className="text-4xl mb-3">{SEASON_EMOJIS[season]}</div>
@@ -764,13 +759,11 @@ export default function Grimoire({ profile }) {
                 </button>
               </div>
             )}
-
             {loading && (
               <div className="flex justify-center py-12">
                 <div className="w-8 h-8 rounded-full animate-spin" style={{ border: '3px solid #fed7aa', borderTopColor: '#f97316' }} />
               </div>
             )}
-
             <div className="grid grid-cols-2 gap-3">
               {recipes.map(recipe => (
                 <button key={recipe.id} onClick={() => openRecipe(recipe)}
@@ -801,7 +794,6 @@ export default function Grimoire({ profile }) {
                 <Plus size={13} /> Ajouter
               </button>
             </div>
-
             {savedRecipes.length === 0 ? (
               <div className="text-center py-16">
                 <div className="text-5xl mb-3">📖</div>
@@ -838,7 +830,6 @@ export default function Grimoire({ profile }) {
                 ))}
               </div>
             )}
-
             {showAddManual && (
               <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => { setShowAddManual(false); setEditingRecipe(null) }}>
                 <div className="bg-white w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -904,6 +895,7 @@ export default function Grimoire({ profile }) {
               </div>
             )}
 
+            {/* ─── MODAL LISTE DE COURSES ──────────────────────────────── */}
             {showShoppingList && (
               <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => setShowShoppingList(false)}>
                 <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -911,16 +903,22 @@ export default function Grimoire({ profile }) {
                     <h2 className="font-bold text-lg">🛒 Liste de courses</h2>
                     <button onClick={() => setShowShoppingList(false)}><X size={20} className="text-gray-400" /></button>
                   </div>
-                  <p className="text-xs text-gray-400 mb-4">{mealPlan.length} repas · {shoppingList().length} ingrédients</p>
-                  <div className="space-y-2">
-                    {shoppingList().map((ing, i) => (
-                      <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-50">
-                        <div className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
-                        <p className="flex-1 text-sm text-gray-800">{ing.display}</p>
-                        <p className="text-xs text-gray-400 flex-shrink-0">{ing.recipes.length > 1 ? `${ing.recipes.length} recettes` : ''}</p>
+                  {mealPlan.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-6">Aucun repas planifié cette semaine.</p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-gray-400 mb-4">{mealPlan.length} repas · {shoppingList().length} ingrédients</p>
+                      <div className="space-y-2">
+                        {shoppingList().map((ing, i) => (
+                          <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-50">
+                            <div className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
+                            <p className="flex-1 text-sm text-gray-800">{ing.display}</p>
+                            <p className="text-xs text-gray-400 flex-shrink-0">{ing.recipes.length > 1 ? `${ing.recipes.length} recettes` : ''}</p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}

@@ -30,6 +30,85 @@
 | `src/apps/Programme/hooks/useProgramme.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Programme/hooks/useProgramme.js |
 | `src/apps/Programme/screens/HomeScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Programme/screens/HomeScreen.jsx |
 | `src/apps/Programme/screens/AddEventModal.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Programme/screens/AddEventModal.jsx |
+| `src/apps/Orbite/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/index.jsx |
+| `src/apps/Orbite/hooks/useOrbite.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/hooks/useOrbite.js |
+| `src/apps/Orbite/screens/DashboardScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/DashboardScreen.jsx |
+| `src/apps/Orbite/screens/LogScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/LogScreen.jsx |
+| `src/apps/Orbite/screens/HistoryScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/HistoryScreen.jsx |
+| `src/apps/Orbite/screens/SettingsScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/SettingsScreen.jsx |
+
+---
+
+## 🏠 Hub BBP — App.jsx
+
+### Layout
+
+```
+DayHeader (centré, max-w-lg)
+─────────────────────────────────────────────
+[ Météo 170px ] [ Bisou flex-1          ] | Orbite 64px
+[ 🛒 48px     ] [ Agenda flex-1         ] | (toute hauteur)
+─────────────────────────────────────────────
+Grille apps 4 colonnes (sans Bisou)
+En préparation (grid 2 cols)
+```
+
+### DayHeader
+- Greeting selon l'heure (Bonjour / Bonne après-midi / Bonsoir / Bonne nuit) + avatar profil
+- Date complète en français, centré, `max-w-lg mx-auto px-3`
+- Fête du jour : calendrier statique 366 jours intégré (pas d'API externe)
+- **Fêtes normales** : texte 10px discret `#c4b5fd`, sans emoji
+- **Fêtes spéciales** : bannière fond doré `linear-gradient(135deg,#b45309,#d97706,#f59e0b)`, texte blanc 15px, 36 confettis animés CSS, pas de sous-titre
+
+**Fêtes spéciales** (dans `FETES_SPECIALES`, facile à étendre) :
+```js
+{ nom:'Marie',              icon:'❤️‍🔥' }  // 15 août
+{ nom:'Benoît',             icon:'🐵' }   // 11 juillet
+{ nom:'Patrick',            icon:'🍀' }   // 17 mars
+{ nom:'Joseph',             icon:'🍷' }   // 19 mars
+{ nom:'Valentin',           icon:'💝' }   // 14 février
+{ nom:'Noël',               icon:'🎄' }   // 25 décembre
+{ nom:'Toussaint',          icon:'🕯️' }   // 1er novembre
+{ nom:'Nicolas',            icon:'🎅' }   // 6 décembre
+{ nom:'Lucie',              icon:'🔆' }   // 13 décembre
+{ nom:'Hervé',              icon:'😡' }   // 17 juin
+{ nom:"Jour de l'an",       icon:'🥂' }   // 1er janvier
+{ nom:'Fête de la musique', icon:'🎵' }   // 21 juin
+{ nom:'Fête Nationale',     icon:'🎆' }   // 14 juillet
+{ nom:'Fête du Travail',    icon:'💮' }   // 1er mai
+{ nom:'Victoire 45',        icon:'🕊️' }   // 8 mai
+{ nom:'Armistice',          icon:'🕊️' }   // 11 novembre
+{ nom:'Pâques',             icon:'🥚' }   // mobile — 2026=5/4, 2027=28/3 ⚠️ à maj chaque année
+```
+
+### MeteoWidget (170px)
+- Fond `#4f3ea0`, cercle déco `w-40 h-40 -top-14 -right-14`
+- Icône WMO 48px, température moyenne 34px, min/max colorés, pluie + vent
+- Conseil parapluie/claquettes : icône 22px + texte (seuil vent 40 km/h)
+- `<span>` pour "Changer ›" (pas `<button>` — évite imbrication invalide)
+- Ville par profil : `localStorage bbp-meteo-city-{profileId}` → fallback `meteo-fav2` → `DEFAULT_METEO_CITY`
+
+**Messages conseil** (tous sur thème parapluie/claquettes, voir code pour liste complète)
+
+### BisouWidget
+- Dernier message de l'AUTRE profil
+- Emoji seul → emoji 38px centré ; avec texte → emoji 22px + from + 3 lignes
+- Pastille 💗 si message non lu
+
+### CoursesWidget (48px, alignSelf stretch)
+- Fond post-it `#fef9c3`, point orange si items dans meal_plan semaine
+- Clic → `openApp('recettes', { initialShoppingList: true })`
+
+### AgendaWidget
+- Prochain événement `programme_events`, gère `is_annual`
+- Compte à rebours urgent (≤3j) en amber
+
+### OrbiteWidget (64px, toute hauteur)
+- Fond dark, jauge verticale bicolore orange/bleu
+- Affiché uniquement si données semaine en cours
+
+### CityPicker (modal)
+- Favoris `meteo-fav2` + sauvegarde `bbp-meteo-city-{profileId}`
 
 ---
 
@@ -64,7 +143,7 @@
 **Améliorations prévues**
 - Liens MétéoCiel / Weather24 configurables par ville
 - Vue "résumé de la semaine"
-- Ville par défaut Saint Antonin pour fusée et Fuveau pour Be
+- Ville par défaut Saint Antonin pour Princesse🚀 et Fuveau pour Be🐒
 
 ---
 
@@ -73,13 +152,15 @@
 
 **Ce qui marche**
 - Inspiration saisonnière via Spoonacular
-- Sauvegarde de recettes
-- Planning semaine
-- Liste de courses
+- Sauvegarde de recettes (manuelles ou Spoonacular)
+- Planning semaine avec PickRecipeModal
+- Liste de courses intelligente (placard, déduplification)
+- Gestion placard (`grimoire_settings` Supabase)
+- Cache sessionStorage pour les traductions
+- Prop `initialShoppingList` : ouvre directement l'onglet Semaine + modal courses
 
 **Améliorations prévues**
 - Traduction encore perfectible
-- Agrégation liste de courses à affiner
 - Recettes Spoonacular parfois en anglais
 
 ---
@@ -92,7 +173,6 @@
 - Historique des derniers messages
 - Badge 💗 animé sur la tuile du hub si message non lu
 - Badge par profil (chacun son propre last-seen localStorage)
-- Widget hub : bouton cœur 💗 clignotant à gauche du widget Programme si message non lu de l'autre profil
 
 **Table Supabase**
 ```sql
@@ -118,13 +198,12 @@ create table bisou_messages (
 - Ajout : emoji + titre + date + heure optionnelle + note optionnelle + récurrence annuelle
 - Suppression d'un événement
 - Widget hub : prochain événement + compte à rebours cliquable
-- Hub condensé 3 colonnes sans sous-texte
 
 **Améliorations prévues**
 - Modifier un événement existant
 - Badge sur la tuile hub si événement dans les 3 jours
 - Afficher l'âge pour les anniversaires (récurrence annuelle)
-- Événements sur plusieurs jours (date de début + date de fin)
+- Événements sur plusieurs jours
 
 **Table Supabase**
 ```sql
@@ -142,9 +221,7 @@ create table programme_events (
 ```
 
 **Ce qu'on n'inclut pas**
-- Pas de catégories
-- Pas de rappels push
-- Pas de synchronisation Google Calendar
+- Pas de catégories, pas de rappels push, pas de sync Google Calendar
 - Récurrence uniquement annuelle
 
 ---
@@ -163,16 +240,15 @@ create table programme_events (
 - Historique des 8 dernières semaines : vainqueur 🏆 + badge DÉCOLLAGE si objectif atteint
 - Réglages : taux de conversion par activité + objectif journalier + objectif fusée hebdo
 - Widget hub : jauge verticale bicolore (orange 🐒 / bleu 🚀) en colonne droite, cliquable
-- Pastille couleur sous chaque app dans la grille du hub
 
 **Tables Supabase**
 ```sql
 create table orbite_activities (
   id uuid default gen_random_uuid() primary key,
   profile_id uuid references profiles(id),
-  type text not null,     -- 'walk' | 'run' | 'workout'
+  type text not null,
   value numeric not null,
-  unit text not null,     -- 'steps' | 'km' | 'min' | 'sessions'
+  unit text not null,
   props integer not null,
   created_at timestamp with time zone default now()
 );
@@ -193,17 +269,6 @@ create table orbite_settings (
 - Suppression d'une activité depuis le dashboard
 - Défis ponctuels (objectif commun sur une durée libre)
 
-**Fichiers**
-| Fichier | URL raw |
-|---------|---------|
-| `src/App.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/App.jsx |
-| `src/apps/Orbite/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/index.jsx |
-| `src/apps/Orbite/hooks/useOrbite.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/hooks/useOrbite.js |
-| `src/apps/Orbite/screens/DashboardScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/DashboardScreen.jsx |
-| `src/apps/Orbite/screens/LogScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/LogScreen.jsx |
-| `src/apps/Orbite/screens/HistoryScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/HistoryScreen.jsx |
-| `src/apps/Orbite/screens/SettingsScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/SettingsScreen.jsx |
-
 ---
 
 ## 🔨 Apps à construire
@@ -211,7 +276,6 @@ create table orbite_settings (
 ### 🍵 Tisane et Chauffeuse
 > Films & séries à regarder ensemble
 
-**Specs**
 - Liste commune "à voir" + "déjà vu"
 - Recherche via API TMDB (gratuite)
 - Like / dislike par profil pour trouver un film en commun
@@ -222,7 +286,6 @@ create table orbite_settings (
 ### 🐌 Ça Traîne
 > Todo partagée avec priorités croisées
 
-**Specs**
 - Liste de tâches commune
 - Chaque profil définit son top 3 de priorité
 - Liste triée selon les priorités combinées
@@ -233,7 +296,6 @@ create table orbite_settings (
 ### 🎸 Jukebox
 > Morceaux partagés et humeur musicale
 
-**Specs**
 - Ajouter des morceaux à une liste commune
 - Humeur musicale du moment (tag / emoji)
 - *(specs à affiner)*
@@ -243,7 +305,6 @@ create table orbite_settings (
 ### 👣 Nos Empreintes
 > Carte des lieux visités ensemble
 
-**Specs**
 - Carte interactive des endroits visités en couple
 - Ajouter un lieu avec nom, date, note
 - *(specs à affiner)*
@@ -253,7 +314,6 @@ create table orbite_settings (
 ### 💧 Arrose-moi
 > Suivi arrosage des plantes intérieur
 
-**Specs**
 - Liste des plantes de la maison
 - Date du dernier arrosage + fréquence
 - Indicateur "à arroser bientôt"
@@ -264,7 +324,6 @@ create table orbite_settings (
 ### 🌙 Parenthèse
 > Planifier une soirée ou activité spéciale à l'avance
 
-**Specs**
 - Proposer et planifier une soirée / activité couple à l'avance
 - Adapté aux casaniers : week-end cosy, soirée canapé
 - Notion d'anticipation (pas "ce soir" mais "ce week-end")
