@@ -69,7 +69,7 @@ const APPS = [
   { id:'orbite',     name:'Mise en Orbite',            emoji:'💥', color:'#FF7A1E', component:Orbite },
 ]
 const HUB_APPS   = APPS.filter(a => a.id !== 'bisou')
-const HUB_LABELS = { flashcards:'Mémoire de Singe', meteo:'Claquettes ou Parapluie ?', recettes:'Le Grimoire Gourmand', programme:'Demandez le Programme !', orbite:'Mise en Orbite' }
+const HUB_LABELS = { flashcards:'Mémoire', meteo:'Météo', recettes:'Grimoire', programme:'Programme', orbite:'Orbite' }
 const APPS_EN_PREP = [
   { emoji:'🍵', name:'Tisane & Chauffeuse' },
   { emoji:'🐌', name:'Ça Traîne' },
@@ -237,7 +237,7 @@ function BisouWidget({ profile, hasBadge, onClick }) {
 
   return (
     <button onClick={onClick}
-      className="relative bg-white rounded-2xl p-2.5 text-left active:scale-95 transition-all overflow-hidden w-full h-full flex flex-col"
+      className="relative bg-white rounded-2xl p-2.5 text-left active:scale-95 transition-all overflow-hidden flex-1 flex flex-col"
       style={{ border:'0.5px solid #fce7f3' }}>
       {hasBadge && (
         <span className="absolute top-2 right-2 text-[13px] leading-none z-10">💗</span>
@@ -328,7 +328,7 @@ function AgendaWidget({ onClick }) {
 
   return (
     <button onClick={onClick}
-      className="flex-1 bg-white rounded-2xl p-3 text-left active:scale-95 transition-all"
+      className="w-full bg-white rounded-2xl p-3 text-left active:scale-95 transition-all"
       style={{ border:'0.5px solid #ede9fe' }}>
       <p className="text-[11px] mb-1.5" style={{ color:'#c4b5fd' }}>Prochain événement</p>
       <div className="flex items-center gap-2">
@@ -732,26 +732,24 @@ export default function App() {
 
       <div className="px-3 pt-1.5 pb-8 max-w-lg mx-auto">
 
+        {/* Ligne 1 : Agenda pleine largeur */}
+        <div className="mb-2">
+          <AgendaWidget onClick={() => openApp('programme')} />
+        </div>
+
+        {/* Ligne 2 : Météo | Bisou | Orbite — mêmes proportions */}
         <div className="flex gap-2 items-stretch mb-2">
-          <div className="flex-1 flex flex-col gap-2 min-w-0">
-
-            <div className="flex gap-2 items-stretch">
-              <MeteoWidget key={meteoKey} profileId={profile?.id}
-                onOpenCityPicker={() => setShowCityPicker(true)} onClick={openMeteo} />
-              <BisouWidget profile={profile} hasBadge={bisouBadge}
-                onClick={() => openApp('bisou')} />
-            </div>
-
-            <div className="flex gap-2 items-stretch">
-              <CoursesWidget profileId={profile?.id}
-                onClick={() => openApp('recettes', { initialShoppingList: true })} />
-              <AgendaWidget onClick={() => openApp('programme')} />
-            </div>
-
-          </div>
-
+          <MeteoWidget key={meteoKey} profileId={profile?.id}
+            onOpenCityPicker={() => setShowCityPicker(true)} onClick={openMeteo} />
+          <BisouWidget profile={profile} hasBadge={bisouBadge}
+            onClick={() => openApp('bisou')} />
           <OrbiteWidget profile={profile} onClick={() => openApp('orbite')} />
         </div>
+
+        {/* CoursesWidget masqué — décommenter pour réafficher
+        <CoursesWidget profileId={profile?.id}
+          onClick={() => openApp('recettes', { initialShoppingList: true })} />
+        */}
 
         <p className="text-[11px] uppercase tracking-widest mt-3 mb-2" style={{ color:'#a78bfa' }}>
           Applications
