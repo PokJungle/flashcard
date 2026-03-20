@@ -15,14 +15,13 @@
 | `src/supabase.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/supabase.js |
 | `src/apps/Flashcards/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/index.jsx |
 | `src/apps/Flashcards/constants.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/constants.js |
-| `src/apps/Flashcards/hooks/useFlashcards.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/hooks/useFlashcards.js |
-| `src/apps/Flashcards/screens/HomeScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/HomeScreen.jsx |
+| `src/apps/Flashcards/utils.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/utils.js |
+| `src/apps/Flashcards/hooks/useMemoire.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/hooks/useMemoire.js |
+| `src/apps/Flashcards/hooks/useStudySession.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/hooks/useStudySession.js |
+| `src/apps/Flashcards/screens/HomeMemoire.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/HomeMemoire.jsx |
 | `src/apps/Flashcards/screens/StudyScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/StudyScreen.jsx |
-| `src/apps/Flashcards/screens/CuriositiesScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/CuriositiesScreen.jsx |
-| `src/apps/Flashcards/screens/ManageScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/ManageScreen.jsx |
-| `src/apps/Flashcards/components/FlipCard.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/components/FlipCard.jsx |
-| `src/apps/Flashcards/components/ImageModal.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/components/ImageModal.jsx |
-| `src/apps/Flashcards/components/UploadModal.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/components/UploadModal.jsx |
+| `src/apps/Flashcards/screens/SessionEnd.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/SessionEnd.jsx |
+| `src/apps/Flashcards/screens/ManageDeck.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/ManageDeck.jsx |
 | `src/apps/Meteo/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Meteo/index.jsx |
 | `src/apps/Grimoire/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Grimoire/index.jsx |
 | `src/apps/Bisou/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Bisou/index.jsx |
@@ -115,19 +114,52 @@ En préparation (grid 2 cols)
 ## ✅ Apps existantes
 
 ### 🐒 Mémoire de Singe
-> Révision par répétition espacée
+> Révision par répétition espacée multi-critères
+
+**Architecture (v2 — refonte mars 2026)**
+```
+src/apps/Flashcards/
+  index.jsx                    ← routing + bottom nav + import JSON
+  constants.js                 ← THEMES, TABS, SCREENS
+  utils.js                     ← compressImage
+  hooks/
+    useMemoire.js              ← chargement decks + comptage dues
+    useStudySession.js         ← algo répétition espacée par critère
+  screens/
+    HomeMemoire.jsx            ← accueil onglet Mémoire
+    StudyScreen.jsx            ← révision multi-critères
+    SessionEnd.jsx             ← fin de session avec stats
+    ManageDeck.jsx             ← gestion deck + critères + cartes
+```
 
 **Ce qui marche**
-- Répétition espacée (algorithme niveau + next_review)
-- Curiosités du jour (mix perso + thématique)
-- Images uploadables par carte
-- Multi-profils
+- Bottom nav 🧠 Mémoire / ⚡ Quiz (placeholder) avec badge rouge "dues"
+- Bannière globale "X critères à réviser" sur l'accueil
+- Badge "dues" par deck
+- Répétition espacée **par critère** — chaque (carte × critère) a son propre niveau
+- Algo priorité : en retard → jamais vu → niveau bas (pas de shuffle pur)
+- Multi-critères : une carte peut avoir N critères (texte ou image)
+- Chaque critère a un `question_title` configurable et un flag `interrogeable`
+- Critères `interrogeable = false` → affichés en réponse uniquement, jamais en question
+- Carte swap (fade) avec réponses scrollables si texte long
+- Upload image par critère + URL + lien Wikipédia
+- Gestion deck : édition infos, critères (CRUD + toggle interrogeable), cartes (CRUD)
+- Import JSON format classique (`front`/`back`) et nouveau format (`criteria`/`values`)
+- Écran fin de session : stats facile/moyen/difficile + barre de répartition
 
-**Améliorations prévues**
-- Multi-critères par carte (nom / drapeau / capitale)
-- Stats de progression par jeu
-- Indicateur cartes dues sur l'accueil
-- Gestion curiosités (modifier / supprimer)
+**Tables Supabase**
+- `deck_criteria` : critères par deck (name, type, question_title, position, interrogeable)
+- `card_values` : valeurs par (carte × critère)
+- `card_progress` : modifiée — `criterion_id` ajouté pour progression par critère
+- `quiz_questions` : migration de `curiosities` (profile_id, question, answer, theme)
+
+**Notes RLS**
+- `deck_criteria`, `card_values`, `quiz_questions` : RLS désactivé (app privée 2 profils)
+- `card_progress` : RLS actif, filtré par `profile_id`
+
+**À faire**
+- Onglet ⚡ Quiz : HomeQuiz + QCM + ManageQuestions
+- Barre de progression par deck sur HomeMemoire
 
 ---
 
