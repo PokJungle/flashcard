@@ -66,32 +66,27 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
   // ── Critères ───────────────────────────────────────────────
   const openNewCriterion = () => {
     setEditingCriterion({ id: null })
-    setCriterionForm({ name: '', type: 'text', question_title: '', interrogeable: true })
+    setCriterionForm({ name: '', type: 'text', question_title: '', interrogeable: true, quiz_answer_criterion_id: '' })
   }
 
   const openEditCriterion = (c) => {
     setEditingCriterion(c)
-    setCriterionForm({ name: c.name, type: c.type, question_title: c.question_title, interrogeable: c.interrogeable !== false })
+    setCriterionForm({ name: c.name, type: c.type, question_title: c.question_title, interrogeable: c.interrogeable !== false, quiz_answer_criterion_id: c.quiz_answer_criterion_id || '' })
   }
 
   const saveCriterion = async () => {
     if (!criterionForm.name.trim()) return
+    const critData = {
+      name: criterionForm.name.trim(),
+      type: criterionForm.type,
+      question_title: criterionForm.question_title.trim(),
+      interrogeable: criterionForm.interrogeable,
+      quiz_answer_criterion_id: criterionForm.quiz_answer_criterion_id || null,
+    }
     if (editingCriterion?.id) {
-      await supabase.from('deck_criteria').update({
-        name: criterionForm.name.trim(),
-        type: criterionForm.type,
-        question_title: criterionForm.question_title.trim(),
-        interrogeable: criterionForm.interrogeable,
-      }).eq('id', editingCriterion.id)
+      await supabase.from('deck_criteria').update(critData).eq('id', editingCriterion.id)
     } else {
-      await supabase.from('deck_criteria').insert({
-        deck_id: deck.id,
-        name: criterionForm.name.trim(),
-        type: criterionForm.type,
-        question_title: criterionForm.question_title.trim(),
-        interrogeable: criterionForm.interrogeable,
-        position: criteria.length,
-      })
+      await supabase.from('deck_criteria').insert({ deck_id: deck.id, position: criteria.length, ...critData })
     }
     setEditingCriterion(null)
     await load()
@@ -124,7 +119,7 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
       let cardId = editingCard?.id
 
       if (!cardId) {
-        const { data } = await supabase.from('cards').insert({ deck_id: deck.id }).select().single()
+        const { data } = await supabase.from('cards').insert({ deck_id: deck.id, front: '', back: '' }).select().single()
         cardId = data.id
       }
 
@@ -283,6 +278,7 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
                     onChange={setCriterionForm}
                     onSave={saveCriterion}
                     onCancel={() => setEditingCriterion(null)}
+                    allCriteria={criteria}
                   />
                 )}
               </div>
@@ -296,6 +292,7 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
                   onChange={setCriterionForm}
                   onSave={saveCriterion}
                   onCancel={() => setEditingCriterion(null)}
+                  allCriteria={criteria}
                   isNew
                 />
               </div>
@@ -391,7 +388,8 @@ function Section({ title, isOpen, onToggle, action, children }) {
 }
 
 // ── Formulaire critère ─────────────────────────────────────
-function CriterionForm({ form, onChange, onSave, onCancel, isNew }) {
+function CriterionForm({ form, onChange, onSave, onCancel, isNew, allCriteria = [] }) {
+  const otherCriteria = allCriteria.filter(c => c.name !== form.name)
   return (
     <div className="px-3 pb-3 pt-2 space-y-2 border-t border-gray-50">
       <div className="flex gap-2">
@@ -415,6 +413,20 @@ function CriterionForm({ form, onChange, onSave, onCancel, isNew }) {
         placeholder="Question posée (ex: Quel est ce pays ?)"
         className="w-full text-sm px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-gray-400"
       />
+      {form.interrogeable && otherCriteria.length > 0 && (
+        <div>
+          <label className="text-xs text-gray-400 block mb-1">Réponse attendue en Quiz</label>
+          <select
+            value={form.quiz_answer_criterion_id || ''}
+            onChange={e => onChange(p => ({ ...p, quiz_answer_criterion_id: e.target.value || null }))}
+            className="w-full text-sm px-3 py-2 rounded-xl border border-gray-200 focus:outline-none bg-white">
+            <option value="">— Non configuré —</option>
+            {otherCriteria.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
         <input
           type="checkbox"

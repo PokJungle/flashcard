@@ -18,10 +18,15 @@
 | `src/apps/Flashcards/utils.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/utils.js |
 | `src/apps/Flashcards/hooks/useMemoire.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/hooks/useMemoire.js |
 | `src/apps/Flashcards/hooks/useStudySession.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/hooks/useStudySession.js |
+| `src/apps/Flashcards/hooks/useQuiz.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/hooks/useQuiz.js |
 | `src/apps/Flashcards/screens/HomeMemoire.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/HomeMemoire.jsx |
 | `src/apps/Flashcards/screens/StudyScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/StudyScreen.jsx |
 | `src/apps/Flashcards/screens/SessionEnd.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/SessionEnd.jsx |
 | `src/apps/Flashcards/screens/ManageDeck.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/ManageDeck.jsx |
+| `src/apps/Flashcards/screens/HomeQuiz.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/HomeQuiz.jsx |
+| `src/apps/Flashcards/screens/QuizScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/QuizScreen.jsx |
+| `src/apps/Flashcards/screens/QuizEnd.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/QuizEnd.jsx |
+| `src/apps/Flashcards/screens/ManageQuestions.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/screens/ManageQuestions.jsx |
 | `src/apps/Meteo/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Meteo/index.jsx |
 | `src/apps/Grimoire/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Grimoire/index.jsx |
 | `src/apps/Bisou/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Bisou/index.jsx |
@@ -119,47 +124,61 @@ En préparation (grid 2 cols)
 **Architecture (v2 — refonte mars 2026)**
 ```
 src/apps/Flashcards/
-  index.jsx                    ← routing + bottom nav + import JSON
-  constants.js                 ← THEMES, TABS, SCREENS
-  utils.js                     ← compressImage
+  index.jsx          ← routing + bottom nav + import JSON + création deck
+  constants.js       ← THEMES, TABS, SCREENS, QUIZ_SOURCES_KEY
+  utils.js           ← compressImage
   hooks/
-    useMemoire.js              ← chargement decks + comptage dues
-    useStudySession.js         ← algo répétition espacée par critère
+    useMemoire.js    ← chargement decks + dues + progression par critère
+    useStudySession.js ← algo répétition espacée par critère
+    useQuiz.js       ← session QCM Duo/Carré/Cash
   screens/
-    HomeMemoire.jsx            ← accueil onglet Mémoire
-    StudyScreen.jsx            ← révision multi-critères
-    SessionEnd.jsx             ← fin de session avec stats
-    ManageDeck.jsx             ← gestion deck + critères + cartes
+    HomeMemoire.jsx  ← accueil + filtre par profil + créer deck
+    StudyScreen.jsx  ← révision multi-critères, révélation en place
+    SessionEnd.jsx   ← fin session stats
+    ManageDeck.jsx   ← gestion deck + critères + cartes
+    HomeQuiz.jsx     ← accueil Quiz + sources + jauge modes
+    QuizScreen.jsx   ← QCM Duo/Carré/Cash + ambiance thème
+    QuizEnd.jsx      ← fin quiz score en points
+    ManageQuestions.jsx ← CRUD questions libres + wrong_answers
 ```
 
-**Ce qui marche**
-- Bottom nav 🧠 Mémoire / ⚡ Quiz (placeholder) avec badge rouge "dues"
-- Bannière globale "X critères à réviser" sur l'accueil
-- Badge "dues" par deck
-- Répétition espacée **par critère** — chaque (carte × critère) a son propre niveau
-- Algo priorité : en retard → jamais vu → niveau bas (pas de shuffle pur)
-- Multi-critères : une carte peut avoir N critères (texte ou image)
-- Chaque critère a un `question_title` configurable et un flag `interrogeable`
-- Critères `interrogeable = false` → affichés en réponse uniquement, jamais en question
-- Carte swap (fade) avec réponses scrollables si texte long
-- Upload image par critère + URL + lien Wikipédia
-- Gestion deck : édition infos, critères (CRUD + toggle interrogeable), cartes (CRUD)
-- Import JSON format classique (`front`/`back`) et nouveau format (`criteria`/`values`)
-- Écran fin de session : stats facile/moyen/difficile + barre de répartition
+**Onglet Mémoire 🧠**
+- Bottom nav badge dues filtrée sur decks actifs du profil
+- Barres de progression par critère interrogeable + fond coloré global
+- Filtre decks par profil : ⚙️ → actif/inactif, grisé si inactif, localStorage
+- Créer deck manuellement (FAB +) → redirige ManageDeck
+- Import JSON : format classique `front/back` + nouveau `criteria/values`
+- Répétition espacée par (carte × critère), algo priorité sans shuffle pur
+- Seuil maîtrise : `level >= 4` (2× Facile)
+- `interrogeable: false` → réponse uniquement, jamais question
+- Révélation en place (fade), lien Wikipédia
+
+**Onglet Quiz ⚡**
+- Modes : Duo 1pt / Carré 3pts / Cash 5pts (texte libre)
+- Jauge difficulté 3 points + ambiance couleur par thème
+- Cash : Levenshtein dynamique, partielles, "Presque !"
+- Paires via `quiz_answer_criterion_id` dans `deck_criteria`
+- Questions libres avec `wrong_answers[]` manuelles (min 2)
+- Diversification par thème (round-robin)
 
 **Tables Supabase**
-- `deck_criteria` : critères par deck (name, type, question_title, position, interrogeable)
-- `card_values` : valeurs par (carte × critère)
-- `card_progress` : modifiée — `criterion_id` ajouté pour progression par critère
-- `quiz_questions` : migration de `curiosities` (profile_id, question, answer, theme)
+```sql
+deck_criteria (id, deck_id, name, type, question_title, position,
+  interrogeable boolean default true,
+  quiz_answer_criterion_id uuid references deck_criteria(id))
+card_values (id, card_id, criterion_id, value, unique(card_id,criterion_id))
+card_progress (profile_id, card_id, criterion_id, level, next_review, last_reviewed)
+quiz_questions (id, profile_id, question, answer, wrong_answers text[], theme, created_at)
+```
 
-**Notes RLS**
-- `deck_criteria`, `card_values`, `quiz_questions` : RLS désactivé (app privée 2 profils)
-- `card_progress` : RLS actif, filtré par `profile_id`
+**Notes DB**
+- `cards.front`, `cards.back` : nullable
+- RLS désactivé : `deck_criteria`, `card_values`, `quiz_questions`
+- RLS actif : `card_progress` (filtré `profile_id`)
 
-**À faire**
-- Onglet ⚡ Quiz : HomeQuiz + QCM + ManageQuestions
-- Barre de progression par deck sur HomeMemoire
+**localStorage**
+- `memoire-active-decks-{profileId}` : array IDs actifs (null = tous)
+- `memoire-singe-quiz-sources` : sources cochées Quiz
 
 ---
 
