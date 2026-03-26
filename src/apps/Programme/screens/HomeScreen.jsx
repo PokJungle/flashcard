@@ -139,16 +139,13 @@ const MOIS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
 function MonthView({ events, onDelete }) {
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
-  const [month, setMonth] = useState(today.getMonth()) // 0-indexed
-  const [selected, setSelected] = useState(null) // date string YYYY-MM-DD
+  const [month, setMonth] = useState(today.getMonth())
+  const [selected, setSelected] = useState(null)
 
-  // Construire la grille du mois
   const firstDay = new Date(year, month, 1)
-  // Lundi = 0, ..., Dimanche = 6
   const startOffset = (firstDay.getDay() + 6) % 7
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
-  // Map date → events pour ce mois (en tenant compte récurrence annuelle)
   const eventsByDate = {}
   events.forEach(e => {
     const next = getNextOccurrence(e)
@@ -170,19 +167,14 @@ function MonthView({ events, onDelete }) {
     setSelected(null)
   }
 
-  const todayStr = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`
-
-  // Événements du jour sélectionné
   const selectedEvents = selected !== null ? (eventsByDate[selected] || []) : []
 
-  // Construire les cellules
   const cells = []
   for (let i = 0; i < startOffset; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
   return (
     <div>
-      {/* Navigation mois */}
       <div className="flex items-center justify-between mb-4">
         <button onClick={prevMonth}
           className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-gray-100 shadow-sm active:scale-95 transition-transform">
@@ -195,14 +187,12 @@ function MonthView({ events, onDelete }) {
         </button>
       </div>
 
-      {/* En-têtes jours */}
       <div className="grid grid-cols-7 mb-1">
         {JOURS.map((j, i) => (
           <div key={i} className="text-center text-xs font-bold text-gray-300 py-1">{j}</div>
         ))}
       </div>
 
-      {/* Grille */}
       <div className="grid grid-cols-7 gap-1">
         {cells.map((d, i) => {
           if (d === null) return <div key={`empty-${i}`} />
@@ -220,7 +210,7 @@ function MonthView({ events, onDelete }) {
               `}>
               {d}
               {hasEvents && (
-                <div className={`absolute bottom-1 flex gap-0.5 justify-center`}>
+                <div className="absolute bottom-1 flex gap-0.5 justify-center">
                   {evts.slice(0, 3).map((e, idx) => (
                     <div key={idx}
                       className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white/70' : isUrgent ? 'bg-amber-400' : 'bg-indigo-400'}`} />
@@ -232,7 +222,6 @@ function MonthView({ events, onDelete }) {
         })}
       </div>
 
-      {/* Détail du jour sélectionné */}
       {selected !== null && (
         <div className="mt-5">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">
@@ -248,7 +237,6 @@ function MonthView({ events, onDelete }) {
         </div>
       )}
 
-      {/* Résumé du mois */}
       {Object.keys(eventsByDate).length === 0 && (
         <p className="text-sm text-gray-400 text-center mt-8">Aucun événement ce mois-ci</p>
       )}
@@ -258,40 +246,25 @@ function MonthView({ events, onDelete }) {
 
 // ─── Shell principal ──────────────────────────────────────────────────────────
 
-export default function HomeScreen({ events, loading, onAdd, onDelete, profile }) {
+export default function HomeScreen({ events, loading, onAdd, onDelete, profile, view }) {
   const [showModal, setShowModal] = useState(false)
-  const [view, setView] = useState('list') // 'list' | 'month'
 
   return (
-    <div className="px-5 py-6 max-w-lg mx-auto pb-24">
-
-      {/* Switch vue */}
-      <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
-        <button onClick={() => setView('list')}
-          className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${view === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}>
-          📋 Liste
-        </button>
-        <button onClick={() => setView('month')}
-          className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${view === 'month' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}>
-          🗓️ Mois
-        </button>
-      </div>
-
+    <div className="px-5 py-6 max-w-lg mx-auto pb-6">
       {view === 'list'
         ? <ListView events={events} loading={loading} onDelete={onDelete} />
         : <MonthView events={events} onDelete={onDelete} />
       }
 
-      {/* FAB */}
       <button
         onClick={() => setShowModal(true)}
-        className="fixed bottom-8 right-6 w-14 h-14 bg-indigo-500 text-white rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform hover:bg-indigo-600 z-40">
+        className="fixed bottom-20 right-6 w-14 h-14 bg-indigo-500 text-white rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform hover:bg-indigo-600 z-40">
         <Plus size={24} />
       </button>
 
       {showModal && (
         <AddEventModal
-          onAdd={(data) => onAdd({ ...data, profile_id: profile?.id })}
+          onAdd={(data) => { onAdd({ ...data, profile_id: profile?.id }); setShowModal(false) }}
           onClose={() => setShowModal(false)}
         />
       )}

@@ -13,6 +13,7 @@
 |---------|---------|
 | `src/App.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/App.jsx |
 | `src/supabase.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/supabase.js |
+| `src/components/TabBar.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/components/TabBar.jsx |
 | `src/apps/Flashcards/index.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/index.jsx |
 | `src/apps/Flashcards/constants.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/constants.js |
 | `src/apps/Flashcards/utils.js` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Flashcards/utils.js |
@@ -40,6 +41,24 @@
 | `src/apps/Orbite/screens/LogScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/LogScreen.jsx |
 | `src/apps/Orbite/screens/HistoryScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/HistoryScreen.jsx |
 | `src/apps/Orbite/screens/SettingsScreen.jsx` | https://raw.githubusercontent.com/PokJungle/flashcard/refs/heads/main/src/apps/Orbite/screens/SettingsScreen.jsx |
+
+---
+
+## 🧭 Navigation — conventions
+
+**Pattern unifié : tab bar en bas (Option C)**
+- Toutes les apps multi-sections utilisent `<TabBar>` depuis `src/components/TabBar.jsx`
+- Chaque app garde sa couleur d'accentuation propre
+- Props : `tabs` (array `{id, emoji, label, badge?}`), `active`, `onChange`, `color`
+
+| App | Tabs | Couleur | Notes |
+|-----|------|---------|-------|
+| 🐒 Mémoire | Mémoire 🧠 / Quiz ⚡ | `#4f46e5` indigo | badge dues sur Mémoire |
+| 📖 Grimoire | Inspiration 💡 / Grimoire 📖 / Semaine 📅 | `#f97316` orange | TabBar présente aussi sur la vue détail recette |
+| 🗞️ Programme | Liste 📋 / Mois 🗓️ | `#6366f1` indigo | state `view` dans index.jsx |
+| 💥 Orbite | Mission / Logger / Historique / Réglages | custom dark | nav custom intentionnelle — thème spatial |
+| 💌 Bisou | — | — | écran unique, pas de tabs |
+| 🌦️ Météo | — | — | écran unique, pas de tabs |
 
 ---
 
@@ -124,7 +143,7 @@ En préparation (grid 2 cols)
 **Architecture (v2 — refonte mars 2026)**
 ```
 src/apps/Flashcards/
-  index.jsx          ← routing + bottom nav + import JSON + création deck
+  index.jsx          ← routing + TabBar (indigo) + import JSON + création deck
   constants.js       ← THEMES, TABS, SCREENS, QUIZ_SOURCES_KEY
   utils.js           ← compressImage
   hooks/
@@ -191,15 +210,16 @@ quiz_questions (id, profile_id, question, answer, wrong_answers text[], theme, c
 - Favoris multi-villes
 - Filtre heures passées sur le jour courant ✅
 
-**Améliorations prévues**
-- Liens MétéoCiel / Weather24 configurables par ville
-- Vue "résumé de la semaine"
-- Ville par défaut Saint Antonin pour Princesse🚀 et Fuveau pour Be🐒
-
 ---
 
 ### 📖 Le Grimoire Gourmand
 > Inspiration culinaire saisonnière
+
+**Architecture**
+```
+src/apps/Grimoire/
+  index.jsx  ← tout en un fichier + TabBar (orange) en bas
+```
 
 **Ce qui marche**
 - Inspiration saisonnière via Spoonacular
@@ -241,9 +261,19 @@ create table bisou_messages (
 ### 🗞️ Demandez le Programme !
 > Agenda partagé entre les deux profils
 
+**Architecture**
+```
+src/apps/Programme/
+  index.jsx               ← routing + TabBar (indigo) + state view
+  hooks/useProgramme.js
+  screens/
+    HomeScreen.jsx        ← reçoit view en prop, affiche ListView ou MonthView
+    AddEventModal.jsx
+```
+
 **Ce qui marche**
-- Vue liste des événements à venir, triés par date
-- Vue mois avec calendrier visuel (navigation mois, pastilles événements, détail au clic)
+- Vue Liste 📋 : événements à venir triés par date
+- Vue Mois 🗓️ : calendrier visuel, navigation mois, pastilles événements, détail au clic
 - Événements passés masqués automatiquement
 - Événements proches (≤ 3 jours) mis en avant visuellement (section "🔥 Très bientôt")
 - Ajout : emoji + titre + date + heure optionnelle + note optionnelle + récurrence annuelle
@@ -291,6 +321,7 @@ create table programme_events (
 - Historique des 8 dernières semaines : vainqueur 🏆 + badge DÉCOLLAGE si objectif atteint
 - Réglages : taux de conversion par activité + objectif journalier + objectif fusée hebdo
 - Widget hub : jauge verticale bicolore (orange 🐒 / bleu 🚀) en colonne droite, cliquable
+- Nav custom dark (thème spatial intentionnel — pas de TabBar partagé)
 
 **Tables Supabase**
 ```sql
@@ -318,11 +349,112 @@ create table orbite_settings (
 
 **Améliorations prévues**
 - Suppression d'une activité depuis le dashboard
-- Défis ponctuels (objectif commun sur une durée libre)
+- Ajouter une activité sur une semaine passée
 
 ---
 
 ## 🔨 Apps à construire
+
+### 🍷 Canon
+> Cave à vin partagée — stock & journal de dégustation
+
+**Une app, deux onglets : Cave 🏚️ / Journal 📓**
+
+---
+
+#### Onglet Cave 🏚️
+
+**Ajouter une bouteille**
+- Barre de recherche texte → autocomplete via Wine-Searcher API (100 calls/jour gratuits)
+- Sélection en 1 tap → fiche pré-remplie (appellation, domaine, millésime, couleur)
+- Champs éditables avant validation : quantité, emplacement, note d'achat
+
+**Schéma de la cave**
+- Représentation visuelle de la cave avec zones cliquables
+- Zones configurables par l'utilisateur (nom libre : "Étagère A", "Casier rouge"…)
+- Chaque bouteille est assignée à une zone, visible sur le schéma
+- Vue d'ensemble : densité / occupation par zone
+
+**Liste du stock**
+- Filtres : couleur, appellation, millésime, zone
+- Quantité restante visible directement en liste
+- Bouton **"Bu 🍷"** depuis la fiche → modal rapide :
+  - Date (auto = aujourd'hui, modifiable)
+  - Note de dégustation optionnelle (texte libre)
+  - Note ⭐ (sur 5) + coup de cœur ❤️ optionnel
+  - → Quantité −1, entrée basculée automatiquement dans le Journal
+
+---
+
+#### Onglet Journal 📓
+
+**Toutes les bouteilles bues** (depuis la cave + ajout direct hors cave)
+
+**Ajouter une dégustation hors cave**
+- Même recherche texte que la cave
+- Fiche pré-remplie + note ⭐ + ❤️ + commentaire libre + date
+
+**Palmarès**
+- Top vins par : couleur (Rouge / Blanc / Rosé / Effervescent), région, cépage
+- Coups de cœur ❤️ mis en avant visuellement
+- Vue "ensemble" (les deux profils) ou "par profil"
+
+---
+
+#### Multi-profils
+- Cave partagée via Supabase (stock commun, visible par Be🐒 et Princesse chat🚀)
+- Notes de dégustation individuelles (chacun ses ⭐, chacun ses ❤️)
+- Auteur affiché sur chaque note
+
+---
+
+#### Table Supabase (à créer)
+
+```sql
+-- Bouteilles en cave
+create table canon_bottles (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  domain text,
+  appellation text,
+  vintage integer,
+  color text check (color in ('rouge', 'blanc', 'rosé', 'effervescent')),
+  region text,
+  grape text,
+  quantity integer default 1,
+  zone text,
+  purchase_note text,
+  created_at timestamp with time zone default now()
+);
+
+-- Dégustations (cave ou hors cave)
+create table canon_tastings (
+  id uuid default gen_random_uuid() primary key,
+  bottle_id uuid references canon_bottles(id) on delete set null,
+  profile_id uuid references profiles(id),
+  -- Données vin (dupliquées pour dégustations hors cave)
+  name text not null,
+  domain text,
+  appellation text,
+  vintage integer,
+  color text,
+  region text,
+  grape text,
+  -- Dégustation
+  rating numeric(2,1) check (rating between 0 and 5),
+  is_favorite boolean default false,
+  note text,
+  tasted_at date default current_date,
+  created_at timestamp with time zone default now()
+);
+```
+
+---
+
+#### Améliorations prévues
+- Scan d'étiquette via IA (photo → champs pré-remplis)
+- Alerte "dernière bouteille" quand quantité = 1
+- Suggestions "à ouvrir bientôt" selon millésime
 
 ### 🍵 Tisane et Chauffeuse
 > Films & séries à regarder ensemble

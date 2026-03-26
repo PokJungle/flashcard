@@ -13,6 +13,14 @@ import HomeQuiz from './screens/HomeQuiz'
 import QuizScreen from './screens/QuizScreen'
 import QuizEnd from './screens/QuizEnd'
 import ManageQuestions from './screens/ManageQuestions'
+import TabBar from '../../components/TabBar'
+
+const MEMOIRE_COLOR = '#4f46e5' // indigo-600
+
+const MEMOIRE_TABS = (badge) => [
+  { id: TABS.MEMOIRE, emoji: '🧠', label: 'Mémoire', badge },
+  { id: TABS.QUIZ,    emoji: '⚡', label: 'Quiz',    badge: 0 },
+]
 
 const Loader = () => (
   <div className="flex-1 flex flex-col items-center justify-center gap-3">
@@ -31,7 +39,6 @@ export default function Flashcards({ profile }) {
 
   const { decks, dueMap, progressMap, totalDue, loading: memoireLoading, reload } = useMemoire(profile)
 
-  // Badge nav = dues uniquement sur les decks actifs du profil
   const activeTotalDue = (() => {
     try {
       const saved = JSON.parse(localStorage.getItem(`memoire-active-decks-${profile?.id}`) || 'null')
@@ -39,6 +46,7 @@ export default function Flashcards({ profile }) {
       return decks.filter(d => saved.includes(d.id)).reduce((s, d) => s + (dueMap[d.id] ?? 0), 0)
     } catch { return totalDue }
   })()
+
   const {
     session, currentItem, idx: studyIdx,
     loading: studyLoading, sessionReady, isFinished: studyFinished, sessionStats,
@@ -76,7 +84,6 @@ export default function Flashcards({ profile }) {
   }
 
   const handleAnswer = (chosen, pts, isCorrect) => { answerQuestion(chosen, pts, isCorrect) }
-
   const handleNextQuestion = () => { nextQuestion() }
 
   // ── Import JSON ────────────────────────────────────────────
@@ -150,7 +157,6 @@ export default function Flashcards({ profile }) {
 
   // ── Render ─────────────────────────────────────────────────
   const renderContent = () => {
-    // ── Onglet Mémoire ──────────────────────────────────────
     if (tab === TABS.MEMOIRE) {
       if (screen === SCREENS.HOME) {
         return (
@@ -164,25 +170,14 @@ export default function Flashcards({ profile }) {
             onStartDeck={handleStartDeck}
             onManageDeck={handleManageDeck}
             onShowUpload={() => setShowUpload(true)}
-            onDeckCreated={(deck) => {
-              reload()
-              handleManageDeck(deck)
-            }}
+            onDeckCreated={(deck) => { reload(); handleManageDeck(deck) }}
           />
         )
       }
-
       if (screen === SCREENS.STUDY) {
         if (studyFinished) {
           reload()
-          return (
-            <SessionEnd
-              deck={activeDeck}
-              stats={sessionStats}
-              onBack={goHome}
-              onRestart={() => handleStartDeck(activeDeck)}
-            />
-          )
+          return <SessionEnd deck={activeDeck} stats={sessionStats} onBack={goHome} onRestart={() => handleStartDeck(activeDeck)} />
         }
         if (!sessionReady || studyLoading) return <Loader />
         return (
@@ -199,18 +194,9 @@ export default function Flashcards({ profile }) {
           />
         )
       }
-
       if (screen === SCREENS.SESSION_END) {
-        return (
-          <SessionEnd
-            deck={activeDeck}
-            stats={sessionStats}
-            onBack={goHome}
-            onRestart={() => handleStartDeck(activeDeck)}
-          />
-        )
+        return <SessionEnd deck={activeDeck} stats={sessionStats} onBack={goHome} onRestart={() => handleStartDeck(activeDeck)} />
       }
-
       if (screen === SCREENS.MANAGE_DECK) {
         return (
           <ManageDeck
@@ -226,7 +212,6 @@ export default function Flashcards({ profile }) {
       }
     }
 
-    // ── Onglet Quiz ─────────────────────────────────────────
     if (tab === TABS.QUIZ) {
       if (screen === SCREENS.HOME || screen === SCREENS.HOME_QUIZ) {
         return (
@@ -237,7 +222,6 @@ export default function Flashcards({ profile }) {
           />
         )
       }
-
       if (screen === SCREENS.QUIZ_PLAY) {
         if (quizLoading || !quizReady) return <Loader />
         if (quizFinished) {
@@ -262,14 +246,8 @@ export default function Flashcards({ profile }) {
           />
         )
       }
-
       if (screen === SCREENS.MANAGE_QUESTIONS) {
-        return (
-          <ManageQuestions
-            profile={profile}
-            onBack={() => setScreen(SCREENS.HOME_QUIZ)}
-          />
-        )
+        return <ManageQuestions profile={profile} onBack={() => setScreen(SCREENS.HOME_QUIZ)} />
       }
     }
 
@@ -282,15 +260,11 @@ export default function Flashcards({ profile }) {
         {renderContent()}
       </div>
 
-      <BottomNav
-        tab={tab}
-        totalDue={totalDue}
-        totalDueForBadge={activeTotalDue}
-        onSelectTab={(t) => {
-          setTab(t)
-          setScreen(SCREENS.HOME)
-          setActiveDeck(null)
-        }}
+      <TabBar
+        tabs={MEMOIRE_TABS(activeTotalDue ?? totalDue)}
+        active={tab}
+        onChange={(t) => { setTab(t); setScreen(SCREENS.HOME); setActiveDeck(null) }}
+        color={MEMOIRE_COLOR}
       />
 
       {showUpload && (
@@ -324,33 +298,5 @@ export default function Flashcards({ profile }) {
         </div>
       )}
     </div>
-  )
-}
-
-function BottomNav({ tab, totalDue, totalDueForBadge, onSelectTab }) {
-  const items = [
-    { id: TABS.MEMOIRE, emoji: '🧠', label: 'Mémoire', badge: totalDueForBadge ?? totalDue },
-    { id: TABS.QUIZ,    emoji: '⚡', label: 'Quiz',    badge: 0 },
-  ]
-  return (
-    <nav className="flex-shrink-0 bg-white border-t border-gray-100 flex">
-      {items.map(item => {
-        const active = tab === item.id
-        return (
-          <button key={item.id} onClick={() => onSelectTab(item.id)}
-            className="flex-1 flex flex-col items-center gap-0.5 py-2.5 relative active:scale-95 transition-transform">
-            <span className="text-xl leading-none">{item.emoji}</span>
-            <span className={`text-xs font-medium ${active ? 'text-indigo-600' : 'text-gray-400'}`}>
-              {item.label}
-            </span>
-            {item.badge > 0 && (
-              <span className="absolute top-1.5 right-1/2 translate-x-4 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-semibold rounded-full flex items-center justify-center px-1">
-                {item.badge > 99 ? '99+' : item.badge}
-              </span>
-            )}
-          </button>
-        )
-      })}
-    </nav>
   )
 }

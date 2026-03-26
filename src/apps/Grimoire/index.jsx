@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase'
 import { ArrowLeft, Search, BookOpen, ShoppingCart, Plus, X, Check, Clock, Users, Settings } from 'lucide-react'
+import TabBar from '../../components/TabBar'
 
 const SPOONACULAR_KEY = import.meta.env.VITE_SPOONACULAR_KEY
 const CACHE_PREFIX = 'grimoire_cache_'
@@ -170,11 +171,17 @@ function getStartOfWeek() {
 const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 const DEFAULT_PANTRY = ["huile d'olive", 'huile', 'sel', 'poivre', 'sel et poivre']
 
+const GRIMOIRE_COLOR = '#f97316' // orange-500
+
+const GRIMOIRE_TABS = [
+  { id: 'inspiration', emoji: '💡', label: 'Inspiration' },
+  { id: 'grimoire',    emoji: '📖', label: 'Grimoire' },
+  { id: 'semaine',     emoji: '📅', label: 'Semaine' },
+]
+
 // ─── COMPOSANT PRINCIPAL ──────────────────────────────────────────────────────
-// initialShoppingList : si true, ouvre directement l'onglet Semaine + le modal liste de courses
 
 export default function Grimoire({ profile, initialShoppingList }) {
-  // ← MODIF 1 : tab initial
   const [tab, setTab] = useState(initialShoppingList ? 'semaine' : 'inspiration')
   const [recipes, setRecipes] = useState([])
   const [savedRecipes, setSavedRecipes] = useState([])
@@ -206,7 +213,6 @@ export default function Grimoire({ profile, initialShoppingList }) {
     const week = getStartOfWeek()
     const { data } = await supabase.from('meal_plan').select('*').eq('profile_id', profile.id).eq('week_start', week).maybeSingle()
     setMealPlan(data?.meals || [])
-    // ← MODIF 2 : ouvrir le modal liste de courses après chargement
     if (initialShoppingList) setShowShoppingList(true)
   }
 
@@ -581,7 +587,7 @@ export default function Grimoire({ profile, initialShoppingList }) {
       : selectedRecipe.analyzedInstructions?.[0]?.steps?.map(s => s.step) || []
 
     return (
-      <div className="h-full bg-gray-50 overflow-y-auto">
+      <div className="h-full flex flex-col">
         {showAddManual && (
           <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => { setShowAddManual(false); setEditingRecipe(null) }}>
             <div className="bg-white w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -589,117 +595,106 @@ export default function Grimoire({ profile, initialShoppingList }) {
             </div>
           </div>
         )}
-        <div className="relative">
-          {selectedRecipe.image_url || selectedRecipe.image
-            ? <img src={selectedRecipe.image_url || selectedRecipe.image} alt={selectedRecipe.title} className="w-full h-56 object-cover" />
-            : <div className="w-full h-56 bg-orange-100 flex items-center justify-center text-6xl">🍽️</div>}
-          <button onClick={() => setSelectedRecipe(null)}
-            className="absolute top-4 left-4 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center shadow">
-            <ArrowLeft size={18} className="text-gray-700" />
-          </button>
-          <div className="absolute top-4 right-4 flex gap-2">
-            {saved && dbRecipe && (
-              <button onClick={() => openEditRecipe(dbRecipe)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-white/90 text-gray-700 rounded-full text-xs font-semibold shadow active:scale-95 transition-transform">
-                ✏️ Modifier
-              </button>
+        <div className="flex-1 bg-gray-50 overflow-y-auto">
+          <div className="relative">
+            {selectedRecipe.image_url || selectedRecipe.image
+              ? <img src={selectedRecipe.image_url || selectedRecipe.image} alt={selectedRecipe.title} className="w-full h-56 object-cover" />
+              : <div className="w-full h-56 bg-orange-100 flex items-center justify-center text-6xl">🍽️</div>}
+            <button onClick={() => setSelectedRecipe(null)}
+              className="absolute top-4 left-4 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center shadow">
+              <ArrowLeft size={18} className="text-gray-700" />
+            </button>
+            <div className="absolute top-4 right-4 flex gap-2">
+              {saved && dbRecipe && (
+                <button onClick={() => openEditRecipe(dbRecipe)}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white/90 text-gray-700 rounded-full text-xs font-semibold shadow active:scale-95 transition-transform">
+                  ✏️ Modifier
+                </button>
+              )}
+              {!saved ? (
+                <button onClick={() => saveRecipe(selectedRecipe)} disabled={saving}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-semibold shadow active:scale-95 transition-transform disabled:opacity-50">
+                  <BookOpen size={14} /> {saving ? 'Sauvegarde…' : 'Sauvegarder'}
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-green-500 text-white rounded-full text-xs font-semibold shadow">
+                  <Check size={14} /> Dans le grimoire
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="px-5 py-5 max-w-lg mx-auto">
+            <h1 className="text-xl font-bold text-gray-900 mb-3">{selectedRecipe.title}</h1>
+            <div className="flex gap-4 mb-4">
+              {(selectedRecipe.ready_in_minutes || selectedRecipe.readyInMinutes) && (
+                <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                  <Clock size={15} className="text-orange-400" />
+                  {selectedRecipe.ready_in_minutes || selectedRecipe.readyInMinutes} min
+                </div>
+              )}
+              {selectedRecipe.servings && (
+                <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                  <Users size={15} className="text-orange-400" />
+                  {selectedRecipe.servings} pers.
+                </div>
+              )}
+              {selectedRecipe.vegetarian && <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">🌿 Végétarien</span>}
+            </div>
+            {saved && (
+              <div className="mb-5">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Ajouter au planning</p>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {DAYS_FR.map(day => {
+                    const planned = mealPlan.find(m => m.day === day)
+                    const isThis = planned?.recipe?.title === selectedRecipe.title
+                    return (
+                      <button key={day} onClick={() => isThis ? removeFromPlan(day) : addToMealPlan(day, selectedRecipe)}
+                        className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${isThis ? 'bg-orange-500 text-white' : planned ? 'bg-gray-200 text-gray-400' : 'bg-gray-100 text-gray-600 hover:bg-orange-100'}`}>
+                        {day.slice(0, 3)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             )}
-            {!saved ? (
-              <button onClick={() => saveRecipe(selectedRecipe)} disabled={saving}
-                className="flex items-center gap-1.5 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-semibold shadow active:scale-95 transition-transform disabled:opacity-50">
-                <BookOpen size={14} /> {saving ? 'Sauvegarde…' : 'Sauvegarder'}
-              </button>
-            ) : (
-              <div className="flex items-center gap-1.5 px-3 py-2 bg-green-500 text-white rounded-full text-xs font-semibold shadow">
-                <Check size={14} /> Dans le grimoire
+            {ingredients.length > 0 && (
+              <div className="mb-5">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Ingrédients</p>
+                <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-2">
+                  {ingredients.map((ing, i) => (
+                    <div key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0 mt-1.5" />
+                      <IngredientText text={ing.original || ing.name} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {steps.length > 0 && (
+              <div className="mb-8">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Préparation</p>
+                <div className="space-y-3">
+                  {steps.map((step, i) => (
+                    <div key={i} className="flex gap-3">
+                      <div className="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">{i + 1}</div>
+                      <p className="text-sm text-gray-700 leading-relaxed flex-1">{step}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
         </div>
-        <div className="px-5 py-5 max-w-lg mx-auto">
-          <h1 className="text-xl font-bold text-gray-900 mb-3">{selectedRecipe.title}</h1>
-          <div className="flex gap-4 mb-4">
-            {(selectedRecipe.ready_in_minutes || selectedRecipe.readyInMinutes) && (
-              <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                <Clock size={15} className="text-orange-400" />
-                {selectedRecipe.ready_in_minutes || selectedRecipe.readyInMinutes} min
-              </div>
-            )}
-            {selectedRecipe.servings && (
-              <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                <Users size={15} className="text-orange-400" />
-                {selectedRecipe.servings} pers.
-              </div>
-            )}
-            {selectedRecipe.vegetarian && <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">🌿 Végétarien</span>}
-          </div>
-          {saved && (
-            <div className="mb-5">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Ajouter au planning</p>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {DAYS_FR.map(day => {
-                  const planned = mealPlan.find(m => m.day === day)
-                  const isThis = planned?.recipe?.title === selectedRecipe.title
-                  return (
-                    <button key={day} onClick={() => isThis ? removeFromPlan(day) : addToMealPlan(day, selectedRecipe)}
-                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${isThis ? 'bg-orange-500 text-white' : planned ? 'bg-gray-200 text-gray-400' : 'bg-gray-100 text-gray-600 hover:bg-orange-100'}`}>
-                      {day.slice(0, 3)}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-          {ingredients.length > 0 && (
-            <div className="mb-5">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Ingrédients</p>
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-2">
-                {ingredients.map((ing, i) => (
-                  <div key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0 mt-1.5" />
-                    <IngredientText text={ing.original || ing.name} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {steps.length > 0 && (
-            <div className="mb-8">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Préparation</p>
-              <div className="space-y-3">
-                {steps.map((step, i) => (
-                  <div key={i} className="flex gap-3">
-                    <div className="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">{i + 1}</div>
-                    <p className="text-sm text-gray-700 leading-relaxed flex-1">{step}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <TabBar tabs={GRIMOIRE_TABS} active={tab} onChange={(t) => { setSelectedRecipe(null); setTab(t) }} color={GRIMOIRE_COLOR} />
       </div>
     )
   }
 
+  // ─── VUE PRINCIPALE ───────────────────────────────────────────────────────
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {pickingDay && <PickRecipeModal />}
       {showPantry && <PantryModal />}
-
-      <div className="bg-white border-b border-gray-100 px-4 py-2">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-          {[
-            { id: 'inspiration', label: '💡 Inspiration' },
-            { id: 'grimoire', label: '📖 Grimoire' },
-            { id: 'semaine', label: '📅 Semaine' },
-          ].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${tab === t.id ? 'bg-white shadow text-gray-900' : 'text-gray-400'}`}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       <div className="flex-1 overflow-y-auto">
 
@@ -925,6 +920,8 @@ export default function Grimoire({ profile, initialShoppingList }) {
           </div>
         )}
       </div>
+
+      <TabBar tabs={GRIMOIRE_TABS} active={tab} onChange={setTab} color={GRIMOIRE_COLOR} />
     </div>
   )
 }
