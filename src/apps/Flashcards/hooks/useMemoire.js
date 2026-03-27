@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../../supabase'
 
+const NEW_PER_DAY_KEY     = (deckId) => `memoire-new-per-day-${deckId}`
+const NEW_SEEN_KEY        = (deckId) => `memoire-new-seen-${deckId}-${new Date().toISOString().slice(0,10)}`
+const NEW_PER_DAY_DEFAULT = 10
+
 const MASTERED_LEVEL = 4  // 2× Facile minimum
 
 export function useMemoire(profile) {
@@ -67,35 +71,62 @@ export function useMemoire(profile) {
         c => c.name !== 'verso' && c.interrogeable !== false
       )
 
-      let due = 0
+      // Quota journalier
+      const newPerDay     = parseInt(localStorage.getItem(NEW_PER_DAY_KEY(deck.id)) || NEW_PER_DAY_DEFAULT)
+      const newSeenKey    = NEW_SEEN_KEY(deck.id)
+      const doneTodayKey  = `memoire-done-today-${deck.id}-${new Date().toISOString().slice(0,10)}`
+      const doneToday     = parseInt(localStorage.getItem(doneTodayKey) || '0')
+      const newSeenToday  = parseInt(localStorage.getItem(newSeenKey) || '0')
+      const quota         = newPerDay === 999 ? Infinity : newPerDay
 
-      // Stats par critère interrogeable
+      // Compter en QUESTIONS (items = carte × critère), pas en cartes
+      let todoCount      = 0  // questions en retard
+      let neverSeenCount = 0  // questions jamais vues
+      let aheadCount     = 0  // questions en avance
+
+      for (const cardId of cards) {
+        for (const crit of activeCriteria) {
+          const prog = progMap[`${cardId}|${crit.id}`]
+          if (!prog) {
+            neverSeenCount++
+          } else if (new Date(prog.next_review) <= now) {
+            todoCount++
+          } else {
+            aheadCount++
+          }
+        }
+      }
+
+      // Badge = min(quota - doneToday, questions à faire + jamais vues)
+      const remaining = Math.max(0, quota - doneToday)
+      const available = todoCount + neverSeenCount
+      const due       = Math.min(remaining, available)
+
+      // Stats par critère (barres de progression)
       const criteriaStats = activeCriteria.map(crit => {
-        let total    = 0
-        let mastered = 0
-        let critDue  = 0
-
+        let total = 0, mastered = 0
         for (const cardId of cards) {
-          const key  = `${cardId}|${crit.id}`
-          const prog = progMap[key]
+          const prog = progMap[`${cardId}|${crit.id}`]
           total++
-          if (!prog || new Date(prog.next_review) <= now) critDue++
           if (prog && prog.level >= MASTERED_LEVEL) mastered++
         }
-
-        due += critDue
-
         return {
-          criterionId: crit.id,
-          name:        crit.name,
-          type:        crit.type,
-          total,
-          mastered,
+          criterionId: crit.id, name: crit.name, type: crit.type,
+          total, mastered,
           pct: total > 0 ? Math.round((mastered / total) * 100) : 0,
         }
       })
 
-      newDueMap[deck.id]      = due
+      // Stocker les stats détaillées pour le modal (en questions)
+      newDueMap[deck.id] = {
+        badge:     due,
+        todo:      todoCount,
+        neverSeen: neverSeenCount,
+        ahead:     aheadCount,
+        total:     cards.length * activeCriteria.length,
+        quota,
+        doneToday,
+      }
       totalDueCount          += due
       newProgressMap[deck.id] = criteriaStats
     }

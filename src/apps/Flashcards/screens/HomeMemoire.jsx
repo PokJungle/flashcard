@@ -11,6 +11,7 @@ export default function HomeMemoire({
 }) {
   const [filterMode, setFilterMode]   = useState(false)
   const [showNewDeck, setShowNewDeck] = useState(false)
+  const [launchDeck, setLaunchDeck]   = useState(null)  // deck en attente de lancement
 
   // Decks actifs par profil — localStorage
   const getActiveDecks = () => {
@@ -39,7 +40,7 @@ export default function HomeMemoire({
   // Due count uniquement sur les decks actifs
   const activeTotalDue = decks
     .filter(d => isActive(d.id))
-    .reduce((sum, d) => sum + (dueMap[d.id] ?? 0), 0)
+    .reduce((sum, d) => sum + (dueMap[d.id]?.badge ?? dueMap[d.id] ?? 0), 0)
 
   const themesPresents = THEMES.filter(t => decks.some(d => d.theme === t.id))
 
@@ -109,7 +110,7 @@ export default function HomeMemoire({
                     color={THEME_COLOR[deck.theme] || '#7A7A8A'}
                     active={active}
                     filterMode={filterMode}
-                    onStart={() => !filterMode && onStartDeck(deck)}
+                    onStart={() => !filterMode && setLaunchDeck(deck)}
                     onManage={() => !filterMode && onManageDeck(deck)}
                     onToggle={() => toggleDeck(deck.id)}
                   />
@@ -139,6 +140,20 @@ export default function HomeMemoire({
           <Upload size={18} />
         </button>
       </div>
+
+      {/* Modal lancement session */}
+      {launchDeck && (
+        <LaunchModal
+          deck={launchDeck}
+          stats={dueMap[launchDeck.id] || { badge: 0, todo: 0, neverSeen: 0, ahead: 0, total: 0 }}
+          color={THEME_COLOR[launchDeck.theme] || '#7A7A8A'}
+          onClose={() => setLaunchDeck(null)}
+          onStart={(limit) => {
+            setLaunchDeck(null)
+            onStartDeck(launchDeck, limit)
+          }}
+        />
+      )}
 
       {/* Modal nouveau deck */}
       {showNewDeck && (
@@ -212,16 +227,17 @@ function DeckCard({ deck, themeEmoji, due, criteria, color, active, filterMode, 
           </button>
 
           {/* Badge dues ou statut filtre */}
-          {!filterMode && (
-            due > 0 ? (
+          {!filterMode && (() => {
+            const badge = due?.badge ?? due ?? 0
+            return badge > 0 ? (
               <span className="text-xs font-semibold px-2 py-1 rounded-lg flex-shrink-0"
                 style={{ background: '#E6F1FB', color: '#185FA5' }}>
-                {due} {due === 1 ? 'due' : 'dues'}
+                {badge}
               </span>
             ) : active ? (
               <span className="text-xs text-gray-300 flex-shrink-0">À jour</span>
             ) : null
-          )}
+          })()}
           {filterMode && (
             <span className="text-xs font-medium px-2 py-1 rounded-lg flex-shrink-0"
               style={{
@@ -326,6 +342,137 @@ function NewDeckModal({ onClose, onCreate }) {
         <p className="text-center text-xs text-gray-400 mt-3">
           Tu pourras ajouter les critères et cartes ensuite
         </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Modal lancement session ────────────────────────────────
+const SESSION_KEY     = (deckId) => `memoire-session-mode-${deckId}`
+const NEW_PER_DAY_KEY = (deckId) => `memoire-new-per-day-${deckId}`
+const NEW_SEEN_KEY    = (deckId) => `memoire-new-seen-${deckId}-${new Date().toISOString().slice(0,10)}`
+
+function LaunchModal({ deck, stats, color, onClose, onStart }) {
+  const { todo = 0, neverSeen = 0, ahead = 0 } = stats
+  const saved = localStorage.getItem(SESSION_KEY(deck.id)) || 'normal'
+  const [mode, setMode] = useState(saved)
+
+  // Composition de chaque mode (priorité : à faire → jamais vues → en avance)
+  const compose = (limit) => {
+    const max = limit ?? Infinity
+    const t = Math.min(todo,     max)
+    const n = Math.min(neverSeen, Math.max(0, max - t))
+    const a = Math.min(ahead,    Math.max(0, max - t - n))
+    return { todo: t, neverSeen: n, ahead: a, total: t + n + a }
+  }
+
+  const MODES = [
+    { id: 'rapide',   label: '10',  emoji: '🐇', limit: 10  },
+    { id: 'normal',   label: '20',  emoji: '🐒', limit: 20  },
+    { id: 'marathon', label: 'Tout', emoji: '🐘', limit: null },
+  ]
+
+  const comps = Object.fromEntries(MODES.map(m => [m.id, compose(m.limit)]))
+  const sel   = comps[mode]
+
+  const handleStart = () => {
+    localStorage.setItem(SESSION_KEY(deck.id), mode)
+    onStart(MODES.find(m => m.id === mode).limit)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={onClose}>
+      <div className="bg-white w-full rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
+
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-lg text-gray-900">{deck.name}</h2>
+          <button onClick={onClose}><X size={20} className="text-gray-400" /></button>
+        </div>
+
+        {/* Stats du deck */}
+        <div className="flex gap-2 mb-5 flex-wrap">
+          {todo > 0 && (
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+              style={{ background: '#E6F1FB', color: '#185FA5' }}>
+              🔁 {todo} à faire
+            </span>
+          )}
+          {neverSeen > 0 && (
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+              style={{ background: '#EAF3DE', color: '#27500A' }}>
+              ✨ {neverSeen} jamais vues
+            </span>
+          )}
+          {ahead > 0 && (
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+              style={{ background: '#F1EFE8', color: '#5F5E5A' }}>
+              ⏳ {ahead} en avance
+            </span>
+          )}
+          {todo === 0 && neverSeen === 0 && ahead === 0 && (
+            <span className="text-xs text-gray-400">Rien à réviser pour l'instant</span>
+          )}
+        </div>
+
+        {/* Sélecteur 10 / 20 / MAX */}
+        <div className="flex gap-2 mb-4">
+          {MODES.map(m => {
+            const c = comps[m.id]
+            return (
+              <button key={m.id}
+                onClick={() => setMode(m.id)}
+                className="flex-1 py-3 px-1 rounded-2xl text-center transition-all active:scale-95 border"
+                style={{
+                  background: mode === m.id ? color + '15' : '#f9fafb',
+                  borderColor: mode === m.id ? color : '#f3f4f6',
+                }}>
+                <p className="text-base font-bold" style={{ color: mode === m.id ? color : '#374151' }}>
+                  {m.emoji} {m.label}
+                </p>
+                <p className="text-xs mt-0.5 font-medium" style={{ color: mode === m.id ? color : '#9ca3af' }}>
+                  {c.total} carte{c.total > 1 ? 's' : ''}
+                </p>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Détail composition du mode sélectionné */}
+        {sel.total > 0 && (
+          <div className="flex gap-1.5 mb-4 flex-wrap">
+            {sel.todo > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-md"
+                style={{ background: '#E6F1FB', color: '#185FA5' }}>
+                {sel.todo} à faire
+              </span>
+            )}
+            {sel.neverSeen > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-md"
+                style={{ background: '#EAF3DE', color: '#27500A' }}>
+                {sel.neverSeen} jamais vues
+              </span>
+            )}
+            {sel.ahead > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-md"
+                style={{ background: '#F1EFE8', color: '#5F5E5A' }}>
+                {sel.ahead} en avance
+              </span>
+            )}
+          </div>
+        )}
+
+        {sel.total === 0 ? (
+          <button onClick={onClose}
+            className="w-full py-4 rounded-2xl text-sm font-semibold bg-gray-100 text-gray-500">
+            Revenir plus tard
+          </button>
+        ) : (
+          <button onClick={handleStart}
+            className="w-full py-4 rounded-2xl text-white text-sm font-semibold active:scale-95 transition-transform"
+            style={{ background: color }}>
+            Lancer · {sel.total} carte{sel.total > 1 ? 's' : ''} →
+          </button>
+        )}
       </div>
     </div>
   )

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Check, Upload, X } from 'lucide-react'
 import { supabase } from '../../supabase'
 import { TABS, SCREENS } from './constants'
@@ -15,7 +15,7 @@ import QuizEnd from './screens/QuizEnd'
 import ManageQuestions from './screens/ManageQuestions'
 import TabBar from '../../components/TabBar'
 
-const MEMOIRE_COLOR = '#4f46e5' // indigo-600
+const MEMOIRE_COLOR = '#4f46e5'
 
 const MEMOIRE_TABS = (badge) => [
   { id: TABS.MEMOIRE, emoji: '🧠', label: 'Mémoire', badge },
@@ -39,14 +39,14 @@ export default function Flashcards({ profile }) {
 
   const { decks, dueMap, progressMap, totalDue, loading: memoireLoading, reload } = useMemoire(profile)
 
+  // Badge nav = dues uniquement sur les decks actifs du profil
   const activeTotalDue = (() => {
     try {
       const saved = JSON.parse(localStorage.getItem(`memoire-active-decks-${profile?.id}`) || 'null')
       if (saved === null) return totalDue
-      return decks.filter(d => saved.includes(d.id)).reduce((s, d) => s + (dueMap[d.id] ?? 0), 0)
+      return decks.filter(d => saved.includes(d.id)).reduce((s, d) => s + (dueMap[d.id]?.badge ?? dueMap[d.id] ?? 0), 0)
     } catch { return totalDue }
   })()
-
   const {
     session, currentItem, idx: studyIdx,
     loading: studyLoading, sessionReady, isFinished: studyFinished, sessionStats,
@@ -58,13 +58,18 @@ export default function Flashcards({ profile }) {
     startQuiz, answerQuestion, nextQuestion,
   } = useQuiz(profile)
 
+  // Reload les dues quand la session se termine
+  useEffect(() => {
+    if (studyFinished) reload()
+  }, [studyFinished])
+
   // ── Navigation Mémoire ─────────────────────────────────────
   const goHome = () => { setScreen(SCREENS.HOME); setActiveDeck(null); reload() }
 
-  const handleStartDeck = async (deck) => {
+  const handleStartDeck = async (deck, limit = null) => {
     setActiveDeck(deck)
     setScreen(SCREENS.STUDY)
-    await startSession(deck)
+    await startSession(deck, limit)
   }
 
   const handleManageDeck = (deck) => {
@@ -84,6 +89,7 @@ export default function Flashcards({ profile }) {
   }
 
   const handleAnswer = (chosen, pts, isCorrect) => { answerQuestion(chosen, pts, isCorrect) }
+
   const handleNextQuestion = () => { nextQuestion() }
 
   // ── Import JSON ────────────────────────────────────────────
@@ -157,6 +163,7 @@ export default function Flashcards({ profile }) {
 
   // ── Render ─────────────────────────────────────────────────
   const renderContent = () => {
+    // ── Onglet Mémoire ──────────────────────────────────────
     if (tab === TABS.MEMOIRE) {
       if (screen === SCREENS.HOME) {
         return (
@@ -170,14 +177,25 @@ export default function Flashcards({ profile }) {
             onStartDeck={handleStartDeck}
             onManageDeck={handleManageDeck}
             onShowUpload={() => setShowUpload(true)}
-            onDeckCreated={(deck) => { reload(); handleManageDeck(deck) }}
+            onDeckCreated={(deck) => {
+              reload()
+              handleManageDeck(deck)
+            }}
           />
         )
       }
+
       if (screen === SCREENS.STUDY) {
         if (studyFinished) {
-          reload()
-          return <SessionEnd deck={activeDeck} stats={sessionStats} onBack={goHome} onRestart={() => handleStartDeck(activeDeck)} />
+          return (
+            <SessionEnd
+              deck={activeDeck}
+              stats={sessionStats}
+              profile={profile}
+              onBack={goHome}
+              onRestart={() => handleStartDeck(activeDeck)}
+            />
+          )
         }
         if (!sessionReady || studyLoading) return <Loader />
         return (
@@ -194,9 +212,19 @@ export default function Flashcards({ profile }) {
           />
         )
       }
+
       if (screen === SCREENS.SESSION_END) {
-        return <SessionEnd deck={activeDeck} stats={sessionStats} onBack={goHome} onRestart={() => handleStartDeck(activeDeck)} />
+        return (
+          <SessionEnd
+            deck={activeDeck}
+            stats={sessionStats}
+            profile={profile}
+            onBack={goHome}
+            onRestart={() => handleStartDeck(activeDeck)}
+          />
+        )
       }
+
       if (screen === SCREENS.MANAGE_DECK) {
         return (
           <ManageDeck
@@ -212,6 +240,7 @@ export default function Flashcards({ profile }) {
       }
     }
 
+    // ── Onglet Quiz ─────────────────────────────────────────
     if (tab === TABS.QUIZ) {
       if (screen === SCREENS.HOME || screen === SCREENS.HOME_QUIZ) {
         return (
@@ -222,6 +251,7 @@ export default function Flashcards({ profile }) {
           />
         )
       }
+
       if (screen === SCREENS.QUIZ_PLAY) {
         if (quizLoading || !quizReady) return <Loader />
         if (quizFinished) {
@@ -246,8 +276,14 @@ export default function Flashcards({ profile }) {
           />
         )
       }
+
       if (screen === SCREENS.MANAGE_QUESTIONS) {
-        return <ManageQuestions profile={profile} onBack={() => setScreen(SCREENS.HOME_QUIZ)} />
+        return (
+          <ManageQuestions
+            profile={profile}
+            onBack={() => setScreen(SCREENS.HOME_QUIZ)}
+          />
+        )
       }
     }
 

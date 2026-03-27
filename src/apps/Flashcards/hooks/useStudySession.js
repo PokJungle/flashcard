@@ -1,6 +1,11 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '../../../supabase'
 
+const NEW_PER_DAY_KEY  = (deckId) => `memoire-new-per-day-${deckId}`
+const NEW_SEEN_KEY     = (deckId) => `memoire-new-seen-${deckId}-${new Date().toISOString().slice(0,10)}`
+const DONE_TODAY_KEY   = (deckId) => `memoire-done-today-${deckId}-${new Date().toISOString().slice(0,10)}`
+const NEW_PER_DAY_DEFAULT = 10
+
 function computeNextReview(currentLevel, rating) {
   let newLevel, daysUntilNext
   if (rating === 'hard') {
@@ -35,7 +40,7 @@ export function useStudySession(profile) {
   const [loading, setLoading]           = useState(false)
   const [sessionStats, setSessionStats] = useState({ easy: 0, medium: 0, hard: 0 })
 
-  const startSession = useCallback(async (deck) => {
+  const startSession = useCallback(async (deck, limit = null) => {
     console.log('startSession deck:', deck)
     setLoading(true)
     setSessionReady(false)
@@ -47,7 +52,7 @@ export function useStudySession(profile) {
       .eq('deck_id', deck.id)
       .order('position')
 
-    const activeCriteria = (criteria || []).filter(c => c.interrogeable !== false)
+    const activeCriteria = (criteria || []).filter(c => c.interrogeable !== false && c.name !== 'verso')
     console.log('activeCriteria:', activeCriteria)
 
     const { data: cards } = await supabase
@@ -79,41 +84,93 @@ export function useStudySession(profile) {
 
     const now = new Date()
     const dueItems = []
+    const neverSeenItems = []
 
     for (const card of cards) {
       for (const crit of activeCriteria) {
         const key  = `${card.id}|${crit.id}`
         const prog = progressMap[key]
-        const isDue = !prog || new Date(prog.next_review) <= now
-        if (isDue) {
+        if (!prog) {
+          // Jamais vu — toujours inclure
+          neverSeenItems.push({
+            cardId:      card.id,
+            criterionId: crit.id,
+            criterion:   crit,
+            level:       0,
+            next_review: null,
+            progressId:  null,
+          })
+        } else if (new Date(prog.next_review) <= now) {
+          // Déjà vu et dû
           dueItems.push({
             cardId:      card.id,
             criterionId: crit.id,
             criterion:   crit,
-            level:       prog?.level ?? 0,
-            next_review: prog?.next_review ?? null,
-            progressId:  prog?.id ?? null,
+            level:       prog.level ?? 0,
+            next_review: prog.next_review ?? null,
+            progressId:  prog.id ?? null,
           })
         }
       }
     }
 
-    // Si rien de dû, prendre tous les items
-    const pool = dueItems.length > 0 ? dueItems : cards.flatMap(card =>
-      activeCriteria.map(crit => {
-        const key  = `${card.id}|${crit.id}`
-        const prog = progressMap[key]
-        return {
-          cardId: card.id, criterionId: crit.id, criterion: crit,
-          level: prog?.level ?? 0, next_review: prog?.next_review ?? null, progressId: prog?.id ?? null,
-        }
-      })
-    )
+    // Limite nouvelles cartes/jour — la limite est en CARTES, pas en items
+    // Une carte avec 3 critères = 1 nouvelle carte, pas 3
+    const newPerDay    = parseInt(localStorage.getItem(NEW_PER_DAY_KEY(deck.id)) || NEW_PER_DAY_DEFAULT)
+    const newSeenKey   = NEW_SEEN_KEY(deck.id)
+    const newSeenToday = parseInt(localStorage.getItem(newSeenKey) || '0')
+    const newRemaining = newPerDay === 999 ? Infinity : Math.max(0, newPerDay - newSeenToday)
 
-    const sorted = sortByPriority(pool)
-    console.log('items à réviser:', sorted.length)
+    // Grouper les jamais vus par cardId pour compter en cartes
+    const neverSeenByCard = {}
+    for (const item of neverSeenItems) {
+      if (!neverSeenByCard[item.cardId]) neverSeenByCard[item.cardId] = []
+      neverSeenByCard[item.cardId].push(item)
+    }
+    // Prendre seulement X cartes nouvelles
+    const allowedCardIds = new Set(Object.keys(neverSeenByCard).slice(0, newRemaining))
+    const allowedNew = neverSeenItems.filter(item => allowedCardIds.has(item.cardId))
 
-    const uniqueCardIds = [...new Set(sorted.map(i => i.cardId))]
+    // Pool = dues en retard + nouvelles autorisées aujourd'hui
+    const pool = (dueItems.length + allowedNew.length) > 0
+      ? [...dueItems, ...allowedNew]
+      : cards.flatMap(card =>
+          activeCriteria.map(crit => {
+            const key  = `${card.id}|${crit.id}`
+            const prog = progressMap[key]
+            return {
+              cardId: card.id, criterionId: crit.id, criterion: crit,
+              level: prog?.level ?? 0, next_review: prog?.next_review ?? null, progressId: prog?.id ?? null,
+            }
+          })
+        )
+
+    // 1 item par carte maximum — critère choisi aléatoirement parmi ceux disponibles
+    // (pour mixer symboles, noms, numéros dans la même session)
+    const itemsByCard = {}
+    for (const item of pool) {
+      if (!itemsByCard[item.cardId]) itemsByCard[item.cardId] = []
+      itemsByCard[item.cardId].push(item)
+    }
+
+    // Pour chaque carte, prendre 1 critère au hasard
+    const onePerCard = Object.values(itemsByCard).map(items => {
+      const i = Math.floor(Math.random() * items.length)
+      return items[i]
+    })
+
+    // Trier par priorité (jamais vu > en retard > récent) puis shuffle léger
+    const sorted = onePerCard.sort((a, b) => {
+      const aScore = a.next_review === null ? Infinity : (Date.now() - new Date(a.next_review).getTime())
+      const bScore = b.next_review === null ? Infinity : (Date.now() - new Date(b.next_review).getTime())
+      if (Math.abs(aScore - bScore) > 3600000) return bScore - aScore
+      return Math.random() - 0.5
+    })
+
+    const limited = limit ? sorted.slice(0, limit) : sorted
+    console.log('questions:', limited.length, '(1 critère aléatoire par carte)')
+
+    const uniqueCardIds = [...new Set(limited.map(i => i.cardId))]
     const { data: allValues } = await supabase
       .from('card_values')
       .select('card_id, criterion_id, value')
@@ -127,46 +184,64 @@ export function useStudySession(profile) {
       valuesMap[v.card_id][v.criterion_id] = v.value
     }
 
-    setSession({ deck, criteria: activeCriteria, allCriteria: criteria || [], items: sorted, progressMap, valuesMap })
+    setSession({ deck, criteria: activeCriteria, allCriteria: criteria || [], items: limited, progressMap, valuesMap })
     setIdx(0)
     setSessionStats({ easy: 0, medium: 0, hard: 0 })
     setSessionReady(true)
     setLoading(false)
   }, [profile])
 
+  const advanceIdx = useCallback((currentSession) => {
+    setIdx(i => i < currentSession.items.length - 1 ? i + 1 : -1)
+  }, [])
+
   const rateItem = useCallback(async (rating) => {
     if (!session) return
     const item = session.items[idx]
+    console.log('rateItem idx:', idx, 'cardId:', item?.cardId, 'criterionId:', item?.criterionId, 'progressId:', item?.progressId)
     const { newLevel, next } = computeNextReview(item.level, rating)
 
     if (item.progressId) {
+      console.log('→ UPDATE', item.progressId)
       await supabase.from('card_progress')
         .update({ level: newLevel, next_review: next.toISOString(), last_reviewed: new Date().toISOString() })
         .eq('id', item.progressId)
     } else {
       await supabase.from('card_progress')
-        .insert({
+        .upsert({
           profile_id:    profile.id,
           card_id:       item.cardId,
           criterion_id:  item.criterionId,
           level:         newLevel,
           next_review:   next.toISOString(),
           last_reviewed: new Date().toISOString(),
-        })
+        }, { onConflict: 'profile_id,card_id,criterion_id' })
+      // Incrémenter le compteur de nouvelles cartes vues aujourd'hui
+      // On ne compte qu'une fois par cardId (pas par critère)
+      if (session?.deck?.id) {
+        const key = NEW_SEEN_KEY(session.deck.id)
+        const seenCards = JSON.parse(localStorage.getItem(key + '_ids') || '[]')
+        if (!seenCards.includes(item.cardId)) {
+          seenCards.push(item.cardId)
+          localStorage.setItem(key + '_ids', JSON.stringify(seenCards))
+          localStorage.setItem(key, String(seenCards.length))
+        }
+      }
     }
 
+    // Incrémenter le compteur de cartes faites aujourd'hui
+    if (session?.deck?.id) {
+      const key = DONE_TODAY_KEY(session.deck.id)
+      const done = parseInt(localStorage.getItem(key) || '0')
+      localStorage.setItem(key, String(done + 1))
+    }
     setSessionStats(s => ({ ...s, [rating]: s[rating] + 1 }))
-    goNextInner()
-  }, [session, idx, profile])
+    advanceIdx(session)
+  }, [session, idx, profile, advanceIdx])
 
-  const goNextInner = useCallback(() => {
-    setIdx(i => {
-      if (!session) return i
-      return i < session.items.length - 1 ? i + 1 : -1
-    })
-  }, [session])
-
-  const goNext = useCallback(() => { goNextInner() }, [goNextInner])
+  const goNext = useCallback(() => {
+    if (session) advanceIdx(session)
+  }, [session, advanceIdx])
 
   const isFinished    = idx === -1
   const currentItem   = session && idx >= 0 ? session.items[idx] : null

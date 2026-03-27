@@ -4,9 +4,16 @@ import { supabase } from '../../../supabase'
 import { THEMES } from '../constants'
 import { compressImage } from '../utils.js'
 
+const NEW_PER_DAY_KEY = (deckId) => `memoire-new-per-day-${deckId}`
+const NEW_PER_DAY_DEFAULT = 10
+
 export default function ManageDeck({ deck, onBack, onDelete }) {
   // ── État global ────────────────────────────────────────────
   const [deckInfo, setDeckInfo]     = useState({ name: deck.name, theme: deck.theme, description: deck.description || '' })
+  const [newPerDay, setNewPerDay]   = useState(() => {
+    const saved = localStorage.getItem(NEW_PER_DAY_KEY(deck.id))
+    return saved ? parseInt(saved) : NEW_PER_DAY_DEFAULT
+  })
   const [criteria, setCriteria]     = useState([])
   const [cards, setCards]           = useState([])
   const [cardValues, setCardValues] = useState({}) // { cardId: { criterionId: value } }
@@ -231,6 +238,32 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
             placeholder="Description (optionnelle)"
             className="w-full text-xs text-gray-400 bg-transparent focus:outline-none"
           />
+
+          {/* Nouvelles cartes par jour */}
+          <div className="pt-2 border-t border-gray-50">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-gray-500 font-medium">Nouvelles cartes / jour</span>
+              <span className="text-xs font-bold text-gray-900">
+                {newPerDay === 999 ? '∞ illimité' : newPerDay}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              {[5, 10, 20, 999].map(n => (
+                <button key={n}
+                  onClick={() => {
+                    setNewPerDay(n)
+                    localStorage.setItem(NEW_PER_DAY_KEY(deck.id), String(n))
+                  }}
+                  className="flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                  style={{
+                    background: newPerDay === n ? '#1a1033' : '#f3f4f6',
+                    color: newPerDay === n ? 'white' : '#6b7280',
+                  }}>
+                  {n === 999 ? '∞' : n}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* ── Section Critères ── */}
