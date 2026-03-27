@@ -1,8 +1,10 @@
-// src/components/TabBar.jsx
-
-export default function TabBar({ tabs, active, onChange, color = '#6366f1' }) {
+export default function TabBar({ tabs, active, onChange, color = '#6366f1', dark }) {
   return (
-    <nav className="flex-shrink-0 bg-white border-t border-gray-100 flex">
+    <nav className="flex-shrink-0 flex"
+      style={{
+        background: dark ? '#1a1035' : '#ffffff',
+        borderTop: `1px solid ${dark ? '#2d1f5e' : '#f3f4f6'}`,
+      }}>
       {tabs.map(item => {
         const isActive = active === item.id
         return (
@@ -14,7 +16,7 @@ export default function TabBar({ tabs, active, onChange, color = '#6366f1' }) {
             <span className="text-xl leading-none">{item.emoji}</span>
             <span
               className="text-xs font-medium"
-              style={{ color: isActive ? color : '#9ca3af' }}
+              style={{ color: isActive ? color : (dark ? '#4338ca' : '#9ca3af') }}
             >
               {item.label}
             </span>

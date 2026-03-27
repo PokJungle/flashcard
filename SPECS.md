@@ -154,7 +154,7 @@ src/apps/Flashcards/
     HomeMemoire.jsx  ← accueil + filtre par profil + créer deck
     StudyScreen.jsx  ← révision multi-critères, révélation en place
     SessionEnd.jsx   ← fin session stats
-    ManageDeck.jsx   ← gestion deck + critères + cartes
+    ManageDeck.jsx   ← gestion deck + critères + cartes + quota nouvelles/jour
     HomeQuiz.jsx     ← accueil Quiz + sources + jauge modes
     QuizScreen.jsx   ← QCM Duo/Carré/Cash + ambiance thème
     QuizEnd.jsx      ← fin quiz score en points
@@ -162,15 +162,20 @@ src/apps/Flashcards/
 ```
 
 **Onglet Mémoire 🧠**
-- Bottom nav badge dues filtrée sur decks actifs du profil
+- Bottom nav badge dues journalier (quota/jour configurable par deck)
+- Badge = min(quota - faites aujourd'hui, à faire + jamais vues dispo) → 0 si quota atteint
 - Barres de progression par critère interrogeable + fond coloré global
 - Filtre decks par profil : ⚙️ → actif/inactif, grisé si inactif, localStorage
+- ManageDeck : quota nouvelles cartes/jour (5/10/20/∞), `quiz_answer_criterion_id` par critère
 - Créer deck manuellement (FAB +) → redirige ManageDeck
 - Import JSON : format classique `front/back` + nouveau `criteria/values`
+- Modal de lancement : stats (à faire / jamais vues / en avance) en questions + choix 🐇10 / 🐒20 / 🐘MAX
+- 1 critère par carte par session (aléatoire), limite en questions pas en items
 - Répétition espacée par (carte × critère), algo priorité sans shuffle pur
 - Seuil maîtrise : `level >= 4` (2× Facile)
 - `interrogeable: false` → réponse uniquement, jamais question
 - Révélation en place (fade), lien Wikipédia
+- SessionEnd : récap session + progression complète du deck par critère (barre vues + maîtrisées)
 
 **Onglet Quiz ⚡**
 - Modes : Duo 1pt / Carré 3pts / Cash 5pts (texte libre)
@@ -198,6 +203,10 @@ quiz_questions (id, profile_id, question, answer, wrong_answers text[], theme, c
 **localStorage**
 - `memoire-active-decks-{profileId}` : array IDs actifs (null = tous)
 - `memoire-singe-quiz-sources` : sources cochées Quiz
+- `memoire-new-per-day-{deckId}` : quota nouvelles cartes/jour (défaut 10)
+- `memoire-new-seen-{deckId}-{date}` : nouvelles cartes vues aujourd'hui (reset auto)
+- `memoire-done-today-{deckId}-{date}` : questions faites aujourd'hui (reset auto)
+- `memoire-session-mode-{deckId}` : dernier mode choisi (rapide/normal/marathon)
 
 ---
 

@@ -4,14 +4,13 @@ import { THEME_COLOR, THEMES } from '../constants'
 
 const MASTERED_LEVEL = 4
 
-export default function SessionEnd({ deck, stats, onBack, onRestart, profile }) {
+export default function SessionEnd({ deck, stats, onBack, onRestart, profile, dark }) {
   const [deckProgress, setDeckProgress] = useState([])
   const [loadingProgress, setLoadingProgress] = useState(true)
 
-  const total  = stats.easy + stats.medium + stats.hard
-  const skipped = stats.skipped || 0
-  const color  = THEME_COLOR[deck?.theme] || '#6A9BCC'
-  const theme  = THEMES.find(t => t.id === deck?.theme)
+  const total   = stats.easy + stats.medium + stats.hard
+  const color   = THEME_COLOR[deck?.theme] || '#6A9BCC'
+  const theme   = THEMES.find(t => t.id === deck?.theme)
 
   const pctEasy   = total ? Math.round((stats.easy   / total) * 100) : 0
   const pctMedium = total ? Math.round((stats.medium / total) * 100) : 0
@@ -20,7 +19,6 @@ export default function SessionEnd({ deck, stats, onBack, onRestart, profile }) 
   const emoji   = pctEasy >= 70 ? '🎉' : pctEasy >= 40 ? '💪' : '🐒'
   const message = pctEasy >= 70 ? 'Excellent travail !' : pctEasy >= 40 ? 'Bonne session !' : 'Continue comme ça !'
 
-  // Charger la progression complète du deck
   useEffect(() => {
     if (!deck || !profile) return
     loadDeckProgress()
@@ -28,7 +26,6 @@ export default function SessionEnd({ deck, stats, onBack, onRestart, profile }) 
 
   const loadDeckProgress = async () => {
     setLoadingProgress(true)
-
     const [{ data: criteria }, { data: cards }] = await Promise.all([
       supabase.from('deck_criteria').select('id, name, type, interrogeable').eq('deck_id', deck.id).order('position'),
       supabase.from('cards').select('id').eq('deck_id', deck.id),
@@ -51,7 +48,7 @@ export default function SessionEnd({ deck, stats, onBack, onRestart, profile }) 
     }
 
     const now = new Date()
-    const stats = activeCriteria.map(crit => {
+    const critStats = activeCriteria.map(crit => {
       let seen = 0, mastered = 0, due = 0
       for (const cardId of cardIds) {
         const prog = progMap[`${cardId}|${crit.id}`]
@@ -60,7 +57,7 @@ export default function SessionEnd({ deck, stats, onBack, onRestart, profile }) 
           if (prog.level >= MASTERED_LEVEL) mastered++
           if (new Date(prog.next_review) <= now) due++
         } else {
-          due++ // jamais vu = due
+          due++
         }
       }
       return {
@@ -76,30 +73,37 @@ export default function SessionEnd({ deck, stats, onBack, onRestart, profile }) 
       }
     })
 
-    setDeckProgress(stats)
+    setDeckProgress(critStats)
     setLoadingProgress(false)
   }
 
+  const bg      = dark ? '#0f0a1e' : '#f9fafb'
+  const card    = dark ? '#1a1035' : '#ffffff'
+  const border  = dark ? '#2d1f5e' : '#f3f4f6'
+  const textPri = dark ? '#e9d5ff' : '#111827'
+  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const textMed = dark ? '#c4b5fd' : '#4b5563'
+
   return (
-    <div className="flex flex-col h-full bg-gray-50 overflow-y-auto">
+    <div className="flex flex-col h-full overflow-y-auto" style={{ background: bg }}>
 
       {/* Hero */}
       <div className="flex flex-col items-center justify-center px-6 pt-10 pb-5">
         <div className="text-5xl mb-3">{emoji}</div>
-        <p className="text-xl font-bold text-gray-900 mb-1">{message}</p>
-        <p className="text-sm text-gray-400">
+        <p className="text-xl font-bold mb-1" style={{ color: textPri }}>{message}</p>
+        <p className="text-sm" style={{ color: textSec }}>
           {theme?.emoji} {deck?.name} · {total} carte{total > 1 ? 's' : ''} révisée{total > 1 ? 's' : ''}
         </p>
       </div>
 
       {/* Stats session */}
       <div className="mx-4 grid grid-cols-3 gap-3 mb-4">
-        <StatBox value={stats.easy}   label="Facile"    color="#27500A" bg="#EAF3DE" emoji="😎" />
-        <StatBox value={stats.medium} label="Moyen"     color="#633806" bg="#FAEEDA" emoji="🤔" />
-        <StatBox value={stats.hard}   label="Difficile" color="#791F1F" bg="#FCEBEB" emoji="😅" />
+        <StatBox value={stats.easy}   label="Facile"    color="#27500A" bg={dark ? '#14291a' : '#EAF3DE'} emoji="😎" dark={dark} />
+        <StatBox value={stats.medium} label="Moyen"     color="#633806" bg={dark ? '#2d2a1e' : '#FAEEDA'} emoji="🤔" dark={dark} />
+        <StatBox value={stats.hard}   label="Difficile" color="#791F1F" bg={dark ? '#2d1a1a' : '#FCEBEB'} emoji="😅" dark={dark} />
       </div>
 
-      {/* Barre de répartition session */}
+      {/* Barre de répartition */}
       {total > 0 && (
         <div className="mx-4 mb-5">
           <div className="flex h-2.5 rounded-full overflow-hidden gap-0.5">
@@ -108,46 +112,44 @@ export default function SessionEnd({ deck, stats, onBack, onRestart, profile }) 
             {pctHard   > 0 && <div style={{ width: `${pctHard}%`,   background: '#E24B4A' }} />}
           </div>
           <div className="flex justify-between mt-1">
-            <span className="text-xs text-gray-400">{pctEasy}% facile</span>
-            <span className="text-xs text-gray-400">{pctHard}% difficile</span>
+            <span className="text-xs" style={{ color: textSec }}>{pctEasy}% facile</span>
+            <span className="text-xs" style={{ color: textSec }}>{pctHard}% difficile</span>
           </div>
         </div>
       )}
 
       {/* Progression du deck */}
       <div className="mx-4 mb-5">
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-50">
-            <p className="text-sm font-semibold text-gray-800">Progression du deck</p>
+        <div className="rounded-2xl overflow-hidden" style={{ background: card, border: `1px solid ${border}` }}>
+          <div className="px-4 py-3" style={{ borderBottom: `1px solid ${border}` }}>
+            <p className="text-sm font-semibold" style={{ color: textPri }}>Progression du deck</p>
           </div>
 
           {loadingProgress ? (
-            <div className="p-4 text-center text-gray-400 text-sm">Chargement…</div>
+            <div className="p-4 text-center text-sm" style={{ color: textSec }}>Chargement…</div>
           ) : (
             <div className="px-4 py-3 space-y-3">
               {deckProgress.map(crit => (
                 <div key={crit.id}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-gray-500 capitalize">
+                    <span className="text-xs capitalize" style={{ color: textSec }}>
                       {crit.type === 'image' ? '🖼️' : '📝'} {crit.name}
                     </span>
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <div className="flex items-center gap-2 text-xs" style={{ color: textSec }}>
                       <span>{crit.seen}/{crit.total} vues</span>
                       {crit.due > 0 && (
                         <span className="px-1.5 py-0.5 rounded-md font-medium"
-                          style={{ background: '#E6F1FB', color: '#185FA5' }}>
+                          style={{ background: dark ? '#1a2744' : '#E6F1FB', color: dark ? '#93c5fd' : '#185FA5' }}>
                           {crit.due} dues
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Barre double : vues (gris) + maîtrisées (couleur) */}
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden relative">
-                    {/* Vues */}
+                  <div className="h-2 rounded-full overflow-hidden relative"
+                    style={{ background: dark ? '#2d1f5e' : '#f3f4f6' }}>
                     <div className="absolute top-0 left-0 h-full rounded-full"
                       style={{ width: `${crit.seenPct}%`, background: color + '40' }} />
-                    {/* Maîtrisées */}
                     <div className="absolute top-0 left-0 h-full rounded-full transition-all duration-700"
                       style={{
                         width: `${crit.pct}%`,
@@ -156,9 +158,9 @@ export default function SessionEnd({ deck, stats, onBack, onRestart, profile }) 
                   </div>
 
                   <div className="flex justify-between mt-0.5">
-                    <span className="text-xs text-gray-300">{crit.seenPct}% vues</span>
+                    <span className="text-xs" style={{ color: dark ? '#4338ca' : '#d1d5db' }}>{crit.seenPct}% vues</span>
                     <span className="text-xs font-medium"
-                      style={{ color: crit.pct >= 40 ? color : '#d1d5db' }}>
+                      style={{ color: crit.pct >= 40 ? color : (dark ? '#4338ca' : '#d1d5db') }}>
                       {crit.pct}% maîtrisées
                     </span>
                   </div>
@@ -177,7 +179,12 @@ export default function SessionEnd({ deck, stats, onBack, onRestart, profile }) 
           Continuer à réviser →
         </button>
         <button onClick={onBack}
-          className="w-full py-4 bg-white border border-gray-200 rounded-2xl text-gray-900 text-sm font-semibold active:scale-95 transition-transform">
+          className="w-full py-4 rounded-2xl text-sm font-semibold active:scale-95 transition-transform"
+          style={{
+            background: card,
+            border: `1px solid ${border}`,
+            color: textMed,
+          }}>
           Retour à l'accueil
         </button>
       </div>

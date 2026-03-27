@@ -2,16 +2,12 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { THEME_COLOR, THEMES } from '../constants'
 
-export default function StudyScreen({ profile, deck, session, currentItem, idx, onRate, onSkip, onBack }) {
-  const [revealed, setRevealed]   = useState(false)
-  const [visible, setVisible]     = useState(true)  // pour le fade entre cartes
+export default function StudyScreen({ profile, deck, session, currentItem, idx, onRate, onSkip, onBack, dark }) {
+  const [revealed, setRevealed] = useState(false)
+  const [visible, setVisible]   = useState(true)
 
-  // Fade in à chaque nouvelle carte (revealed déjà false avant idx change)
-  useEffect(() => {
-    setVisible(true)
-  }, [idx])
+  useEffect(() => { setVisible(true) }, [idx])
 
-  // Griser immédiatement, puis changer de carte après le fade
   const handleRate = (rating) => {
     setRevealed(false)
     setVisible(false)
@@ -44,11 +40,16 @@ export default function StudyScreen({ profile, deck, session, currentItem, idx, 
   const progress  = ((idx + 1) / total) * 100
   const questionTitle = criterion.question_title || `Quel est ${criterion.name} ?`
 
-  // Lien Wikipedia — priorité au critère "nom", sinon premier texte non-interrogé
   const wikiCrit = allCriteria.find(c => c.name === 'nom' && c.id !== criterionId)
     || allCriteria.find(c => c.type === 'text' && c.id !== criterionId)
   const wikiTerm = wikiCrit ? cardValues[wikiCrit.id] : (isImageCrit ? null : questionValue)
   const wikiUrl  = wikiTerm ? `https://fr.wikipedia.org/wiki/${encodeURIComponent(wikiTerm)}` : null
+
+  // Les cartes blanches s'adaptent au dark mode
+  const cardBg   = dark ? '#1a1035' : '#ffffff'
+  const cardText = dark ? '#e9d5ff' : '#1f2937'
+  const cardSub  = dark ? '#a78bfa' : '#9ca3af'
+  const revealBg = dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.15)'
 
   return (
     <div className="flex flex-col h-full" style={{ background: `linear-gradient(160deg, ${color}ee, ${color}99)` }}>
@@ -68,7 +69,7 @@ export default function StudyScreen({ profile, deck, session, currentItem, idx, 
           style={{ width: `${progress}%` }} />
       </div>
 
-      {/* Zone principale — scrollable */}
+      {/* Zone principale */}
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2">
         <div className="w-full max-w-sm mx-auto"
           style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.15s' }}>
@@ -81,39 +82,40 @@ export default function StudyScreen({ profile, deck, session, currentItem, idx, 
           </div>
 
           {/* Bloc question */}
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
+          <div className="rounded-2xl shadow-lg overflow-hidden mb-3" style={{ background: cardBg }}>
             {isImageCrit && questionValue ? (
               <img src={questionValue} alt={questionTitle}
-                className="w-full object-contain bg-gray-50"
-                style={{ maxHeight: '240px' }} />
+                className="w-full object-contain"
+                style={{ maxHeight: '240px', background: dark ? '#0f0a1e' : '#f9fafb' }} />
             ) : isImageCrit && !questionValue ? (
               <div className="flex flex-col items-center justify-center gap-2 py-8 px-6">
                 <div className="text-4xl">🖼️</div>
-                <p className="text-gray-400 text-sm text-center">Pas encore d'image</p>
+                <p className="text-sm text-center" style={{ color: cardSub }}>Pas encore d'image</p>
                 {wikiUrl && (
                   <a href={wikiUrl} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-blue-500 text-xs font-medium mt-1">
+                    className="flex items-center gap-1.5 text-blue-400 text-xs font-medium mt-1">
                     <ExternalLink size={12} /> Chercher sur Wikipédia
                   </a>
                 )}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center px-6 py-6" style={{ minHeight: '100px' }}>
-                <p className="text-2xl font-bold text-gray-800 text-center leading-snug">
+                <p className="text-2xl font-bold text-center leading-snug" style={{ color: cardText }}>
                   {questionValue || '—'}
                 </p>
               </div>
             )}
           </div>
 
-          {/* Bloc réponses — révélation en place */}
+          {/* Blocs réponses */}
           {answerCriteria.length > 0 && (
             <div className="space-y-2 mb-3">
               {answerCriteria.map(crit => {
                 const val = cardValues[crit.id]
                 return (
                   <div key={crit.id}
-                    className="bg-white/15 rounded-xl px-4 py-3 flex items-start gap-3 cursor-pointer"
+                    className="rounded-xl px-4 py-3 flex items-start gap-3 cursor-pointer"
+                    style={{ background: revealBg }}
                     onClick={() => !revealed && setRevealed(true)}>
                     <span className="text-xs text-white/60 flex-shrink-0 w-16 capitalize pt-0.5">
                       {crit.name}
@@ -146,7 +148,6 @@ export default function StudyScreen({ profile, deck, session, currentItem, idx, 
               </a>
             </div>
           )}
-
         </div>
       </div>
 

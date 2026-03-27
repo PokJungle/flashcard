@@ -7,8 +7,7 @@ import { compressImage } from '../utils.js'
 const NEW_PER_DAY_KEY = (deckId) => `memoire-new-per-day-${deckId}`
 const NEW_PER_DAY_DEFAULT = 10
 
-export default function ManageDeck({ deck, onBack, onDelete }) {
-  // ── État global ────────────────────────────────────────────
+export default function ManageDeck({ deck, dark, onBack, onDelete }) {
   const [deckInfo, setDeckInfo]     = useState({ name: deck.name, theme: deck.theme, description: deck.description || '' })
   const [newPerDay, setNewPerDay]   = useState(() => {
     const saved = localStorage.getItem(NEW_PER_DAY_KEY(deck.id))
@@ -16,40 +15,29 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
   })
   const [criteria, setCriteria]     = useState([])
   const [cards, setCards]           = useState([])
-  const [cardValues, setCardValues] = useState({}) // { cardId: { criterionId: value } }
+  const [cardValues, setCardValues] = useState({})
   const [loading, setLoading]       = useState(true)
-
-  // ── Sections repliables ────────────────────────────────────
-  const [openSection, setOpenSection] = useState('criteria') // 'criteria' | 'cards' | null
-
-  // ── Édition critère ────────────────────────────────────────
+  const [openSection, setOpenSection] = useState('criteria')
   const [editingCriterion, setEditingCriterion] = useState(null)
   const [criterionForm, setCriterionForm]       = useState({ name: '', type: 'text', question_title: '', interrogeable: true })
-
-  // ── Édition carte ──────────────────────────────────────────
-  const [editingCard, setEditingCard]   = useState(null) // null | { id } | { id: null } pour nouvelle
-  const [cardForm, setCardForm]         = useState({})   // { criterionId: value }
+  const [editingCard, setEditingCard]   = useState(null)
+  const [cardForm, setCardForm]         = useState({})
   const [uploadingCriterion, setUploadingCriterion] = useState(null)
   const [savingCard, setSavingCard]     = useState(false)
 
-  // ── Chargement ─────────────────────────────────────────────
   useEffect(() => { load() }, [deck.id])
 
   const load = async () => {
     setLoading(true)
-
     const [{ data: crit }, { data: cardsData }] = await Promise.all([
       supabase.from('deck_criteria').select('*').eq('deck_id', deck.id).order('position'),
       supabase.from('cards').select('id, created_at').eq('deck_id', deck.id).order('created_at'),
     ])
-
     setCriteria(crit || [])
-
     if (cardsData?.length) {
       const cardIds = cardsData.map(c => c.id)
       const { data: vals } = await supabase
         .from('card_values').select('card_id, criterion_id, value').in('card_id', cardIds)
-
       const map = {}
       for (const v of (vals || [])) {
         if (!map[v.card_id]) map[v.card_id] = {}
@@ -61,16 +49,13 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
       setCards([])
       setCardValues({})
     }
-
     setLoading(false)
   }
 
-  // ── Deck info ──────────────────────────────────────────────
   const saveDeckInfo = async () => {
     await supabase.from('decks').update(deckInfo).eq('id', deck.id)
   }
 
-  // ── Critères ───────────────────────────────────────────────
   const openNewCriterion = () => {
     setEditingCriterion({ id: null })
     setCriterionForm({ name: '', type: 'text', question_title: '', interrogeable: true, quiz_answer_criterion_id: '' })
@@ -109,41 +94,26 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
     setCriteria(prev => prev.map(x => x.id === c.id ? { ...x, interrogeable: !x.interrogeable } : x))
   }
 
-  // ── Cartes ─────────────────────────────────────────────────
-  const openNewCard = () => {
-    setEditingCard({ id: null })
-    setCardForm({})
-  }
-
-  const openEditCard = (card) => {
-    setEditingCard(card)
-    setCardForm(cardValues[card.id] || {})
-  }
+  const openNewCard = () => { setEditingCard({ id: null }); setCardForm({}) }
+  const openEditCard = (card) => { setEditingCard(card); setCardForm(cardValues[card.id] || {}) }
 
   const saveCard = async () => {
     setSavingCard(true)
     try {
       let cardId = editingCard?.id
-
       if (!cardId) {
         const { data } = await supabase.from('cards').insert({ deck_id: deck.id, front: '', back: '' }).select().single()
         cardId = data.id
       }
-
-      // Upsert toutes les valeurs
       const values = Object.entries(cardForm)
         .filter(([, v]) => v !== undefined && v !== '')
         .map(([criterionId, value]) => ({ card_id: cardId, criterion_id: criterionId, value }))
-
       if (values.length > 0) {
         await supabase.from('card_values').upsert(values, { onConflict: 'card_id,criterion_id' })
       }
-
       setEditingCard(null)
       await load()
-    } catch (err) {
-      alert('Erreur : ' + err.message)
-    }
+    } catch (err) { alert('Erreur : ' + err.message) }
     setSavingCard(false)
   }
 
@@ -153,7 +123,6 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
     setCardValues(prev => { const n = { ...prev }; delete n[cardId]; return n })
   }
 
-  // ── Upload image dans le formulaire carte ──────────────────
   const handleImageUpload = async (e, criterionId) => {
     const file = e.target.files[0]
     if (!file) return
@@ -165,17 +134,13 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
       if (error) throw error
       const { data: { publicUrl } } = supabase.storage.from('card-images').getPublicUrl(path)
       setCardForm(prev => ({ ...prev, [criterionId]: publicUrl }))
-    } catch (err) {
-      alert('Erreur upload : ' + err.message)
-    }
+    } catch (err) { alert('Erreur upload : ' + err.message) }
     setUploadingCriterion(null)
     e.target.value = ''
   }
 
-  // ── Helpers d'affichage ────────────────────────────────────
   const getCardLabel = (card) => {
     const vals = cardValues[card.id] || {}
-    // Prendre la première valeur texte comme label
     for (const c of criteria) {
       if (c.type === 'text' && vals[c.id]) return vals[c.id]
     }
@@ -190,26 +155,37 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
     return null
   }
 
+  // ── Couleurs dark ──
+  const bg      = dark ? '#0f0a1e' : '#f9fafb'
+  const card    = dark ? '#1a1035' : '#ffffff'
+  const border  = dark ? '#2d1f5e' : '#f3f4f6'
+  const border2 = dark ? '#2d1f5e' : '#e5e7eb'
+  const textPri = dark ? '#e9d5ff' : '#111827'
+  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const inputBg = dark ? '#0f0a1e' : '#ffffff'
+
   if (loading) return (
-    <div className="flex-1 flex items-center justify-center">
+    <div className="flex-1 flex items-center justify-center" style={{ background: bg }}>
       <div className="text-4xl animate-bounce">🐒</div>
     </div>
   )
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full" style={{ background: bg }}>
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 flex-shrink-0">
-        <button onClick={onBack} className="text-gray-400 hover:text-gray-700">
+      <div className="px-4 py-3 flex items-center gap-3 flex-shrink-0"
+        style={{ background: card, borderBottom: `1px solid ${border}` }}>
+        <button onClick={onBack} style={{ color: textSec }}>
           <ArrowLeft size={20} />
         </button>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-gray-900 truncate">{deck.name}</p>
-          <p className="text-xs text-gray-400">{cards.length} carte{cards.length > 1 ? 's' : ''} · {criteria.length} critère{criteria.length > 1 ? 's' : ''}</p>
+          <p className="font-bold truncate" style={{ color: textPri }}>{deck.name}</p>
+          <p className="text-xs" style={{ color: textSec }}>{cards.length} carte{cards.length > 1 ? 's' : ''} · {criteria.length} critère{criteria.length > 1 ? 's' : ''}</p>
         </div>
         <button onClick={() => { if (confirm('Supprimer ce deck ?')) onDelete(deck) }}
-          className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded-lg bg-red-50">
+          className="text-xs px-2 py-1 rounded-lg"
+          style={{ background: dark ? '#3b1a1a' : '#fff1f1', color: '#f87171' }}>
           🗑️
         </button>
       </div>
@@ -217,18 +193,21 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
       <div className="flex-1 overflow-y-auto pb-8">
 
         {/* ── Infos deck ── */}
-        <div className="bg-white mx-4 mt-4 rounded-2xl border border-gray-100 p-4 space-y-3">
+        <div className="mx-4 mt-4 rounded-2xl p-4 space-y-3"
+          style={{ background: card, border: `1px solid ${border}` }}>
           <input
             value={deckInfo.name}
             onChange={e => setDeckInfo(p => ({ ...p, name: e.target.value }))}
             onBlur={saveDeckInfo}
             placeholder="Nom du deck"
-            className="w-full text-sm font-semibold text-gray-900 bg-transparent border-b border-gray-100 pb-1 focus:outline-none focus:border-gray-400"
+            className="w-full text-sm font-semibold bg-transparent pb-1 focus:outline-none"
+            style={{ borderBottom: `1px solid ${border}`, color: textPri }}
           />
           <select
             value={deckInfo.theme}
             onChange={e => { setDeckInfo(p => ({ ...p, theme: e.target.value })); saveDeckInfo() }}
-            className="w-full text-sm text-gray-600 bg-transparent focus:outline-none">
+            className="w-full text-sm bg-transparent focus:outline-none"
+            style={{ color: textSec }}>
             {THEMES.map(t => <option key={t.id} value={t.id}>{t.emoji} {t.label}</option>)}
           </select>
           <input
@@ -236,14 +215,15 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
             onChange={e => setDeckInfo(p => ({ ...p, description: e.target.value }))}
             onBlur={saveDeckInfo}
             placeholder="Description (optionnelle)"
-            className="w-full text-xs text-gray-400 bg-transparent focus:outline-none"
+            className="w-full text-xs bg-transparent focus:outline-none"
+            style={{ color: textSec }}
           />
 
           {/* Nouvelles cartes par jour */}
-          <div className="pt-2 border-t border-gray-50">
+          <div className="pt-2" style={{ borderTop: `1px solid ${border}` }}>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-gray-500 font-medium">Nouvelles cartes / jour</span>
-              <span className="text-xs font-bold text-gray-900">
+              <span className="text-xs font-medium" style={{ color: textSec }}>Nouvelles cartes / jour</span>
+              <span className="text-xs font-bold" style={{ color: textPri }}>
                 {newPerDay === 999 ? '∞ illimité' : newPerDay}
               </span>
             </div>
@@ -256,8 +236,8 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
                   }}
                   className="flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all"
                   style={{
-                    background: newPerDay === n ? '#1a1033' : '#f3f4f6',
-                    color: newPerDay === n ? 'white' : '#6b7280',
+                    background: newPerDay === n ? (dark ? '#7c3aed' : '#1a1033') : (dark ? '#2d1f5e' : '#f3f4f6'),
+                    color: newPerDay === n ? 'white' : textSec,
                   }}>
                   {n === 999 ? '∞' : n}
                 </button>
@@ -271,40 +251,41 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
           title={`Critères · ${criteria.length}`}
           isOpen={openSection === 'criteria'}
           onToggle={() => setOpenSection(s => s === 'criteria' ? null : 'criteria')}
-          action={<button onClick={openNewCriterion}
-            className="text-xs px-2 py-1 bg-gray-900 text-white rounded-lg font-medium">
-            + Ajouter
-          </button>}>
+          dark={dark}
+          action={
+            <button onClick={openNewCriterion}
+              className="text-xs px-2 py-1 rounded-lg font-medium text-white"
+              style={{ background: dark ? '#7c3aed' : '#111827' }}>
+              + Ajouter
+            </button>
+          }>
 
           <div className="space-y-2 pt-1">
             {criteria.map(c => (
-              <div key={c.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+              <div key={c.id} className="rounded-xl overflow-hidden"
+                style={{ background: card, border: `1px solid ${border}` }}>
                 <div className="flex items-center gap-3 px-3 py-2.5">
                   <span className="text-base">{c.type === 'image' ? '🖼️' : '📝'}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800">{c.name}</p>
+                    <p className="text-sm font-semibold" style={{ color: textPri }}>{c.name}</p>
                     {c.question_title && (
-                      <p className="text-xs text-gray-400 truncate">{c.question_title}</p>
+                      <p className="text-xs truncate" style={{ color: textSec }}>{c.question_title}</p>
                     )}
                   </div>
-                  {/* Toggle interrogeable */}
                   <button onClick={() => toggleInterrogeable(c)}
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
-                      c.interrogeable !== false
-                        ? 'bg-indigo-50 text-indigo-600'
-                        : 'bg-gray-100 text-gray-400'
-                    }`}>
+                    className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+                    style={{
+                      background: c.interrogeable !== false ? (dark ? '#2d2060' : '#eef2ff') : (dark ? '#2d1f5e' : '#f3f4f6'),
+                      color: c.interrogeable !== false ? (dark ? '#a5b4fc' : '#4f46e5') : textSec,
+                    }}>
                     {c.interrogeable !== false ? '❓ question' : '💡 réponse'}
                   </button>
-                  <button onClick={() => openEditCriterion(c)} className="text-gray-300 hover:text-gray-600 flex-shrink-0">
-                    ✏️
-                  </button>
-                  <button onClick={() => deleteCriterion(c.id)} className="text-gray-300 hover:text-red-400 flex-shrink-0">
+                  <button onClick={() => openEditCriterion(c)} style={{ color: textSec }} className="flex-shrink-0">✏️</button>
+                  <button onClick={() => deleteCriterion(c.id)} className="flex-shrink-0" style={{ color: textSec }}>
                     <X size={14} />
                   </button>
                 </div>
 
-                {/* Formulaire édition critère inline */}
                 {editingCriterion?.id === c.id && (
                   <CriterionForm
                     form={criterionForm}
@@ -312,20 +293,21 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
                     onSave={saveCriterion}
                     onCancel={() => setEditingCriterion(null)}
                     allCriteria={criteria}
+                    dark={dark}
                   />
                 )}
               </div>
             ))}
 
-            {/* Nouvelle carte critère */}
             {editingCriterion?.id === null && (
-              <div className="bg-white rounded-xl border border-gray-200">
+              <div className="rounded-xl overflow-hidden" style={{ background: card, border: `1px solid ${border2}` }}>
                 <CriterionForm
                   form={criterionForm}
                   onChange={setCriterionForm}
                   onSave={saveCriterion}
                   onCancel={() => setEditingCriterion(null)}
                   allCriteria={criteria}
+                  dark={dark}
                   isNew
                 />
               </div>
@@ -338,16 +320,19 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
           title={`Cartes · ${cards.length}`}
           isOpen={openSection === 'cards'}
           onToggle={() => setOpenSection(s => s === 'cards' ? null : 'cards')}
-          action={<button onClick={openNewCard}
-            className="text-xs px-2 py-1 bg-gray-900 text-white rounded-lg font-medium">
-            + Ajouter
-          </button>}>
+          dark={dark}
+          action={
+            <button onClick={openNewCard}
+              className="text-xs px-2 py-1 rounded-lg font-medium text-white"
+              style={{ background: dark ? '#7c3aed' : '#111827' }}>
+              + Ajouter
+            </button>
+          }>
 
-          {/* Formulaire nouvelle carte */}
           {editingCard?.id === null && (
-            <div className="bg-white rounded-xl border border-gray-200 mb-3 overflow-hidden">
+            <div className="rounded-xl overflow-hidden mb-3" style={{ background: card, border: `1px solid ${border2}` }}>
               <div className="px-3 pt-3 pb-1">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Nouvelle carte</p>
+                <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: textSec }}>Nouvelle carte</p>
               </div>
               <CardForm
                 criteria={criteria}
@@ -358,31 +343,33 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
                 saving={savingCard}
                 onImageUpload={handleImageUpload}
                 uploadingCriterion={uploadingCriterion}
+                dark={dark}
               />
             </div>
           )}
 
           <div className="space-y-2">
-            {cards.map(card => {
-              const thumb = getCardThumb(card)
-              const label = getCardLabel(card)
+            {cards.map(card_ => {
+              const thumb = getCardThumb(card_)
+              const label = getCardLabel(card_)
               return (
-                <div key={card.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                <div key={card_.id} className="rounded-xl overflow-hidden"
+                  style={{ background: card, border: `1px solid ${border}` }}>
                   <div className="flex items-center gap-3 px-3 py-2.5">
                     {thumb ? (
                       <img src={thumb} alt="" className="w-10 h-10 object-cover rounded-lg flex-shrink-0" />
                     ) : (
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-lg flex-shrink-0">🃏</div>
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
+                        style={{ background: dark ? '#2d1f5e' : '#f3f4f6' }}>🃏</div>
                     )}
-                    <p className="flex-1 text-sm font-medium text-gray-800 truncate">{label}</p>
-                    <button onClick={() => openEditCard(card)} className="text-gray-300 hover:text-gray-600">✏️</button>
-                    <button onClick={() => deleteCard(card.id)} className="text-gray-300 hover:text-red-400">
+                    <p className="flex-1 text-sm font-medium truncate" style={{ color: textPri }}>{label}</p>
+                    <button onClick={() => openEditCard(card_)} style={{ color: textSec }}>✏️</button>
+                    <button onClick={() => deleteCard(card_.id)} style={{ color: textSec }}>
                       <X size={14} />
                     </button>
                   </div>
 
-                  {/* Formulaire édition carte inline */}
-                  {editingCard?.id === card.id && (
+                  {editingCard?.id === card_.id && (
                     <CardForm
                       criteria={criteria}
                       form={cardForm}
@@ -392,6 +379,7 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
                       saving={savingCard}
                       onImageUpload={handleImageUpload}
                       uploadingCriterion={uploadingCriterion}
+                      dark={dark}
                     />
                   )}
                 </div>
@@ -404,12 +392,14 @@ export default function ManageDeck({ deck, onBack, onDelete }) {
   )
 }
 
-// ── Composant Section repliable ────────────────────────────
-function Section({ title, isOpen, onToggle, action, children }) {
+// ── Section repliable ──────────────────────────────────────
+function Section({ title, isOpen, onToggle, action, children, dark }) {
+  const textSec = dark ? '#a78bfa' : '#9ca3af'
   return (
     <div className="mx-4 mt-4">
       <div className="flex items-center justify-between mb-2 px-1">
-        <button onClick={onToggle} className="flex items-center gap-1.5 text-xs font-bold text-gray-400 uppercase tracking-widest">
+        <button onClick={onToggle} className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest"
+          style={{ color: textSec }}>
           {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           {title}
         </button>
@@ -421,21 +411,28 @@ function Section({ title, isOpen, onToggle, action, children }) {
 }
 
 // ── Formulaire critère ─────────────────────────────────────
-function CriterionForm({ form, onChange, onSave, onCancel, isNew, allCriteria = [] }) {
+function CriterionForm({ form, onChange, onSave, onCancel, isNew, allCriteria = [], dark }) {
+  const border  = dark ? '#2d1f5e' : '#e5e7eb'
+  const inputBg = dark ? '#0f0a1e' : '#ffffff'
+  const textPri = dark ? '#e9d5ff' : '#111827'
+  const textSec = dark ? '#a78bfa' : '#9ca3af'
   const otherCriteria = allCriteria.filter(c => c.name !== form.name)
+
   return (
-    <div className="px-3 pb-3 pt-2 space-y-2 border-t border-gray-50">
+    <div className="px-3 pb-3 pt-2 space-y-2" style={{ borderTop: `1px solid ${border}` }}>
       <div className="flex gap-2">
         <input
           value={form.name}
           onChange={e => onChange(p => ({ ...p, name: e.target.value }))}
           placeholder="Nom du critère (ex: drapeau)"
-          className="flex-1 text-sm px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-gray-400"
+          className="flex-1 text-sm px-3 py-2 rounded-xl focus:outline-none"
+          style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }}
         />
         <select
           value={form.type}
           onChange={e => onChange(p => ({ ...p, type: e.target.value }))}
-          className="text-sm px-2 py-2 rounded-xl border border-gray-200 focus:outline-none bg-white">
+          className="text-sm px-2 py-2 rounded-xl focus:outline-none"
+          style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }}>
           <option value="text">📝 texte</option>
           <option value="image">🖼️ image</option>
         </select>
@@ -444,15 +441,17 @@ function CriterionForm({ form, onChange, onSave, onCancel, isNew, allCriteria = 
         value={form.question_title}
         onChange={e => onChange(p => ({ ...p, question_title: e.target.value }))}
         placeholder="Question posée (ex: Quel est ce pays ?)"
-        className="w-full text-sm px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-gray-400"
+        className="w-full text-sm px-3 py-2 rounded-xl focus:outline-none"
+        style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }}
       />
       {form.interrogeable && otherCriteria.length > 0 && (
         <div>
-          <label className="text-xs text-gray-400 block mb-1">Réponse attendue en Quiz</label>
+          <label className="text-xs block mb-1" style={{ color: textSec }}>Réponse attendue en Quiz</label>
           <select
             value={form.quiz_answer_criterion_id || ''}
             onChange={e => onChange(p => ({ ...p, quiz_answer_criterion_id: e.target.value || null }))}
-            className="w-full text-sm px-3 py-2 rounded-xl border border-gray-200 focus:outline-none bg-white">
+            className="w-full text-sm px-3 py-2 rounded-xl focus:outline-none"
+            style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }}>
             <option value="">— Non configuré —</option>
             {otherCriteria.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -460,7 +459,7 @@ function CriterionForm({ form, onChange, onSave, onCancel, isNew, allCriteria = 
           </select>
         </div>
       )}
-      <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+      <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: textPri }}>
         <input
           type="checkbox"
           checked={form.interrogeable}
@@ -471,11 +470,13 @@ function CriterionForm({ form, onChange, onSave, onCancel, isNew, allCriteria = 
       </label>
       <div className="flex gap-2 pt-1">
         <button onClick={onSave} disabled={!form.name.trim()}
-          className="flex-1 py-2 bg-gray-900 text-white rounded-xl text-sm font-semibold disabled:opacity-30">
+          className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-30"
+          style={{ background: dark ? '#7c3aed' : '#111827' }}>
           {isNew ? 'Ajouter' : 'Sauvegarder'}
         </button>
         <button onClick={onCancel}
-          className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm">
+          className="px-4 py-2 rounded-xl text-sm"
+          style={{ background: dark ? '#2d1f5e' : '#f3f4f6', color: textPri }}>
           Annuler
         </button>
       </div>
@@ -484,19 +485,26 @@ function CriterionForm({ form, onChange, onSave, onCancel, isNew, allCriteria = 
 }
 
 // ── Formulaire carte ───────────────────────────────────────
-function CardForm({ criteria, form, onChange, onSave, onCancel, saving, onImageUpload, uploadingCriterion }) {
+function CardForm({ criteria, form, onChange, onSave, onCancel, saving, onImageUpload, uploadingCriterion, dark }) {
+  const border  = dark ? '#2d1f5e' : '#e5e7eb'
+  const inputBg = dark ? '#0f0a1e' : '#ffffff'
+  const textPri = dark ? '#e9d5ff' : '#111827'
+  const textSec = dark ? '#a78bfa' : '#9ca3af'
+
   return (
-    <div className="px-3 pb-3 pt-1 space-y-2 border-t border-gray-50">
+    <div className="px-3 pb-3 pt-1 space-y-2" style={{ borderTop: `1px solid ${border}` }}>
       {criteria.map(c => (
         <div key={c.id}>
-          <label className="text-xs text-gray-400 mb-1 block capitalize">{c.name}</label>
+          <label className="text-xs mb-1 block capitalize" style={{ color: textSec }}>{c.name}</label>
           {c.type === 'image' ? (
             <div className="space-y-1.5">
               {form[c.id] && (
-                <img src={form[c.id]} alt="" className="h-20 object-contain rounded-xl border border-gray-100" />
+                <img src={form[c.id]} alt="" className="h-20 object-contain rounded-xl"
+                  style={{ border: `1px solid ${border}` }} />
               )}
               <div className="flex gap-2">
-                <label className="flex-1 flex items-center justify-center gap-2 py-2 bg-gray-100 rounded-xl text-sm text-gray-600 cursor-pointer active:scale-95 transition-transform">
+                <label className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm cursor-pointer active:scale-95 transition-transform"
+                  style={{ background: dark ? '#2d1f5e' : '#f3f4f6', color: textPri }}>
                   <Camera size={14} />
                   {uploadingCriterion === c.id ? 'Upload…' : 'Photo'}
                   <input type="file" accept="image/*" capture="environment" className="hidden"
@@ -506,7 +514,8 @@ function CardForm({ criteria, form, onChange, onSave, onCancel, saving, onImageU
                   value={form[c.id] || ''}
                   onChange={e => onChange(p => ({ ...p, [c.id]: e.target.value }))}
                   placeholder="ou coller une URL…"
-                  className="flex-1 text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none"
+                  className="flex-1 text-xs px-3 py-2 rounded-xl focus:outline-none"
+                  style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }}
                 />
               </div>
               {form[c.id] && (
@@ -522,18 +531,21 @@ function CardForm({ criteria, form, onChange, onSave, onCancel, saving, onImageU
               value={form[c.id] || ''}
               onChange={e => onChange(p => ({ ...p, [c.id]: e.target.value }))}
               placeholder={c.question_title || c.name}
-              className="w-full text-sm px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-gray-400"
+              className="w-full text-sm px-3 py-2 rounded-xl focus:outline-none"
+              style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }}
             />
           )}
         </div>
       ))}
       <div className="flex gap-2 pt-1">
         <button onClick={onSave} disabled={saving}
-          className="flex-1 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50 active:scale-95 transition-transform">
+          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 active:scale-95 transition-transform"
+          style={{ background: dark ? '#7c3aed' : '#111827' }}>
           {saving ? 'Sauvegarde…' : 'Sauvegarder'}
         </button>
         <button onClick={onCancel}
-          className="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm">
+          className="px-4 py-2.5 rounded-xl text-sm"
+          style={{ background: dark ? '#2d1f5e' : '#f3f4f6', color: textPri }}>
           Annuler
         </button>
       </div>

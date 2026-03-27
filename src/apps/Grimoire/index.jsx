@@ -7,8 +7,6 @@ const SPOONACULAR_KEY = import.meta.env.VITE_SPOONACULAR_KEY
 const CACHE_PREFIX = 'grimoire_cache_'
 const CACHE_TTL = 60 * 60 * 1000
 
-// ─── CACHE PERSISTANT ─────────────────────────────────────────────────────────
-
 function cacheGet(key) {
   try {
     const raw = sessionStorage.getItem(CACHE_PREFIX + key)
@@ -30,8 +28,6 @@ function cacheSet(key, value) {
   }
 }
 
-// ─── SAISONS ──────────────────────────────────────────────────────────────────
-
 function getCurrentSeason() {
   const now = new Date()
   const m = now.getMonth() + 1
@@ -50,8 +46,6 @@ const SEASON_INGREDIENTS = {
 }
 const SEASON_EMOJIS = { printemps: '🌸', été: '☀️', automne: '🍂', hiver: '❄️' }
 
-// ─── INGRÉDIENTS AFFICHAGE ────────────────────────────────────────────────────
-
 function parseIngredientDisplay(text) {
   if (!text) return { main: '', note: '' }
   let t = text.toLowerCase()
@@ -66,17 +60,15 @@ function parseIngredientDisplay(text) {
   return { main, note: noteParts.filter(Boolean).join(' — ') }
 }
 
-function IngredientText({ text }) {
+function IngredientText({ text, dark }) {
   const { main, note } = parseIngredientDisplay(text)
   return (
     <span className="flex flex-col">
       <span>{main}</span>
-      {note && <span className="text-xs text-gray-400 italic leading-snug">{note}</span>}
+      {note && <span className="text-xs italic leading-snug" style={{ color: dark ? '#7c6aad' : '#9ca3af' }}>{note}</span>}
     </span>
   )
 }
-
-// ─── TRADUCTION ───────────────────────────────────────────────────────────────
 
 async function translateOne(text, langpair = 'en|fr') {
   if (!text?.trim()) return text
@@ -114,8 +106,6 @@ async function translateRecipe(recipe) {
     steps: allTranslated.slice(1 + ingredients.length),
   }
 }
-
-// ─── API SPOONACULAR ──────────────────────────────────────────────────────────
 
 async function searchRecipes(query, filters = {}) {
   const key = `search_${query}_${JSON.stringify(filters)}`
@@ -158,8 +148,6 @@ async function getTranslatedRecipeDetails(id) {
   return result
 }
 
-// ─── PLANNING ─────────────────────────────────────────────────────────────────
-
 function getStartOfWeek() {
   const d = new Date()
   const day = d.getDay()
@@ -170,18 +158,14 @@ function getStartOfWeek() {
 
 const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 const DEFAULT_PANTRY = ["huile d'olive", 'huile', 'sel', 'poivre', 'sel et poivre']
-
-const GRIMOIRE_COLOR = '#f97316' // orange-500
-
+const GRIMOIRE_COLOR = '#f97316'
 const GRIMOIRE_TABS = [
   { id: 'inspiration', emoji: '💡', label: 'Inspiration' },
   { id: 'grimoire',    emoji: '📖', label: 'Grimoire' },
   { id: 'semaine',     emoji: '📅', label: 'Semaine' },
 ]
 
-// ─── COMPOSANT PRINCIPAL ──────────────────────────────────────────────────────
-
-export default function Grimoire({ profile, initialShoppingList }) {
+export default function Grimoire({ profile, initialShoppingList, dark }) {
   const [tab, setTab] = useState(initialShoppingList ? 'semaine' : 'inspiration')
   const [recipes, setRecipes] = useState([])
   const [savedRecipes, setSavedRecipes] = useState([])
@@ -201,6 +185,16 @@ export default function Grimoire({ profile, initialShoppingList }) {
   const [showPantry, setShowPantry] = useState(false)
   const [newPantryItem, setNewPantryItem] = useState('')
   const season = getCurrentSeason()
+
+  // ── Couleurs dark ──
+  const bg       = dark ? '#0f0a1e' : '#f9fafb'
+  const card     = dark ? '#1a1035' : '#ffffff'
+  const border   = dark ? '#2d1f5e' : '#f3f4f6'
+  const border2  = dark ? '#2d1f5e' : '#e5e7eb'
+  const textPri  = dark ? '#e9d5ff' : '#111827'
+  const textSec  = dark ? '#a78bfa' : '#9ca3af'
+  const textMed  = dark ? '#c4b5fd' : '#4b5563'
+  const inputBg  = dark ? '#0f0a1e' : '#ffffff'
 
   useEffect(() => { loadSaved(); loadMealPlan(); loadPantry() }, [])
 
@@ -434,17 +428,19 @@ export default function Grimoire({ profile, initialShoppingList }) {
   // ─── MODAL PLACARD ────────────────────────────────────────────────────────
   const PantryModal = () => (
     <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => setShowPantry(false)}>
-      <div className="bg-white w-full rounded-t-3xl p-6 max-h-[70vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="w-full rounded-t-3xl p-6 max-h-[70vh] overflow-y-auto" style={{ background: card }}
+        onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-lg">🧂 Toujours dans le placard</h2>
-          <button onClick={() => setShowPantry(false)}><X size={20} className="text-gray-400" /></button>
+          <h2 className="font-bold text-lg" style={{ color: textPri }}>🧂 Toujours dans le placard</h2>
+          <button onClick={() => setShowPantry(false)}><X size={20} style={{ color: textSec }} /></button>
         </div>
-        <p className="text-xs text-gray-400 mb-4">Ces ingrédients sont exclus de la liste de courses.</p>
+        <p className="text-xs mb-4" style={{ color: textSec }}>Ces ingrédients sont exclus de la liste de courses.</p>
         <div className="flex gap-2 mb-4">
           <input value={newPantryItem} onChange={e => setNewPantryItem(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addPantryItem()}
             placeholder="Ajouter un ingrédient…"
-            className="flex-1 px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-orange-400 text-sm" />
+            className="flex-1 px-3 py-2 rounded-xl text-sm focus:outline-none"
+            style={{ background: inputBg, border: `1px solid ${border2}`, color: textPri }} />
           <button onClick={addPantryItem}
             className="px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-semibold active:scale-95 transition-transform">
             +
@@ -452,9 +448,10 @@ export default function Grimoire({ profile, initialShoppingList }) {
         </div>
         <div className="flex flex-wrap gap-2">
           {pantry.map(item => (
-            <div key={item} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-full text-sm text-gray-700">
+            <div key={item} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm"
+              style={{ background: dark ? '#2d1f5e' : '#f3f4f6', color: textMed }}>
               {item}
-              <button onClick={() => removePantryItem(item)} className="text-gray-400 hover:text-red-400 transition-colors">
+              <button onClick={() => removePantryItem(item)} style={{ color: textSec }}>
                 <X size={13} />
               </button>
             </div>
@@ -467,14 +464,15 @@ export default function Grimoire({ profile, initialShoppingList }) {
   // ─── POPUP CHOIX RECETTE POUR PLANNING ────────────────────────────────────
   const PickRecipeModal = () => (
     <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => setPickingDay(null)}>
-      <div className="bg-white w-full rounded-t-3xl p-5 max-h-[70vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="w-full rounded-t-3xl p-5 max-h-[70vh] flex flex-col" style={{ background: card }}
+        onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-base">📅 {pickingDay} — choisir une recette</h2>
-          <button onClick={() => setPickingDay(null)}><X size={20} className="text-gray-400" /></button>
+          <h2 className="font-bold text-base" style={{ color: textPri }}>📅 {pickingDay} — choisir une recette</h2>
+          <button onClick={() => setPickingDay(null)}><X size={20} style={{ color: textSec }} /></button>
         </div>
         {savedRecipes.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-400 text-sm">Le grimoire est vide.</p>
+            <p className="text-sm" style={{ color: textSec }}>Le grimoire est vide.</p>
             <button onClick={() => { setPickingDay(null); setTab('grimoire') }}
               className="mt-3 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-semibold">
               → Ajouter une recette
@@ -487,14 +485,19 @@ export default function Grimoire({ profile, initialShoppingList }) {
               return (
                 <button key={recipe.id}
                   onClick={() => { addToMealPlan(pickingDay, recipe); setPickingDay(null) }}
-                  className={`w-full flex items-center gap-3 p-3 rounded-2xl border text-left transition-all active:scale-98 ${isPlanned ? 'border-orange-300 bg-orange-50' : 'border-gray-100 bg-white hover:bg-gray-50'}`}>
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl border text-left transition-all active:scale-98"
+                  style={{
+                    background: isPlanned ? (dark ? '#2d1a0a' : '#fff7ed') : card,
+                    borderColor: isPlanned ? '#f97316' : border,
+                  }}>
                   {recipe.image_url
                     ? <img src={recipe.image_url} alt={recipe.title} className="w-12 h-12 object-cover rounded-xl flex-shrink-0" />
-                    : <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🍽️</div>}
+                    : <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                        style={{ background: dark ? '#2d1f5e' : '#fff7ed' }}>🍽️</div>}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 line-clamp-1">{recipe.title}</p>
+                    <p className="text-sm font-medium line-clamp-1" style={{ color: textPri }}>{recipe.title}</p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      {recipe.ready_in_minutes && <span className="text-xs text-gray-400 flex items-center gap-0.5"><Clock size={10} /> {recipe.ready_in_minutes}m</span>}
+                      {recipe.ready_in_minutes && <span className="text-xs flex items-center gap-0.5" style={{ color: textSec }}><Clock size={10} /> {recipe.ready_in_minutes}m</span>}
                       {recipe.vegetarian && <span className="text-xs text-green-500">🌿</span>}
                     </div>
                   </div>
@@ -512,37 +515,43 @@ export default function Grimoire({ profile, initialShoppingList }) {
   const RecipeForm = () => (
     <>
       <div className="flex items-center justify-between mb-5">
-        <h2 className="font-bold text-lg">{editingRecipe ? '✏️ Modifier la recette' : '✍️ Nouvelle recette'}</h2>
-        <button onClick={() => { setShowAddManual(false); setEditingRecipe(null) }}><X size={20} className="text-gray-400" /></button>
+        <h2 className="font-bold text-lg" style={{ color: textPri }}>{editingRecipe ? '✏️ Modifier la recette' : '✍️ Nouvelle recette'}</h2>
+        <button onClick={() => { setShowAddManual(false); setEditingRecipe(null) }}><X size={20} style={{ color: textSec }} /></button>
       </div>
       <input value={manualRecipe.title} onChange={e => setManualRecipe(p => ({ ...p, title: e.target.value }))}
         placeholder="Nom de la recette *"
-        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-orange-400 text-sm mb-3" />
+        className="w-full px-4 py-3 rounded-xl text-sm mb-3 focus:outline-none"
+        style={{ background: inputBg, border: `1px solid ${border2}`, color: textPri }} />
       <div className="grid grid-cols-2 gap-3 mb-3">
         <input value={manualRecipe.ready_in_minutes} onChange={e => setManualRecipe(p => ({ ...p, ready_in_minutes: e.target.value }))}
           placeholder="⏱ Temps (min)" type="number"
-          className="px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-orange-400 text-sm" />
+          className="px-4 py-3 rounded-xl text-sm focus:outline-none"
+          style={{ background: inputBg, border: `1px solid ${border2}`, color: textPri }} />
         <input value={manualRecipe.servings} onChange={e => setManualRecipe(p => ({ ...p, servings: e.target.value }))}
           placeholder="👥 Personnes" type="number"
-          className="px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-orange-400 text-sm" />
+          className="px-4 py-3 rounded-xl text-sm focus:outline-none"
+          style={{ background: inputBg, border: `1px solid ${border2}`, color: textPri }} />
       </div>
       <input value={manualRecipe.image_url} onChange={e => setManualRecipe(p => ({ ...p, image_url: e.target.value }))}
         placeholder="🖼️ URL de la photo (optionnel)"
-        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-orange-400 text-sm mb-3" />
+        className="w-full px-4 py-3 rounded-xl text-sm mb-3 focus:outline-none"
+        style={{ background: inputBg, border: `1px solid ${border2}`, color: textPri }} />
       <button onClick={() => setManualRecipe(p => ({ ...p, vegetarian: !p.vegetarian }))}
-        className={`mb-4 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${manualRecipe.vegetarian ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+        className={`mb-4 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${manualRecipe.vegetarian ? 'bg-green-500 text-white' : ''}`}
+        style={!manualRecipe.vegetarian ? { background: dark ? '#2d1f5e' : '#f3f4f6', color: textMed } : {}}>
         🌿 Végétarien
       </button>
-      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Ingrédients</p>
+      <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: textSec }}>Ingrédients</p>
       <div className="space-y-2 mb-4">
         {manualRecipe.ingredients.map((ing, i) => (
           <div key={i} className="flex gap-2">
             <input value={ing} onChange={e => { const n = [...manualRecipe.ingredients]; n[i] = e.target.value; setManualRecipe(p => ({ ...p, ingredients: n })) }}
               placeholder={`Ingrédient ${i + 1}`}
-              className="flex-1 px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-orange-400 text-sm" />
+              className="flex-1 px-3 py-2 rounded-xl text-sm focus:outline-none"
+              style={{ background: inputBg, border: `1px solid ${border2}`, color: textPri }} />
             {manualRecipe.ingredients.length > 1 && (
               <button onClick={() => setManualRecipe(p => ({ ...p, ingredients: p.ingredients.filter((_, j) => j !== i) }))}
-                className="p-2 text-gray-300 hover:text-red-400"><X size={15} /></button>
+                style={{ color: textSec }}><X size={15} /></button>
             )}
           </div>
         ))}
@@ -551,17 +560,18 @@ export default function Grimoire({ profile, initialShoppingList }) {
           <Plus size={13} /> Ajouter un ingrédient
         </button>
       </div>
-      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Étapes</p>
+      <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: textSec }}>Étapes</p>
       <div className="space-y-2 mb-6">
         {manualRecipe.instructions.map((step, i) => (
           <div key={i} className="flex gap-2">
             <div className="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-2">{i + 1}</div>
             <textarea value={step} onChange={e => { const n = [...manualRecipe.instructions]; n[i] = e.target.value; setManualRecipe(p => ({ ...p, instructions: n })) }}
               placeholder={`Étape ${i + 1}…`} rows={2}
-              className="flex-1 px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-orange-400 text-sm resize-none" />
+              className="flex-1 px-3 py-2 rounded-xl text-sm resize-none focus:outline-none"
+              style={{ background: inputBg, border: `1px solid ${border2}`, color: textPri }} />
             {manualRecipe.instructions.length > 1 && (
               <button onClick={() => setManualRecipe(p => ({ ...p, instructions: p.instructions.filter((_, j) => j !== i) }))}
-                className="p-2 text-gray-300 hover:text-red-400 self-start mt-1"><X size={15} /></button>
+                className="self-start mt-1" style={{ color: textSec }}><X size={15} /></button>
             )}
           </div>
         ))}
@@ -590,24 +600,28 @@ export default function Grimoire({ profile, initialShoppingList }) {
       <div className="h-full flex flex-col">
         {showAddManual && (
           <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => { setShowAddManual(false); setEditingRecipe(null) }}>
-            <div className="bg-white w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: card }}
+              onClick={e => e.stopPropagation()}>
               <RecipeForm />
             </div>
           </div>
         )}
-        <div className="flex-1 bg-gray-50 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" style={{ background: bg }}>
           <div className="relative">
             {selectedRecipe.image_url || selectedRecipe.image
               ? <img src={selectedRecipe.image_url || selectedRecipe.image} alt={selectedRecipe.title} className="w-full h-56 object-cover" />
-              : <div className="w-full h-56 bg-orange-100 flex items-center justify-center text-6xl">🍽️</div>}
+              : <div className="w-full h-56 flex items-center justify-center text-6xl"
+                  style={{ background: dark ? '#2d1a0a' : '#fff7ed' }}>🍽️</div>}
             <button onClick={() => setSelectedRecipe(null)}
-              className="absolute top-4 left-4 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center shadow">
-              <ArrowLeft size={18} className="text-gray-700" />
+              className="absolute top-4 left-4 w-9 h-9 rounded-full flex items-center justify-center shadow"
+              style={{ background: dark ? 'rgba(26,16,53,0.9)' : 'rgba(255,255,255,0.9)' }}>
+              <ArrowLeft size={18} style={{ color: textPri }} />
             </button>
             <div className="absolute top-4 right-4 flex gap-2">
               {saved && dbRecipe && (
                 <button onClick={() => openEditRecipe(dbRecipe)}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-white/90 text-gray-700 rounded-full text-xs font-semibold shadow active:scale-95 transition-transform">
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold shadow active:scale-95 transition-transform"
+                  style={{ background: dark ? 'rgba(26,16,53,0.9)' : 'rgba(255,255,255,0.9)', color: textPri }}>
                   ✏️ Modifier
                 </button>
               )}
@@ -624,32 +638,40 @@ export default function Grimoire({ profile, initialShoppingList }) {
             </div>
           </div>
           <div className="px-5 py-5 max-w-lg mx-auto">
-            <h1 className="text-xl font-bold text-gray-900 mb-3">{selectedRecipe.title}</h1>
+            <h1 className="text-xl font-bold mb-3" style={{ color: textPri }}>{selectedRecipe.title}</h1>
             <div className="flex gap-4 mb-4">
               {(selectedRecipe.ready_in_minutes || selectedRecipe.readyInMinutes) && (
-                <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                <div className="flex items-center gap-1.5 text-sm" style={{ color: textMed }}>
                   <Clock size={15} className="text-orange-400" />
                   {selectedRecipe.ready_in_minutes || selectedRecipe.readyInMinutes} min
                 </div>
               )}
               {selectedRecipe.servings && (
-                <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                <div className="flex items-center gap-1.5 text-sm" style={{ color: textMed }}>
                   <Users size={15} className="text-orange-400" />
                   {selectedRecipe.servings} pers.
                 </div>
               )}
-              {selectedRecipe.vegetarian && <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">🌿 Végétarien</span>}
+              {selectedRecipe.vegetarian && (
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">🌿 Végétarien</span>
+              )}
             </div>
             {saved && (
               <div className="mb-5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Ajouter au planning</p>
+                <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: textSec }}>Ajouter au planning</p>
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {DAYS_FR.map(day => {
                     const planned = mealPlan.find(m => m.day === day)
                     const isThis = planned?.recipe?.title === selectedRecipe.title
                     return (
                       <button key={day} onClick={() => isThis ? removeFromPlan(day) : addToMealPlan(day, selectedRecipe)}
-                        className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${isThis ? 'bg-orange-500 text-white' : planned ? 'bg-gray-200 text-gray-400' : 'bg-gray-100 text-gray-600 hover:bg-orange-100'}`}>
+                        className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                        style={isThis
+                          ? { background: '#f97316', color: '#fff' }
+                          : planned
+                            ? { background: dark ? '#2d1f5e' : '#e5e7eb', color: textSec }
+                            : { background: dark ? '#2d1a0a' : '#fff7ed', color: dark ? '#fb923c' : '#9a3412' }
+                        }>
                         {day.slice(0, 3)}
                       </button>
                     )
@@ -659,12 +681,13 @@ export default function Grimoire({ profile, initialShoppingList }) {
             )}
             {ingredients.length > 0 && (
               <div className="mb-5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Ingrédients</p>
-                <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-2">
+                <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: textSec }}>Ingrédients</p>
+                <div className="rounded-2xl p-4 shadow-sm space-y-2"
+                  style={{ background: card, border: `1px solid ${border}` }}>
                   {ingredients.map((ing, i) => (
-                    <div key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                    <div key={i} className="flex items-start gap-2 text-sm" style={{ color: textMed }}>
                       <span className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0 mt-1.5" />
-                      <IngredientText text={ing.original || ing.name} />
+                      <IngredientText text={ing.original || ing.name} dark={dark} />
                     </div>
                   ))}
                 </div>
@@ -672,12 +695,12 @@ export default function Grimoire({ profile, initialShoppingList }) {
             )}
             {steps.length > 0 && (
               <div className="mb-8">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Préparation</p>
+                <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: textSec }}>Préparation</p>
                 <div className="space-y-3">
                   {steps.map((step, i) => (
                     <div key={i} className="flex gap-3">
                       <div className="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">{i + 1}</div>
-                      <p className="text-sm text-gray-700 leading-relaxed flex-1">{step}</p>
+                      <p className="text-sm leading-relaxed flex-1" style={{ color: textMed }}>{step}</p>
                     </div>
                   ))}
                 </div>
@@ -685,14 +708,14 @@ export default function Grimoire({ profile, initialShoppingList }) {
             )}
           </div>
         </div>
-        <TabBar tabs={GRIMOIRE_TABS} active={tab} onChange={(t) => { setSelectedRecipe(null); setTab(t) }} color={GRIMOIRE_COLOR} />
+        <TabBar tabs={GRIMOIRE_TABS} active={tab} onChange={(t) => { setSelectedRecipe(null); setTab(t) }} color={GRIMOIRE_COLOR} dark={dark} />
       </div>
     )
   }
 
   // ─── VUE PRINCIPALE ───────────────────────────────────────────────────────
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col" style={{ background: bg }}>
       {pickingDay && <PickRecipeModal />}
       {showPantry && <PantryModal />}
 
@@ -702,15 +725,20 @@ export default function Grimoire({ profile, initialShoppingList }) {
         {tab === 'inspiration' && (
           <div className="px-4 py-4 max-w-lg mx-auto">
             <div className="flex items-center gap-2 mb-4">
-              <div className="flex-1 flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2.5">
-                <Search size={15} className="text-gray-400" />
+              <div className="flex-1 flex items-center gap-2 rounded-xl px-3 py-2.5"
+                style={{ background: card, border: `1px solid ${border2}` }}>
+                <Search size={15} style={{ color: textSec }} />
                 <input value={query} onChange={e => setQuery(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && searchSeason()}
                   placeholder="Poireaux, risotto, thaï…"
-                  className="flex-1 text-sm focus:outline-none" />
+                  className="flex-1 text-sm focus:outline-none"
+                  style={{ background: 'transparent', color: textPri }} />
               </div>
               <button onClick={() => setShowFilters(!showFilters)}
-                className={`p-2.5 rounded-xl border text-sm transition-all ${showFilters ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-gray-200 text-gray-500'}`}>
+                className="p-2.5 rounded-xl border text-sm transition-all"
+                style={showFilters
+                  ? { background: '#f97316', borderColor: '#f97316', color: '#fff' }
+                  : { background: card, borderColor: border2, color: textSec }}>
                 ⚙️
               </button>
               <button onClick={() => searchSeason()} disabled={loading}
@@ -719,14 +747,17 @@ export default function Grimoire({ profile, initialShoppingList }) {
               </button>
             </div>
             {showFilters && (
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm mb-4 flex flex-wrap gap-2">
+              <div className="rounded-2xl p-4 shadow-sm mb-4 flex flex-wrap gap-2"
+                style={{ background: card, border: `1px solid ${border}` }}>
                 <button onClick={() => setFilters(f => ({ ...f, vegetarian: !f.vegetarian }))}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filters.vegetarian ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filters.vegetarian ? 'bg-green-500 text-white' : ''}`}
+                  style={!filters.vegetarian ? { background: dark ? '#2d1f5e' : '#f3f4f6', color: textMed } : {}}>
                   🌿 Végétarien
                 </button>
                 {[15, 30, 45].map(t => (
                   <button key={t} onClick={() => setFilters(f => ({ ...f, maxTime: f.maxTime === t ? null : t }))}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filters.maxTime === t ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filters.maxTime === t ? 'bg-orange-500 text-white' : ''}`}
+                    style={filters.maxTime !== t ? { background: dark ? '#2d1f5e' : '#f3f4f6', color: textMed } : {}}>
                     ⏱ {t} min
                   </button>
                 ))}
@@ -735,14 +766,15 @@ export default function Grimoire({ profile, initialShoppingList }) {
             {recipes.length === 0 && !loading && (
               <div className="text-center py-8">
                 <div className="text-4xl mb-3">{SEASON_EMOJIS[season]}</div>
-                <p className="text-gray-600 font-semibold mb-1">C'est {season} !</p>
-                <p className="text-gray-400 text-sm mb-4">Des idées avec les produits de saison ?</p>
+                <p className="font-semibold mb-1" style={{ color: textMed }}>C'est {season} !</p>
+                <p className="text-sm mb-4" style={{ color: textSec }}>Des idées avec les produits de saison ?</p>
                 <div className="flex flex-wrap gap-2 justify-center mb-5">
                   {SEASON_INGREDIENTS[season].fr.map((ingFr, i) => {
                     const ingEn = SEASON_INGREDIENTS[season].en[i]
                     return (
                       <button key={ingFr} onClick={() => { setQuery(ingFr); searchSeason(ingEn) }}
-                        className="px-3 py-1.5 bg-orange-50 text-orange-600 rounded-full text-xs font-medium border border-orange-100 hover:bg-orange-100 transition-colors">
+                        className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+                        style={{ background: dark ? '#2d1a0a' : '#fff7ed', color: dark ? '#fb923c' : '#ea580c', borderColor: dark ? '#7c3510' : '#fed7aa' }}>
                         {ingFr}
                       </button>
                     )
@@ -762,14 +794,16 @@ export default function Grimoire({ profile, initialShoppingList }) {
             <div className="grid grid-cols-2 gap-3">
               {recipes.map(recipe => (
                 <button key={recipe.id} onClick={() => openRecipe(recipe)}
-                  className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm text-left active:scale-95 transition-transform">
+                  className="rounded-2xl overflow-hidden shadow-sm text-left active:scale-95 transition-transform"
+                  style={{ background: card, border: `1px solid ${border}` }}>
                   {recipe.image
                     ? <img src={recipe.image} alt={recipe.title} className="w-full h-28 object-cover" />
-                    : <div className="w-full h-28 bg-orange-50 flex items-center justify-center text-3xl">🍽️</div>}
+                    : <div className="w-full h-28 flex items-center justify-center text-3xl"
+                        style={{ background: dark ? '#2d1a0a' : '#fff7ed' }}>🍽️</div>}
                   <div className="p-3">
-                    <p className="text-xs font-semibold text-gray-900 leading-tight line-clamp-2">{recipe.titleFr || recipe.title}</p>
+                    <p className="text-xs font-semibold leading-tight line-clamp-2" style={{ color: textPri }}>{recipe.titleFr || recipe.title}</p>
                     <div className="flex items-center gap-2 mt-1.5">
-                      {recipe.readyInMinutes && <span className="text-xs text-gray-400 flex items-center gap-0.5"><Clock size={10} /> {recipe.readyInMinutes}m</span>}
+                      {recipe.readyInMinutes && <span className="text-xs flex items-center gap-0.5" style={{ color: textSec }}><Clock size={10} /> {recipe.readyInMinutes}m</span>}
                       {isSaved(recipe.id) && <span className="text-xs text-green-500">✓ Sauvé</span>}
                     </div>
                   </div>
@@ -783,7 +817,7 @@ export default function Grimoire({ profile, initialShoppingList }) {
         {tab === 'grimoire' && (
           <div className="px-4 py-4 max-w-lg mx-auto">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm text-gray-400">{savedRecipes.length} recette{savedRecipes.length !== 1 ? 's' : ''} sauvegardée{savedRecipes.length !== 1 ? 's' : ''}</p>
+              <p className="text-sm" style={{ color: textSec }}>{savedRecipes.length} recette{savedRecipes.length !== 1 ? 's' : ''} sauvegardée{savedRecipes.length !== 1 ? 's' : ''}</p>
               <button onClick={() => { setEditingRecipe(null); setManualRecipe({ title: '', image_url: '', ready_in_minutes: '', servings: '', ingredients: [''], instructions: [''], vegetarian: false }); setShowAddManual(true) }}
                 className="flex items-center gap-1.5 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-semibold active:scale-95 transition-transform">
                 <Plus size={13} /> Ajouter
@@ -792,8 +826,8 @@ export default function Grimoire({ profile, initialShoppingList }) {
             {savedRecipes.length === 0 ? (
               <div className="text-center py-16">
                 <div className="text-5xl mb-3">📖</div>
-                <p className="text-gray-500 font-medium mb-1">Le grimoire est vide</p>
-                <p className="text-gray-400 text-sm">Explore les inspirations et sauvegarde des recettes !</p>
+                <p className="font-medium mb-1" style={{ color: textMed }}>Le grimoire est vide</p>
+                <p className="text-sm" style={{ color: textSec }}>Explore les inspirations et sauvegarde des recettes !</p>
                 <button onClick={() => setTab('inspiration')} className="mt-4 px-5 py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold">→ Inspiration</button>
               </div>
             ) : (
@@ -801,24 +835,28 @@ export default function Grimoire({ profile, initialShoppingList }) {
                 {savedRecipes.map(recipe => (
                   <div key={recipe.id} className="relative">
                     <button onClick={() => openRecipe(recipe)}
-                      className="w-full bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm text-left active:scale-95 transition-transform">
+                      className="w-full rounded-2xl overflow-hidden shadow-sm text-left active:scale-95 transition-transform"
+                      style={{ background: card, border: `1px solid ${border}` }}>
                       {recipe.image_url
                         ? <img src={recipe.image_url} alt={recipe.title} className="w-full h-28 object-cover" />
-                        : <div className="w-full h-28 bg-orange-50 flex items-center justify-center text-3xl">🍽️</div>}
+                        : <div className="w-full h-28 flex items-center justify-center text-3xl"
+                            style={{ background: dark ? '#2d1a0a' : '#fff7ed' }}>🍽️</div>}
                       <div className="p-3">
-                        <p className="text-xs font-semibold text-gray-900 leading-tight line-clamp-2">{recipe.title}</p>
+                        <p className="text-xs font-semibold leading-tight line-clamp-2" style={{ color: textPri }}>{recipe.title}</p>
                         <div className="flex items-center gap-2 mt-1.5">
-                          {recipe.ready_in_minutes && <span className="text-xs text-gray-400 flex items-center gap-0.5"><Clock size={10} /> {recipe.ready_in_minutes}m</span>}
+                          {recipe.ready_in_minutes && <span className="text-xs flex items-center gap-0.5" style={{ color: textSec }}><Clock size={10} /> {recipe.ready_in_minutes}m</span>}
                           {recipe.vegetarian && <span className="text-xs text-green-500">🌿</span>}
                         </div>
                       </div>
                     </button>
                     <button onClick={e => { e.stopPropagation(); removeRecipe(recipe.id) }}
-                      className="absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center shadow">
+                      className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center shadow"
+                      style={{ background: dark ? 'rgba(26,16,53,0.9)' : 'rgba(255,255,255,0.9)' }}>
                       <X size={12} className="text-red-400" />
                     </button>
                     <button onClick={e => { e.stopPropagation(); openEditRecipe(recipe) }}
-                      className="absolute top-2 left-2 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center shadow text-xs">
+                      className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center shadow text-xs"
+                      style={{ background: dark ? 'rgba(26,16,53,0.9)' : 'rgba(255,255,255,0.9)' }}>
                       ✏️
                     </button>
                   </div>
@@ -827,7 +865,8 @@ export default function Grimoire({ profile, initialShoppingList }) {
             )}
             {showAddManual && (
               <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => { setShowAddManual(false); setEditingRecipe(null) }}>
-                <div className="bg-white w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <div className="w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: card }}
+                  onClick={e => e.stopPropagation()}>
                   <RecipeForm />
                 </div>
               </div>
@@ -839,10 +878,11 @@ export default function Grimoire({ profile, initialShoppingList }) {
         {tab === 'semaine' && (
           <div className="px-4 py-4 max-w-lg mx-auto">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-bold text-gray-900">Planning de la semaine</p>
+              <p className="text-sm font-bold" style={{ color: textPri }}>Planning de la semaine</p>
               <div className="flex gap-2">
                 <button onClick={() => setShowPantry(true)}
-                  className="p-2 bg-white border border-gray-200 rounded-xl text-gray-500 active:scale-95 transition-transform">
+                  className="p-2 rounded-xl active:scale-95 transition-transform"
+                  style={{ background: card, border: `1px solid ${border2}`, color: textSec }}>
                   <Settings size={15} />
                 </button>
                 {mealPlan.length > 0 && (
@@ -857,27 +897,30 @@ export default function Grimoire({ profile, initialShoppingList }) {
               {DAYS_FR.map(day => {
                 const planned = mealPlan.find(m => m.day === day)
                 return (
-                  <div key={day} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div key={day} className="rounded-2xl overflow-hidden"
+                    style={{ background: card, border: `1px solid ${border}` }}>
                     {planned ? (
                       <div className="w-full flex items-center gap-3 p-3">
                         <div className="w-8 text-xs font-bold text-orange-500 flex-shrink-0">{day.slice(0, 3)}</div>
                         <button onClick={() => openRecipe(planned.recipe)} className="flex items-center gap-3 flex-1 min-w-0 text-left active:opacity-70 transition-opacity">
                           {planned.recipe.image_url || planned.recipe.image
                             ? <img src={planned.recipe.image_url || planned.recipe.image} alt={planned.recipe.title} className="w-12 h-12 object-cover rounded-xl flex-shrink-0" />
-                            : <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🍽️</div>}
-                          <p className="flex-1 text-sm font-medium text-gray-900 line-clamp-2">{planned.recipe.title}</p>
+                            : <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                                style={{ background: dark ? '#2d1a0a' : '#fff7ed' }}>🍽️</div>}
+                          <p className="flex-1 text-sm font-medium line-clamp-2" style={{ color: textPri }}>{planned.recipe.title}</p>
                         </button>
-                        <button onClick={() => removeFromPlan(day)} className="p-1.5 text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">
+                        <button onClick={() => removeFromPlan(day)} className="p-1.5 flex-shrink-0" style={{ color: textSec }}>
                           <X size={15} />
                         </button>
                       </div>
                     ) : (
                       <button onClick={() => setPickingDay(day)} className="w-full flex items-center gap-3 p-3 text-left">
-                        <div className="w-8 text-xs font-bold text-gray-400">{day.slice(0, 3)}</div>
-                        <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200">
-                          <Plus size={16} className="text-gray-300" />
+                        <div className="w-8 text-xs font-bold" style={{ color: textSec }}>{day.slice(0, 3)}</div>
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center border-2 border-dashed"
+                          style={{ background: dark ? '#0f0a1e' : '#f9fafb', borderColor: dark ? '#2d1f5e' : '#e5e7eb' }}>
+                          <Plus size={16} style={{ color: textSec }} />
                         </div>
-                        <p className="text-sm text-gray-300">Ajouter une recette</p>
+                        <p className="text-sm" style={{ color: textSec }}>Ajouter une recette</p>
                       </button>
                     )}
                   </div>
@@ -886,29 +929,30 @@ export default function Grimoire({ profile, initialShoppingList }) {
             </div>
             {mealPlan.length === 0 && (
               <div className="text-center py-8 mt-4">
-                <p className="text-gray-400 text-sm">Clique sur un jour pour ajouter une recette !</p>
+                <p className="text-sm" style={{ color: textSec }}>Clique sur un jour pour ajouter une recette !</p>
               </div>
             )}
 
-            {/* ─── MODAL LISTE DE COURSES ──────────────────────────────── */}
             {showShoppingList && (
               <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => setShowShoppingList(false)}>
-                <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <div className="w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto" style={{ background: card }}
+                  onClick={e => e.stopPropagation()}>
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="font-bold text-lg">🛒 Liste de courses</h2>
-                    <button onClick={() => setShowShoppingList(false)}><X size={20} className="text-gray-400" /></button>
+                    <h2 className="font-bold text-lg" style={{ color: textPri }}>🛒 Liste de courses</h2>
+                    <button onClick={() => setShowShoppingList(false)}><X size={20} style={{ color: textSec }} /></button>
                   </div>
                   {mealPlan.length === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-6">Aucun repas planifié cette semaine.</p>
+                    <p className="text-sm text-center py-6" style={{ color: textSec }}>Aucun repas planifié cette semaine.</p>
                   ) : (
                     <>
-                      <p className="text-xs text-gray-400 mb-4">{mealPlan.length} repas · {shoppingList().length} ingrédients</p>
+                      <p className="text-xs mb-4" style={{ color: textSec }}>{mealPlan.length} repas · {shoppingList().length} ingrédients</p>
                       <div className="space-y-2">
                         {shoppingList().map((ing, i) => (
-                          <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-50">
+                          <div key={i} className="flex items-center gap-3 py-2"
+                            style={{ borderBottom: `1px solid ${border}` }}>
                             <div className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
-                            <p className="flex-1 text-sm text-gray-800">{ing.display}</p>
-                            <p className="text-xs text-gray-400 flex-shrink-0">{ing.recipes.length > 1 ? `${ing.recipes.length} recettes` : ''}</p>
+                            <p className="flex-1 text-sm" style={{ color: textMed }}>{ing.display}</p>
+                            <p className="text-xs flex-shrink-0" style={{ color: textSec }}>{ing.recipes.length > 1 ? `${ing.recipes.length} recettes` : ''}</p>
                           </div>
                         ))}
                       </div>
@@ -921,7 +965,7 @@ export default function Grimoire({ profile, initialShoppingList }) {
         )}
       </div>
 
-      <TabBar tabs={GRIMOIRE_TABS} active={tab} onChange={setTab} color={GRIMOIRE_COLOR} />
+      <TabBar tabs={GRIMOIRE_TABS} active={tab} onChange={setTab} color={GRIMOIRE_COLOR} dark={dark} />
     </div>
   )
 }

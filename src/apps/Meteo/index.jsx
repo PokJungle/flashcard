@@ -94,7 +94,7 @@ function getCountryCode(city) {
   return (city.country_code || city.country || 'XX').toUpperCase()
 }
 
-export default function Meteo({ initialCity }) {
+export default function Meteo({ initialCity, dark }) {
   const [favorites, setFavorites] = useState(() => {
     try { return JSON.parse(localStorage.getItem('meteo-fav2') || 'null') || [DEFAULT_CITY] }
     catch { return [DEFAULT_CITY] }
@@ -107,18 +107,17 @@ export default function Meteo({ initialCity }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [searching, setSearching] = useState(false)
-  
+
   // Appliquer la ville initiale passée depuis le hub
-	useEffect(() => {
-	  if (!initialCity) return
-	  const match = favorites.find(f => f.lat === initialCity.lat)
-	  if (match) setActiveCity(match)
-	  else {
-		// La ville n'est pas dans les favoris → on l'ajoute temporairement
-		const c = { name: initialCity.name, lat: initialCity.lat, lon: initialCity.lon, country: initialCity.country || 'FR' }
-		setActiveCity(c)
-	  }
-	}, []) // une seule fois au mount
+  useEffect(() => {
+    if (!initialCity) return
+    const match = favorites.find(f => f.lat === initialCity.lat)
+    if (match) setActiveCity(match)
+    else {
+      const c = { name: initialCity.name, lat: initialCity.lat, lon: initialCity.lon, country: initialCity.country || 'FR' }
+      setActiveCity(c)
+    }
+  }, []) // une seule fois au mount
 
   useEffect(() => { localStorage.setItem('meteo-fav2', JSON.stringify(favorites)) }, [favorites])
   useEffect(() => { if (activeCity) loadWeather() }, [activeCity])
@@ -210,20 +209,33 @@ export default function Meteo({ initialCity }) {
   const meteoCielLabel = cityUrls.meteociel ? '🌦️ MétéoCiel' : '🔍 MétéoCiel'
   const weather24Label = cityUrls.weather24 ? '🇫🇷 Météo France' : '🔍 Weather24'
 
+  // ── Couleurs dark mode ──
+  const bg     = dark ? '#0f0a1e' : '#f9fafb'
+  const card   = dark ? '#1a1035' : '#ffffff'
+  const border = dark ? '#2d1f5e' : '#f3f4f6'
+  const textPri  = dark ? '#e9d5ff' : '#111827'
+  const textSec  = dark ? '#a78bfa' : '#9ca3af'
+  const textMed  = dark ? '#c4b5fd' : '#4b5563'
+
   return (
-    <div className="h-full bg-gray-50 overflow-y-auto">
+    <div className="h-full overflow-y-auto" style={{ background: bg }}>
 
       {/* Favoris */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3">
+      <div className="px-4 py-3" style={{ background: card, borderBottom: `1px solid ${border}` }}>
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
           {favorites.map((city, i) => (
             <button key={i} onClick={() => setActiveCity(city)}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${activeCity.lat === city.lat ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
+              className="flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all"
+              style={activeCity.lat === city.lat
+                ? { background: dark ? '#7c3aed' : '#111827', color: '#fff' }
+                : { background: dark ? '#2d1f5e' : '#f3f4f6', color: textMed }
+              }>
               {city.name.split(',')[0]}
             </button>
           ))}
           <button onClick={() => setShowSearch(true)}
-            className="flex-shrink-0 w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-500">
+            className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ background: dark ? '#2d1f5e' : '#f3f4f6', color: textSec }}>
             <Search size={16} />
           </button>
         </div>
@@ -231,8 +243,9 @@ export default function Meteo({ initialCity }) {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <div className="w-8 h-8 rounded-full animate-spin" style={{ border: '3px solid #e5e7eb', borderTopColor: '#374151' }} />
-          <p className="text-xs text-gray-400">Chargement des modèles météo…</p>
+          <div className="w-8 h-8 rounded-full animate-spin"
+            style={{ border: `3px solid ${border}`, borderTopColor: dark ? '#a78bfa' : '#374151' }} />
+          <p className="text-xs" style={{ color: textSec }}>Chargement des modèles météo…</p>
         </div>
 
       ) : selectedDay === null ? (
@@ -241,11 +254,11 @@ export default function Meteo({ initialCity }) {
         <div className="px-4 py-4 max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">{activeCity.name.split(',')[0]}</h2>
-              <p className="text-xs text-gray-400">Modèles adaptés à l'horizon · 7 jours</p>
+              <h2 className="text-lg font-bold" style={{ color: textPri }}>{activeCity.name.split(',')[0]}</h2>
+              <p className="text-xs" style={{ color: textSec }}>Modèles adaptés à l'horizon · 7 jours</p>
             </div>
             {!activeCity.isDefault && favorites.length > 1 && (
-              <button onClick={() => removeFavorite(activeCity)} className="p-2 text-gray-300 hover:text-red-400">
+              <button onClick={() => removeFavorite(activeCity)} className="p-2" style={{ color: textSec }}>
                 <StarOff size={18} />
               </button>
             )}
@@ -257,7 +270,7 @@ export default function Meteo({ initialCity }) {
               <div key={m.id} className="flex items-center gap-1 px-2 py-1 rounded-full" style={{ background: m.color + '20' }}>
                 <div className="w-2 h-2 rounded-full" style={{ background: m.color }} />
                 <span className="text-xs font-semibold" style={{ color: m.color }}>{m.label}</span>
-                <span className="text-xs text-gray-400">{m.precision}</span>
+                <span className="text-xs" style={{ color: textSec }}>{m.precision}</span>
               </div>
             ))}
           </div>
@@ -278,30 +291,31 @@ export default function Meteo({ initialCity }) {
 
               return (
                 <button key={dayIdx} onClick={() => setSelectedDay(dayIdx)}
-                  className="w-full bg-white rounded-2xl px-4 py-3 border border-gray-100 shadow-sm text-left active:scale-98 transition-transform">
+                  className="w-full rounded-2xl px-4 py-3 shadow-sm text-left active:scale-98 transition-transform"
+                  style={{ background: card, border: `1px solid ${border}` }}>
 
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xl">{WMO_ICONS[refDay?.weathercode?.[dayIdx] ?? 0] || '🌡️'}</span>
-                    <p className="text-sm font-bold text-gray-900 flex-1">{formatDay(date, dayIdx)}</p>
-                    <p className="text-xs text-gray-400">{WMO_LABELS[refDay?.weathercode?.[dayIdx] ?? 0] || ''}</p>
-                    <ChevronRight size={14} className="text-gray-300" />
+                    <p className="text-sm font-bold flex-1" style={{ color: textPri }}>{formatDay(date, dayIdx)}</p>
+                    <p className="text-xs" style={{ color: textSec }}>{WMO_LABELS[refDay?.weathercode?.[dayIdx] ?? 0] || ''}</p>
+                    <ChevronRight size={14} style={{ color: dark ? '#4338ca' : '#d1d5db' }} />
                   </div>
 
                   <div className="flex items-center gap-4 mb-3 px-1">
                     <div className="flex items-baseline gap-1">
                       <span className="text-blue-500 font-bold text-lg">{avg(temps_min) ?? '—'}°</span>
-                      <span className="text-gray-300">/</span>
+                      <span style={{ color: dark ? '#4338ca' : '#d1d5db' }}>/</span>
                       <span className="text-orange-500 font-bold text-lg">{avg(temps_max) ?? '—'}°</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Droplets size={13} className="text-blue-400" />
-                      <span className="text-sm font-semibold text-gray-600">{avgF(rains) ?? '—'}mm</span>
+                      <span className="text-sm font-semibold" style={{ color: textMed }}>{avgF(rains) ?? '—'}mm</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Wind size={13} className="text-gray-400" />
-                      <span className="text-sm font-semibold text-gray-600">{avg(winds) ?? '—'}km/h</span>
+                      <Wind size={13} style={{ color: textSec }} />
+                      <span className="text-sm font-semibold" style={{ color: textMed }}>{avg(winds) ?? '—'}km/h</span>
                     </div>
-                    <span className="text-xs text-gray-300 ml-auto">{validModels.length} modèles</span>
+                    <span className="text-xs ml-auto" style={{ color: dark ? '#4338ca' : '#d1d5db' }}>{validModels.length} modèles</span>
                   </div>
 
                   <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(validModels.length, 6)}, 1fr)` }}>
@@ -314,17 +328,17 @@ export default function Meteo({ initialCity }) {
                       return (
                         <div key={m.id} className="rounded-xl px-1 py-1.5 text-center" style={{ background: m.color + '15' }}>
                           <p className="font-bold" style={{ color: m.color, fontSize: '9px' }}>{m.label}</p>
-                          <p style={{ fontSize: '8px' }} className="text-gray-400">{m.precision}</p>
-                          <p className="font-bold text-gray-700 mt-0.5" style={{ fontSize: '9px' }}>
+                          <p style={{ fontSize: '8px', color: textSec }}>{m.precision}</p>
+                          <p className="font-bold mt-0.5" style={{ fontSize: '9px', color: textMed }}>
                             {tMin != null ? Math.round(tMin) : '—'}°/{tMax != null ? Math.round(tMax) : '—'}°
                           </p>
                           <div className="flex items-center justify-center gap-0.5 mt-0.5">
                             <Droplets size={7} className="text-blue-400" />
-                            <span style={{ fontSize: '8px' }} className="text-gray-400">{rain != null ? nv(rain).toFixed(1) : '—'}</span>
+                            <span style={{ fontSize: '8px', color: textSec }}>{rain != null ? nv(rain).toFixed(1) : '—'}</span>
                           </div>
                           <div className="flex items-center justify-center gap-0.5">
-                            <Wind size={7} className="text-gray-400" />
-                            <span style={{ fontSize: '8px' }} className="text-gray-400">{wind != null ? Math.round(wind) : '—'}</span>
+                            <Wind size={7} style={{ color: textSec }} />
+                            <span style={{ fontSize: '8px', color: textSec }}>{wind != null ? Math.round(wind) : '—'}</span>
                           </div>
                         </div>
                       )
@@ -336,15 +350,16 @@ export default function Meteo({ initialCity }) {
           </div>
 
           {/* Liens externes */}
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Voir aussi</p>
+          <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: textSec }}>Voir aussi</p>
           <div className="grid grid-cols-3 gap-2 mb-6">
             {[
               { label: meteoCielLabel, url: meteoCiel },
               { label: '🌬️ Windy', url: windy },
               { label: weather24Label, url: weather24 },
-            ].map((l,i) => (
+            ].map((l, i) => (
               <a key={i} href={l.url} target="_blank" rel="noopener noreferrer"
-                className="bg-white rounded-xl py-3 text-center text-xs font-semibold text-gray-700 border border-gray-100 shadow-sm">
+                className="rounded-xl py-3 text-center text-xs font-semibold shadow-sm"
+                style={{ background: card, border: `1px solid ${border}`, color: textMed }}>
                 {l.label}
               </a>
             ))}
@@ -356,11 +371,12 @@ export default function Meteo({ initialCity }) {
         // ─── HEURE PAR HEURE ─────────────────────────────────────────────
         <div className="px-4 py-4 max-w-lg mx-auto">
           <button onClick={() => setSelectedDay(null)}
-            className="flex items-center gap-1.5 text-gray-500 hover:text-gray-900 mb-4 text-sm">
+            className="flex items-center gap-1.5 mb-4 text-sm"
+            style={{ color: textSec }}>
             <ArrowLeft size={16} /> Retour aux 7 jours
           </button>
 
-          <h3 className="font-bold text-gray-900 mb-1">{formatDay(dates[selectedDay], selectedDay)}</h3>
+          <h3 className="font-bold mb-1" style={{ color: textPri }}>{formatDay(dates[selectedDay], selectedDay)}</h3>
 
           {(() => {
             const dayModels = getModelsForDay(selectedDay, cc).filter(m => modelData[m.id])
@@ -378,7 +394,7 @@ export default function Meteo({ initialCity }) {
                     <div key={m.id} className="flex items-center gap-1 px-2 py-1 rounded-full" style={{ background: m.color + '20' }}>
                       <div className="w-2 h-2 rounded-full" style={{ background: m.color }} />
                       <span className="text-xs font-semibold" style={{ color: m.color }}>{m.label}</span>
-                      <span className="text-xs text-gray-400">{m.precision}</span>
+                      <span className="text-xs" style={{ color: textSec }}>{m.precision}</span>
                     </div>
                   ))}
                 </div>
@@ -402,18 +418,19 @@ export default function Meteo({ initialCity }) {
                     })
 
                     return (
-                      <div key={i} className="bg-white rounded-2xl px-4 py-3 border border-gray-100 shadow-sm">
+                      <div key={i} className="rounded-2xl px-4 py-3 shadow-sm"
+                        style={{ background: card, border: `1px solid ${border}` }}>
                         <div className="flex items-center gap-3 mb-2">
-                          <span className="text-sm font-bold text-gray-400 w-8">{h.hour}</span>
+                          <span className="text-sm font-bold w-8" style={{ color: textSec }}>{h.hour}</span>
                           <span className="text-lg">{WMO_ICONS[h.code] || '🌡️'}</span>
-                          <span className="text-lg font-bold text-gray-900">{avgTemp ?? '—'}°</span>
+                          <span className="text-lg font-bold" style={{ color: textPri }}>{avgTemp ?? '—'}°</span>
                           <div className="flex items-center gap-1">
                             <Droplets size={11} className="text-blue-400" />
-                            <span className="text-xs text-gray-500">{avgRain ?? '—'}mm</span>
+                            <span className="text-xs" style={{ color: textMed }}>{avgRain ?? '—'}mm</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Wind size={11} className="text-gray-400" />
-                            <span className="text-xs text-gray-500">{avgWind ?? '—'}km/h</span>
+                            <Wind size={11} style={{ color: textSec }} />
+                            <span className="text-xs" style={{ color: textMed }}>{avgWind ?? '—'}km/h</span>
                           </div>
                         </div>
                         <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(validForHour.length, 6)}, 1fr)` }}>
@@ -424,14 +441,14 @@ export default function Meteo({ initialCity }) {
                             return (
                               <div key={m.id} className="rounded-xl px-1 py-1.5 text-center" style={{ background: m.color + '15' }}>
                                 <p className="font-bold" style={{ color: m.color, fontSize: '9px' }}>{m.label}</p>
-                                <p className="font-bold text-gray-800 mt-0.5" style={{ fontSize: '10px' }}>{hh.temp != null ? Math.round(hh.temp) : '—'}°</p>
+                                <p className="font-bold mt-0.5" style={{ fontSize: '10px', color: textMed }}>{hh.temp != null ? Math.round(hh.temp) : '—'}°</p>
                                 <div className="flex items-center justify-center gap-0.5 mt-0.5">
                                   <Droplets size={7} className="text-blue-400" />
-                                  <span style={{ fontSize: '8px' }} className="text-gray-400">{hh.rain != null ? nv(hh.rain).toFixed(1) : '—'}</span>
+                                  <span style={{ fontSize: '8px', color: textSec }}>{hh.rain != null ? nv(hh.rain).toFixed(1) : '—'}</span>
                                 </div>
                                 <div className="flex items-center justify-center gap-0.5">
-                                  <Wind size={7} className="text-gray-400" />
-                                  <span style={{ fontSize: '8px' }} className="text-gray-400">{hh.wind != null ? Math.round(hh.wind) : '—'}</span>
+                                  <Wind size={7} style={{ color: textSec }} />
+                                  <span style={{ fontSize: '8px', color: textSec }}>{hh.wind != null ? Math.round(hh.wind) : '—'}</span>
                                 </div>
                               </div>
                             )
@@ -450,27 +467,38 @@ export default function Meteo({ initialCity }) {
       {/* Modal recherche */}
       {showSearch && (
         <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => setShowSearch(false)}>
-          <div className="bg-white w-full rounded-t-3xl p-6 max-h-96 overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="w-full rounded-t-3xl p-6 max-h-96 overflow-y-auto"
+            style={{ background: card }}
+            onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-lg">Ajouter une ville</h2>
-              <button onClick={() => setShowSearch(false)}><X size={20} className="text-gray-400" /></button>
+              <h2 className="font-bold text-lg" style={{ color: textPri }}>Ajouter une ville</h2>
+              <button onClick={() => setShowSearch(false)}>
+                <X size={20} style={{ color: textSec }} />
+              </button>
             </div>
             <div className="flex gap-2 mb-4">
               <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSearch()}
                 placeholder="Nom de ville…"
-                className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none text-sm" />
+                className="flex-1 px-4 py-3 rounded-xl text-sm focus:outline-none"
+                style={{
+                  background: dark ? '#0f0a1e' : '#f9fafb',
+                  border: `1px solid ${dark ? '#4338ca' : '#e5e7eb'}`,
+                  color: textPri,
+                }} />
               <button onClick={handleSearch} disabled={searching}
-                className="px-4 py-3 bg-gray-900 text-white rounded-xl text-sm disabled:opacity-40">
+                className="px-4 py-3 rounded-xl text-sm disabled:opacity-40"
+                style={{ background: dark ? '#7c3aed' : '#111827', color: '#fff' }}>
                 {searching ? '…' : 'OK'}
               </button>
             </div>
             <div className="space-y-2">
               {searchResults.map((city, i) => (
                 <button key={i} onClick={() => addFavorite(city)}
-                  className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                  <p className="font-semibold text-gray-900 text-sm">{city.name}</p>
-                  <p className="text-xs text-gray-400">{city.admin1}, {city.country}</p>
+                  className="w-full text-left px-4 py-3 rounded-xl transition-colors"
+                  style={{ background: dark ? '#2d1f5e' : '#f9fafb' }}>
+                  <p className="font-semibold text-sm" style={{ color: textPri }}>{city.name}</p>
+                  <p className="text-xs" style={{ color: textSec }}>{city.admin1}, {city.country}</p>
                 </button>
               ))}
             </div>

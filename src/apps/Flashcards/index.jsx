@@ -29,7 +29,7 @@ const Loader = () => (
   </div>
 )
 
-export default function Flashcards({ profile }) {
+export default function Flashcards({ profile, dark }) {
   const [tab, setTab]               = useState(TABS.MEMOIRE)
   const [screen, setScreen]         = useState(SCREENS.HOME)
   const [activeDeck, setActiveDeck] = useState(null)
@@ -39,7 +39,6 @@ export default function Flashcards({ profile }) {
 
   const { decks, dueMap, progressMap, totalDue, loading: memoireLoading, reload } = useMemoire(profile)
 
-  // Badge nav = dues uniquement sur les decks actifs du profil
   const activeTotalDue = (() => {
     try {
       const saved = JSON.parse(localStorage.getItem(`memoire-active-decks-${profile?.id}`) || 'null')
@@ -47,23 +46,23 @@ export default function Flashcards({ profile }) {
       return decks.filter(d => saved.includes(d.id)).reduce((s, d) => s + (dueMap[d.id]?.badge ?? dueMap[d.id] ?? 0), 0)
     } catch { return totalDue }
   })()
+
   const {
     session, currentItem, idx: studyIdx,
     loading: studyLoading, sessionReady, isFinished: studyFinished, sessionStats,
     startSession, rateItem, goNext: goNextStudy,
   } = useStudySession(profile)
+
   const {
     currentQuestion, idx: quizIdx, score, loading: quizLoading,
     sessionReady: quizReady, isFinished: quizFinished,
     startQuiz, answerQuestion, nextQuestion,
   } = useQuiz(profile)
 
-  // Reload les dues quand la session se termine
   useEffect(() => {
     if (studyFinished) reload()
   }, [studyFinished])
 
-  // ── Navigation Mémoire ─────────────────────────────────────
   const goHome = () => { setScreen(SCREENS.HOME); setActiveDeck(null); reload() }
 
   const handleStartDeck = async (deck, limit = null) => {
@@ -80,7 +79,6 @@ export default function Flashcards({ profile }) {
   const handleRate  = async (rating) => { await rateItem(rating) }
   const handleSkip  = () => { goNextStudy() }
 
-  // ── Navigation Quiz ────────────────────────────────────────
   const handleStartQuiz = async (nb) => {
     setQuizNb(nb)
     setScreen(SCREENS.QUIZ_PLAY)
@@ -89,10 +87,8 @@ export default function Flashcards({ profile }) {
   }
 
   const handleAnswer = (chosen, pts, isCorrect) => { answerQuestion(chosen, pts, isCorrect) }
-
   const handleNextQuestion = () => { nextQuestion() }
 
-  // ── Import JSON ────────────────────────────────────────────
   const handleUploadJSON = async (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -161,9 +157,7 @@ export default function Flashcards({ profile }) {
     e.target.value = ''
   }
 
-  // ── Render ─────────────────────────────────────────────────
   const renderContent = () => {
-    // ── Onglet Mémoire ──────────────────────────────────────
     if (tab === TABS.MEMOIRE) {
       if (screen === SCREENS.HOME) {
         return (
@@ -174,28 +168,18 @@ export default function Flashcards({ profile }) {
             progressMap={progressMap}
             totalDue={totalDue}
             loading={memoireLoading}
+            dark={dark}
             onStartDeck={handleStartDeck}
             onManageDeck={handleManageDeck}
             onShowUpload={() => setShowUpload(true)}
-            onDeckCreated={(deck) => {
-              reload()
-              handleManageDeck(deck)
-            }}
+            onDeckCreated={(deck) => { reload(); handleManageDeck(deck) }}
           />
         )
       }
 
       if (screen === SCREENS.STUDY) {
         if (studyFinished) {
-          return (
-            <SessionEnd
-              deck={activeDeck}
-              stats={sessionStats}
-              profile={profile}
-              onBack={goHome}
-              onRestart={() => handleStartDeck(activeDeck)}
-            />
-          )
+          return <SessionEnd deck={activeDeck} stats={sessionStats} profile={profile} dark={dark} onBack={goHome} onRestart={() => handleStartDeck(activeDeck)} />
         }
         if (!sessionReady || studyLoading) return <Loader />
         return (
@@ -206,6 +190,7 @@ export default function Flashcards({ profile }) {
             currentItem={currentItem}
             idx={studyIdx}
             sessionStats={sessionStats}
+            dark={dark}
             onRate={handleRate}
             onSkip={handleSkip}
             onBack={goHome}
@@ -214,21 +199,14 @@ export default function Flashcards({ profile }) {
       }
 
       if (screen === SCREENS.SESSION_END) {
-        return (
-          <SessionEnd
-            deck={activeDeck}
-            stats={sessionStats}
-            profile={profile}
-            onBack={goHome}
-            onRestart={() => handleStartDeck(activeDeck)}
-          />
-        )
+        return <SessionEnd deck={activeDeck} stats={sessionStats} profile={profile} dark={dark} onBack={goHome} onRestart={() => handleStartDeck(activeDeck)} />
       }
 
       if (screen === SCREENS.MANAGE_DECK) {
         return (
           <ManageDeck
             deck={activeDeck}
+            dark={dark}
             onBack={goHome}
             onDelete={async (d) => {
               await supabase.from('decks').delete().eq('id', d.id)
@@ -240,29 +218,14 @@ export default function Flashcards({ profile }) {
       }
     }
 
-    // ── Onglet Quiz ─────────────────────────────────────────
     if (tab === TABS.QUIZ) {
       if (screen === SCREENS.HOME || screen === SCREENS.HOME_QUIZ) {
-        return (
-          <HomeQuiz
-            profile={profile}
-            onStartQuiz={handleStartQuiz}
-            onManageQuestions={() => setScreen(SCREENS.MANAGE_QUESTIONS)}
-          />
-        )
+        return <HomeQuiz profile={profile} dark={dark} onStartQuiz={handleStartQuiz} onManageQuestions={() => setScreen(SCREENS.MANAGE_QUESTIONS)} />
       }
-
       if (screen === SCREENS.QUIZ_PLAY) {
         if (quizLoading || !quizReady) return <Loader />
         if (quizFinished) {
-          return (
-            <QuizEnd
-              score={score}
-              total={quizIdx}
-              onRestart={() => handleStartQuiz(quizNb)}
-              onBack={() => setScreen(SCREENS.HOME_QUIZ)}
-            />
-          )
+          return <QuizEnd score={score} total={quizIdx} dark={dark} onRestart={() => handleStartQuiz(quizNb)} onBack={() => setScreen(SCREENS.HOME_QUIZ)} />
         }
         return (
           <QuizScreen
@@ -272,23 +235,22 @@ export default function Flashcards({ profile }) {
             score={score}
             onAnswer={handleAnswer}
             onNext={handleNextQuestion}
-            onQuit={() => setScreen(SCREENS.HOME_QUIZ)}
+            dark={dark} onQuit={() => setScreen(SCREENS.HOME_QUIZ)}
           />
         )
       }
-
       if (screen === SCREENS.MANAGE_QUESTIONS) {
-        return (
-          <ManageQuestions
-            profile={profile}
-            onBack={() => setScreen(SCREENS.HOME_QUIZ)}
-          />
-        )
+        return <ManageQuestions profile={profile} dark={dark} onBack={() => setScreen(SCREENS.HOME_QUIZ)} />
       }
     }
 
     return null
   }
+
+  const card   = dark ? '#1a1035' : '#ffffff'
+  const border = dark ? '#2d1f5e' : '#f3f4f6'
+  const textPri  = dark ? '#e9d5ff' : '#111827'
+  const textSec  = dark ? '#a78bfa' : '#9ca3af'
 
   return (
     <div className="flex flex-col" style={{ height: '100%' }}>
@@ -301,31 +263,34 @@ export default function Flashcards({ profile }) {
         active={tab}
         onChange={(t) => { setTab(t); setScreen(SCREENS.HOME); setActiveDeck(null) }}
         color={MEMOIRE_COLOR}
+        dark={dark}
       />
 
       {showUpload && (
         <div className="fixed inset-0 bg-black/50 flex items-end z-50"
           onClick={() => { setShowUpload(false); setUploadStatus(null) }}>
-          <div className="bg-white w-full rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
+          <div className="w-full rounded-t-3xl p-6" style={{ background: card }}
+            onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-2">
-              <h2 className="font-bold text-lg text-gray-900">Importer un jeu</h2>
+              <h2 className="font-bold text-lg" style={{ color: textPri }}>Importer un jeu</h2>
               <button onClick={() => { setShowUpload(false); setUploadStatus(null) }}>
-                <X size={20} className="text-gray-400" />
+                <X size={20} style={{ color: textSec }} />
               </button>
             </div>
-            <p className="text-gray-400 text-sm mb-5">
-              Format classique <code className="text-xs bg-gray-100 px-1 rounded">front/back</code> ou
-              nouveau format <code className="text-xs bg-gray-100 px-1 rounded">criteria/values</code>
+            <p className="text-sm mb-5" style={{ color: textSec }}>
+              Format classique <code className="text-xs px-1 rounded" style={{ background: dark ? '#2d1f5e' : '#f3f4f6' }}>front/back</code> ou
+              nouveau format <code className="text-xs px-1 rounded" style={{ background: dark ? '#2d1f5e' : '#f3f4f6' }}>criteria/values</code>
             </p>
             {uploadStatus === 'success' ? (
-              <div className="flex items-center gap-2 text-green-600 font-semibold justify-center py-4">
+              <div className="flex items-center gap-2 text-green-500 font-semibold justify-center py-4">
                 <Check size={20} /> Jeu importé !
               </div>
             ) : uploadStatus === 'error' ? (
               <p className="text-red-500 text-center py-4">Erreur — vérifie le format JSON</p>
             ) : (
-              <label className="block w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-center text-gray-500 cursor-pointer hover:border-gray-400 transition-colors">
-                <Upload size={24} className="mx-auto mb-2 text-gray-400" />
+              <label className="block w-full py-4 border-2 border-dashed rounded-2xl text-center cursor-pointer transition-colors"
+                style={{ borderColor: dark ? '#4338ca' : '#e5e7eb', color: textSec }}>
+                <Upload size={24} className="mx-auto mb-2" style={{ color: textSec }} />
                 {uploadStatus === 'loading' ? 'Import en cours…' : 'Touche pour choisir un fichier'}
                 <input type="file" accept=".json" className="hidden" onChange={handleUploadJSON} />
               </label>

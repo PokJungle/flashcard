@@ -7,6 +7,7 @@ import Bisou from './apps/Bisou/index.jsx'
 import Programme from './apps/Programme/index.jsx'
 import Orbite from './apps/Orbite/index.jsx'
 import { getNextOccurrence, daysUntil } from './apps/Programme/hooks/useProgramme.js'
+import { useDarkMode } from './hooks/useDarkMode'
 
 const WMO_ICONS = {
   0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',
@@ -98,8 +99,22 @@ async function fetchWeatherForCity(city) {
   } catch { return null }
 }
 
+// ─── DarkToggle ───────────────────────────────────────────────────────────────
+function DarkToggle({ dark, toggle }) {
+  return (
+    <button
+      onClick={toggle}
+      className="w-9 h-9 flex items-center justify-center rounded-xl active:scale-95 transition-all text-base"
+      style={{ background: dark ? '#312e81' : '#f5f0ff', border: dark ? '1.5px solid #4338ca' : '1.5px solid #e9d5ff' }}
+      title={dark ? 'Mode lumineux' : 'Mode sombre'}
+    >
+      {dark ? '☀️' : '🌙'}
+    </button>
+  )
+}
+
 // ─── CityPicker ───────────────────────────────────────────────────────────────
-function CityPicker({ profileId, onClose }) {
+function CityPicker({ profileId, onClose, dark }) {
   const [favorites, setFavorites]     = useState([])
   const [selectedLat, setSelectedLat] = useState(null)
 
@@ -121,9 +136,11 @@ function CityPicker({ profileId, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background:'rgba(20,10,40,0.5)' }} onClick={onClose}>
-      <div className="bg-white rounded-t-3xl w-full max-w-lg p-5 pb-8" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-lg p-5 pb-8 rounded-t-3xl"
+        style={{ background: dark ? '#1e1b4b' : '#fff' }}
+        onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-medium" style={{ color:'#1e0a3c' }}>🌦️ Ville météo du widget</p>
+          <p className="text-sm font-medium" style={{ color: dark ? '#c4b5fd' : '#1e0a3c' }}>🌦️ Ville météo du widget</p>
           <button onClick={onClose} className="text-lg leading-none" style={{ color:'#a78bfa' }}>✕</button>
         </div>
         <p className="text-[11px] mb-3" style={{ color:'#9ca3af' }}>
@@ -135,9 +152,11 @@ function CityPicker({ profileId, onClose }) {
             return (
               <button key={i} onClick={() => save(city)}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
-                style={{ border: active ? '1.5px solid #7c3aed' : '0.5px solid #e9d5ff',
-                         background: active ? '#faf5ff' : '#fff' }}>
-                <span className="text-sm font-medium" style={{ color:'#1e0a3c' }}>{city.name.split(',')[0]}</span>
+                style={{
+                  border: active ? '1.5px solid #7c3aed' : `0.5px solid ${dark ? '#4338ca' : '#e9d5ff'}`,
+                  background: active ? (dark ? '#312e81' : '#faf5ff') : (dark ? '#1e1b4b' : '#fff')
+                }}>
+                <span className="text-sm font-medium" style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>{city.name.split(',')[0]}</span>
                 {active && <span style={{ color:'#7c3aed' }}>✓</span>}
               </button>
             )
@@ -219,7 +238,7 @@ function MeteoWidget({ profileId, onOpenCityPicker, onClick }) {
 }
 
 // ─── Widget Bisou ─────────────────────────────────────────────────────────────
-function BisouWidget({ profile, hasBadge, onClick }) {
+function BisouWidget({ profile, hasBadge, onClick, dark }) {
   const [lastMsg, setLastMsg] = useState(null)
   const [loaded, setLoaded]   = useState(false)
 
@@ -237,8 +256,11 @@ function BisouWidget({ profile, hasBadge, onClick }) {
 
   return (
     <button onClick={onClick}
-      className="relative bg-white rounded-2xl p-2.5 text-left active:scale-95 transition-all overflow-hidden flex-1 flex flex-col"
-      style={{ border:'0.5px solid #fce7f3' }}>
+      className="relative rounded-2xl p-2.5 text-left active:scale-95 transition-all overflow-hidden flex-1 flex flex-col"
+      style={{
+        background: dark ? '#1e1b4b' : '#fff',
+        border: `0.5px solid ${dark ? '#4338ca' : '#fce7f3'}`
+      }}>
       {hasBadge && (
         <span className="absolute top-2 right-2 text-[13px] leading-none z-10">💗</span>
       )}
@@ -250,7 +272,7 @@ function BisouWidget({ profile, hasBadge, onClick }) {
               {lastMsg.profiles?.avatar} {lastMsg.profiles?.name}
             </p>
             <p className="text-[11px] italic leading-snug mt-0.5"
-              style={{ color:'#4b1a6a', display:'-webkit-box', WebkitLineClamp:3,
+              style={{ color: dark ? '#e9d5ff' : '#4b1a6a', display:'-webkit-box', WebkitLineClamp:3,
                        WebkitBoxOrient:'vertical', overflow:'hidden' }}>
               {lastMsg.message}
             </p>
@@ -297,7 +319,7 @@ function CoursesWidget({ profileId, onClick }) {
 }
 
 // ─── Widget Agenda ────────────────────────────────────────────────────────────
-function AgendaWidget({ onClick }) {
+function AgendaWidget({ onClick, dark }) {
   const [nextEvent, setNextEvent] = useState(null)
   const [loaded, setLoaded]       = useState(false)
 
@@ -328,17 +350,20 @@ function AgendaWidget({ onClick }) {
 
   return (
     <button onClick={onClick}
-      className="w-full bg-white rounded-2xl p-3 text-left active:scale-95 transition-all"
-      style={{ border:'0.5px solid #ede9fe' }}>
+      className="w-full rounded-2xl p-3 text-left active:scale-95 transition-all"
+      style={{
+        background: dark ? '#1e1b4b' : '#fff',
+        border: `0.5px solid ${dark ? '#4338ca' : '#ede9fe'}`
+      }}>
       <p className="text-[11px] mb-1.5" style={{ color:'#c4b5fd' }}>Prochain événement</p>
       <div className="flex items-center gap-2">
         <div className="w-9 h-9 rounded-xl flex flex-col items-center justify-center flex-shrink-0"
-          style={{ background:'#f5f0ff', border:'0.5px solid #e9d5ff' }}>
+          style={{ background: dark ? '#312e81' : '#f5f0ff', border:`0.5px solid ${dark ? '#4338ca' : '#e9d5ff'}` }}>
           <span className="text-[14px] font-medium leading-none" style={{ color:'#5b21b6' }}>{day}</span>
           <span className="text-[9px] uppercase" style={{ color:'#a78bfa' }}>{mon}</span>
         </div>
         <div className="min-w-0">
-          <p className="text-[12px] font-medium text-gray-900 truncate">{nextEvent.emoji} {nextEvent.title}</p>
+          <p className="text-[12px] font-medium truncate" style={{ color: dark ? '#e9d5ff' : '#111827' }}>{nextEvent.emoji} {nextEvent.title}</p>
           <p className={`text-[11px] ${isUrgent ? 'text-amber-500' : 'text-gray-400'}`}>{countdown}</p>
         </div>
       </div>
@@ -424,8 +449,6 @@ function OrbiteWidget({ profile, onClick }) {
 }
 
 // ─── Fêtes spéciales ──────────────────────────────────────────────────────────
-// { nom: prénom exact du calendrier, icon: emoji affiché dans la bannière }
-// → Ajouter / modifier librement
 const FETES_SPECIALES = [
   { nom:'Marie',              icon:'❤️‍🔥' },
   { nom:'Benoît',             icon:'🐵' },
@@ -443,7 +466,6 @@ const FETES_SPECIALES = [
   { nom:'Fête du Travail',    icon:'💮' },
   { nom:'Victoire 45',        icon:'🕊️' },
   { nom:'Armistice',          icon:'🕊️' },
-  // ↓ Pâques change chaque année — 2026 = 5 avril, 2027 = 28 mars
   { nom:'Pâques',             icon:'🥚' },
 ]
 
@@ -455,7 +477,7 @@ function getFeteIcon(fete) {
 }
 
 // ─── Composant entête date + fête ─────────────────────────────────────────────
-function DayHeader({ profile }) {
+function DayHeader({ profile, dark }) {
   const [fete, setFete] = useState(null)
 
   useEffect(() => {
@@ -476,11 +498,10 @@ function DayHeader({ profile }) {
       '1/3':'Aubin','2/3':'Charles le Bon','3/3':'Guénolé','4/3':'Casimir','5/3':'Olive',
       '6/3':'Colette','7/3':'Félicité','8/3':'Jean de Dieu','9/3':'Françoise','10/3':'Vivien',
       '11/3':'Rosine','12/3':'Justine','13/3':'Rodrigue','14/3':'Mathilde','15/3':'Louise',
-      '16/3':'Bénédicte','17/3':'Patrick','18/3':'Cyrille','19/3':'Joseph','20/3':'Herbert',
+      '16/3':'Bénédicte','17/3':'Cyrille','18/3':'Cyrille','19/3':'Joseph','20/3':'Herbert',
       '21/3':'Clémence','22/3':'Léa','23/3':'Victorien','24/3':'Cath. de Suède','25/3':'Annonciation',
       '26/3':'Larissa','27/3':'Habib','28/3':'Gontran','29/3':'Gwladys','30/3':'Amédée',
       '31/3':'Benjamin',
-      // ↓ Pâques 2026 = 5 avril — à mettre à jour chaque année (2027 = 28 mars)
       '1/4':'Hugues','2/4':'Sandrine','3/4':'Richard','4/4':'Isidore','5/4':'Pâques',
       '6/4':'Marcellin','7/4':'Jean-Baptiste','8/4':'Julie','9/4':'Gautier','10/4':'Fulbert',
       '11/4':'Stanislas','12/4':'Jules','13/4':'Ida','14/4':'Maxime','15/4':'Paterne',
@@ -555,7 +576,7 @@ function DayHeader({ profile }) {
 
   return (
     <div className="max-w-lg mx-auto px-3 pt-2 pb-1 text-center">
-      <p className="text-[16px] font-medium" style={{ color:'#1e0a3c' }}>
+      <p className="text-[16px] font-medium" style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>
         {greeting} {profile?.avatar}
       </p>
       <p className="text-[12px] mt-0.5" style={{ color:'#7c3aed' }}>
@@ -563,9 +584,7 @@ function DayHeader({ profile }) {
       </p>
       {fete && (
         isFeteSpeciale(fete) ? (
-          /* ── Bannière fête spéciale : confettis boostés, sans sous-titre ── */
           <div style={{ margin:'4px 0 0', background:'linear-gradient(135deg,#b45309,#d97706,#f59e0b)', padding:'8px 14px', borderRadius:12, position:'relative', overflow:'hidden' }}>
-            {/* 36 confettis */}
             <span style={{ position:'absolute', top:11, left:18, width:5, height:5, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite 0.7s' }} />
             <span style={{ position:'absolute', top:11, right:73, width:5, height:5, borderRadius:'50%', background:'#bfdbfe', display:'block', animation:'bbp-float1 1.2s ease-in-out infinite 0.2s' }} />
             <span style={{ position:'absolute', top:9, left:81, width:5, height:5, borderRadius:2, background:'#bfdbfe', display:'block', animation:'bbp-float3 1.8s ease-in-out infinite 0.5s' }} />
@@ -602,7 +621,6 @@ function DayHeader({ profile }) {
             <span style={{ position:'absolute', bottom:6, right:58, width:9, height:9, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite 0.2s' }} />
             <span style={{ position:'absolute', bottom:2, left:78, width:9, height:9, borderRadius:'50%', background:'#fff', display:'block', animation:'bbp-float1 1.3s ease-in-out infinite 0.5s' }} />
             <span style={{ position:'absolute', bottom:10, right:24, width:5, height:5, borderRadius:2, background:'#bfdbfe', display:'block', animation:'bbp-float1 1.3s ease-in-out infinite 0.1s' }} />
-                        {/* Texte */}
             <p style={{ color:'#fff', fontSize:15, fontWeight:600, margin:0, position:'relative', textShadow:'0 1px 3px rgba(0,0,0,0.3)' }}>
               {getFeteIcon(fete)} Fête de {fete} !
             </p>
@@ -624,6 +642,7 @@ function DayHeader({ profile }) {
 
 // ─── App principale ───────────────────────────────────────────────────────────
 export default function App() {
+  const { dark, toggle }                    = useDarkMode()
   const [activeApp, setActiveApp]           = useState(null)
   const [activeAppProps, setActiveAppProps] = useState({})
   const [profiles, setProfiles]             = useState([])
@@ -663,24 +682,30 @@ export default function App() {
   const openApp = (id, props = {}) => { setActiveAppProps(props); setActiveApp(id) }
   const openMeteo = () => openApp('meteo', { initialCity: getPreferredCity(profile?.id) })
 
+  // ─── App active ───────────────────────────────────────────────────────────
   if (activeApp) {
     const app = APPS.find(a => a.id === activeApp)
     const Component = app.component
     return (
-      <div className="h-screen flex flex-col overflow-hidden">
-        <div className="bg-white border-b border-gray-100 px-5 py-3 flex items-center justify-between flex-shrink-0">
+      <div className="h-screen flex flex-col overflow-hidden" style={{ background: dark ? '#0f0a1e' : '#fff' }}>
+        <div className="px-5 py-3 flex items-center justify-between flex-shrink-0"
+          style={{
+            background: dark ? '#1a1035' : '#fff',
+            borderBottom: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`
+          }}>
           <button onClick={() => { setActiveApp(null); setActiveAppProps({}) }}
-            className="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-xl text-gray-500 hover:text-gray-900 active:scale-95 transition-all">
+            className="w-9 h-9 flex items-center justify-center rounded-xl active:scale-95 transition-all"
+            style={{ background: dark ? '#2d1f5e' : '#f5f0ff', border: `1.5px solid ${dark ? '#4338ca' : '#e9d5ff'}` }}>
             🏠
           </button>
           <div className="text-center">
-            <p className="text-sm font-bold text-gray-900">{app.emoji} {app.name}</p>
-            <p className="text-xs text-gray-400">{profile?.avatar} {profile?.name}</p>
+            <p className="text-sm font-bold" style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>{app.emoji} {app.name}</p>
+            <p className="text-xs" style={{ color: dark ? '#7c6aad' : '#a78bfa' }}>{profile?.avatar} {profile?.name}</p>
           </div>
-          <div className="w-9" />
+          <DarkToggle dark={dark} toggle={toggle} />
         </div>
         <div className="flex-1 overflow-y-auto">
-          <Component profile={profile}
+          <Component profile={profile} dark={dark}
             onSeen={activeApp === 'bisou' ? () => setBisouBadge(false) : undefined}
             {...activeAppProps} />
         </div>
@@ -688,68 +713,79 @@ export default function App() {
     )
   }
 
+  // ─── PROFILS ──────────────────────────────────────────────────────────────
   if (screen === 'profiles') return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background:'#f5f0ff' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-6"
+      style={{ background: dark ? '#0f0a1e' : '#f5f0ff' }}>
       <p className="text-4xl mb-3">🐆</p>
-      <h1 className="text-2xl font-medium mb-1" style={{ color:'#1e0a3c' }}>
+      <h1 className="text-2xl font-medium mb-1" style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>
         B<span style={{ color:'#7c3aed' }}>B</span>P
       </h1>
       <p className="text-sm mb-10" style={{ color:'#a78bfa' }}>Qui est-ce ?</p>
       <div className="w-full max-w-xs space-y-3">
         {profiles.map(p => (
           <button key={p.id} onClick={() => selectProfile(p)}
-            className="w-full bg-white rounded-2xl p-4 flex items-center gap-4 active:scale-95 transition-transform"
-            style={{ border:'0.5px solid #ede9fe' }}>
+            className="w-full rounded-2xl p-4 flex items-center gap-4 active:scale-95 transition-transform"
+            style={{
+              background: dark ? '#1a1035' : '#fff',
+              border: `0.5px solid ${dark ? '#4338ca' : '#ede9fe'}`
+            }}>
             <span className="text-3xl">{p.avatar}</span>
-            <span className="font-medium text-lg" style={{ color:'#1e0a3c' }}>{p.name}</span>
+            <span className="font-medium text-lg" style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>{p.name}</span>
           </button>
         ))}
+      </div>
+      <div className="mt-8">
+        <DarkToggle dark={dark} toggle={toggle} />
       </div>
     </div>
   )
 
+  // ─── HUB ──────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen" style={{ background:'#f5f0ff' }}>
+    <div className="min-h-screen" style={{ background: dark ? '#0f0a1e' : '#f5f0ff' }}>
 
       {showCityPicker && (
-        <CityPicker profileId={profile?.id}
+        <CityPicker profileId={profile?.id} dark={dark}
           onClose={() => { setShowCityPicker(false); setMeteoKey(k => k+1) }} />
       )}
 
-      <div className="bg-white sticky top-0 z-10 px-3.5 py-2 flex items-center justify-between"
-        style={{ borderBottom:'0.5px solid #ede9fe' }}>
-        <p className="text-[19px] font-medium" style={{ color:'#1e0a3c', letterSpacing:-0.5 }}>
+      <div className="sticky top-0 z-10 px-3.5 py-2 flex items-center justify-between"
+        style={{
+          background: dark ? '#1a1035' : '#fff',
+          borderBottom: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`
+        }}>
+        <p className="text-[19px] font-medium" style={{ color: dark ? '#e9d5ff' : '#1e0a3c', letterSpacing:-0.5 }}>
           B<span style={{ color:'#7c3aed' }}>B</span>P 🐆
         </p>
-        <button onClick={() => { setProfile(null); setScreen('profiles') }}
-          className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-base active:scale-95 transition-all"
-          style={{ background:'#f5f0ff', border:'1.5px solid #e9d5ff' }}>
-          {profile?.avatar}
-        </button>
+        <div className="flex items-center gap-2">
+          <DarkToggle dark={dark} toggle={toggle} />
+          <button onClick={() => { setProfile(null); setScreen('profiles') }}
+            className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-base active:scale-95 transition-all"
+            style={{
+              background: dark ? '#2d1f5e' : '#f5f0ff',
+              border: `1.5px solid ${dark ? '#4338ca' : '#e9d5ff'}`
+            }}>
+            {profile?.avatar}
+          </button>
+        </div>
       </div>
 
-      <DayHeader profile={profile} />
+      <DayHeader profile={profile} dark={dark} />
 
       <div className="px-3 pt-1.5 pb-8 max-w-lg mx-auto">
 
-        {/* Ligne 1 : Agenda pleine largeur */}
         <div className="mb-2">
-          <AgendaWidget onClick={() => openApp('programme')} />
+          <AgendaWidget onClick={() => openApp('programme')} dark={dark} />
         </div>
 
-        {/* Ligne 2 : Météo | Bisou | Orbite — mêmes proportions */}
         <div className="flex gap-2 items-stretch mb-2">
           <MeteoWidget key={meteoKey} profileId={profile?.id}
             onOpenCityPicker={() => setShowCityPicker(true)} onClick={openMeteo} />
-          <BisouWidget profile={profile} hasBadge={bisouBadge}
+          <BisouWidget profile={profile} hasBadge={bisouBadge} dark={dark}
             onClick={() => openApp('bisou')} />
           <OrbiteWidget profile={profile} onClick={() => openApp('orbite')} />
         </div>
-
-        {/* CoursesWidget masqué — décommenter pour réafficher
-        <CoursesWidget profileId={profile?.id}
-          onClick={() => openApp('recettes', { initialShoppingList: true })} />
-        */}
 
         <p className="text-[11px] uppercase tracking-widest mt-3 mb-2" style={{ color:'#a78bfa' }}>
           Applications
@@ -758,13 +794,16 @@ export default function App() {
           {HUB_APPS.map(app => (
             <button key={app.id}
               onClick={() => app.id === 'meteo' ? openMeteo() : openApp(app.id)}
-              className="bg-white rounded-2xl py-2.5 px-1 flex flex-col items-center gap-1.5 active:scale-95 transition-all"
-              style={{ border:'0.5px solid #ede9fe' }}>
+              className="rounded-2xl py-2.5 px-1 flex flex-col items-center gap-1.5 active:scale-95 transition-all"
+              style={{
+                background: dark ? '#1a1035' : '#fff',
+                border: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`
+              }}>
               <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg"
                 style={{ background:app.color+'18' }}>
                 {app.emoji}
               </div>
-              <p className="text-[10px] font-medium text-center leading-tight" style={{ color:'#1e0a3c' }}>
+              <p className="text-[10px] font-medium text-center leading-tight" style={{ color: dark ? '#c4b5fd' : '#1e0a3c' }}>
                 {HUB_LABELS[app.id] ?? app.name}
               </p>
             </button>
@@ -777,7 +816,10 @@ export default function App() {
         <div className="grid grid-cols-2 gap-1.5">
           {APPS_EN_PREP.map(a => (
             <div key={a.name} className="flex items-center gap-2 rounded-xl px-3 py-2"
-              style={{ background:'rgba(167,139,250,0.06)', border:'0.5px dashed #d8b4fe' }}>
+              style={{
+                background: dark ? 'rgba(167,139,250,0.08)' : 'rgba(167,139,250,0.06)',
+                border: `0.5px dashed ${dark ? '#4338ca' : '#d8b4fe'}`
+              }}>
               <span className="text-sm">{a.emoji}</span>
               <span className="text-[11px]" style={{ color:'#c4b5fd' }}>{a.name}</span>
             </div>

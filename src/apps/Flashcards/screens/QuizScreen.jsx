@@ -55,7 +55,6 @@ const MODES = [
   { id: 'cash',  label: 'Cash',  pts: 5, desc: 'texte libre', dots: 3, color: '#412402', border: '#FAC775', bg: '#FAEEDA', dotFull: '#854F0B', dotEmpty: '#FAC775' },
 ]
 
-// Couleur par thème (bannière contextuelle)
 const THEME_COLORS = {
   geographie:   { bg: '#E6F1FB', border: '#B5D4F4', text: '#185FA5' },
   histoire:     { bg: '#FAECE7', border: '#F5C4B3', text: '#712B13' },
@@ -69,7 +68,7 @@ const THEME_COLORS = {
 
 export default function QuizScreen({
   currentQuestion, idx, total, score,
-  onAnswer, onNext, onQuit,
+  onAnswer, onNext, onQuit, dark,
 }) {
   const [phase, setPhase]           = useState('pick')
   const [mode, setMode]             = useState(null)
@@ -140,35 +139,45 @@ export default function QuizScreen({
     setTimeout(() => onNext(), 120)
   }
 
+  // Couleurs dark
+  const bg      = dark ? '#0f0a1e' : '#f9fafb'
+  const card    = dark ? '#1a1035' : '#ffffff'
+  const border  = dark ? '#2d1f5e' : '#f3f4f6'
+  const textPri = dark ? '#e9d5ff' : '#111827'
+  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const optBg   = dark ? '#2d1f5e' : '#f9fafb'
+  const optBorder = dark ? '#4338ca' : '#f3f4f6'
+
   const optStyle = (opt) => {
-    if (phase !== 'result') return {}
+    if (phase !== 'result') return { background: optBg, borderColor: optBorder, color: textPri }
     if (opt === answer) return { background: '#EAF3DE', borderColor: '#97C459', color: '#27500A' }
     if (opt === chosen) return { background: '#FCEBEB', borderColor: '#F09595', color: '#791F1F' }
-    return { background: 'var(--color-background-secondary)', borderColor: 'var(--color-border-tertiary)', color: 'var(--color-text-tertiary)' }
+    return { background: optBg, borderColor: optBorder, color: textSec }
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-50"
-      style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.12s' }}>
+    <div className="flex flex-col h-full"
+      style={{ background: bg, opacity: visible ? 1 : 0, transition: 'opacity 0.12s' }}>
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 flex-shrink-0">
-        <button onClick={onQuit} className="text-gray-400"><ArrowLeft size={20} /></button>
+      <div className="px-4 py-3 flex items-center gap-3 flex-shrink-0"
+        style={{ background: card, borderBottom: `1px solid ${border}` }}>
+        <button onClick={onQuit} style={{ color: textSec }}><ArrowLeft size={20} /></button>
         <div className="flex-1">
-          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: dark ? '#2d1f5e' : '#f3f4f6' }}>
             <div className="h-full rounded-full transition-all duration-400"
               style={{ width: `${(idx / total) * 100}%`, background: themeStyle.text }} />
           </div>
         </div>
-        <span className="text-xs text-gray-400 font-medium">{idx + 1}/{total}</span>
+        <span className="text-xs font-medium" style={{ color: textSec }}>{idx + 1}/{total}</span>
       </div>
 
       {/* Score */}
       <div className="flex justify-center gap-3 px-4 pt-3 flex-shrink-0">
         <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-          style={{ background: '#EAF3DE', color: '#27500A' }}>✓ {score.points} pts</span>
+          style={{ background: dark ? '#14291a' : '#EAF3DE', color: dark ? '#86efac' : '#27500A' }}>✓ {score.points} pts</span>
         <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-          style={{ background: '#FCEBEB', color: '#791F1F' }}>✗ {score.wrong}</span>
+          style={{ background: dark ? '#2d1a1a' : '#FCEBEB', color: dark ? '#fca5a5' : '#791F1F' }}>✗ {score.wrong}</span>
       </div>
 
       {/* Contenu */}
@@ -177,8 +186,11 @@ export default function QuizScreen({
         {/* Bannière thème */}
         {themeName && (
           <div className="rounded-2xl px-4 py-2.5 mb-3 flex items-center gap-2"
-            style={{ background: themeStyle.bg, border: `1px solid ${themeStyle.border}` }}>
-            <span className="text-sm font-semibold" style={{ color: themeStyle.text }}>{themeName}</span>
+            style={{
+              background: dark ? 'rgba(255,255,255,0.06)' : themeStyle.bg,
+              border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : themeStyle.border}`
+            }}>
+            <span className="text-sm font-semibold" style={{ color: dark ? '#e9d5ff' : themeStyle.text }}>{themeName}</span>
           </div>
         )}
 
@@ -186,50 +198,53 @@ export default function QuizScreen({
         {imageUrl && (
           <div className="flex justify-center mb-3">
             <img src={imageUrl} alt=""
-              className="rounded-2xl object-contain bg-white border border-gray-100"
-              style={{ maxHeight: 140, maxWidth: '100%' }} />
+              className="rounded-2xl object-contain"
+              style={{ maxHeight: 140, maxWidth: '100%', background: card, border: `1px solid ${border}` }} />
           </div>
         )}
 
         {/* Carte question */}
-        <div className="bg-white rounded-2xl border border-gray-100 px-5 py-4 mb-4 text-center shadow-sm">
+        <div className="rounded-2xl px-5 py-4 mb-4 text-center shadow-sm"
+          style={{ background: card, border: `1px solid ${border}` }}>
           <p className="text-xs font-medium uppercase tracking-wide mb-1"
-            style={{ color: themeStyle.text }}>{question}</p>
+            style={{ color: dark ? textSec : themeStyle.text }}>{question}</p>
           {questionValue && (
-            <p className="text-xl font-bold" style={{ color: themeStyle.color || '#26215C' }}>{questionValue}</p>
+            <p className="text-xl font-bold" style={{ color: dark ? '#e9d5ff' : (themeStyle.color || '#26215C') }}>{questionValue}</p>
           )}
         </div>
 
-        {/* ── PHASE PICK — Jauge V3 ── */}
+        {/* ── PHASE PICK ── */}
         {phase === 'pick' && (
           <>
-            <p className="text-xs text-gray-400 text-center mb-3">Choisis ton mode</p>
+            <p className="text-xs text-center mb-3" style={{ color: textSec }}>Choisis ton mode</p>
             <div className="grid grid-cols-3 gap-2.5">
               {MODES.map(m => (
                 <button key={m.id} onClick={() => selectMode(m)}
                   className="rounded-2xl text-center active:scale-95 transition-transform py-3 px-2"
-                  style={{ background: m.bg, border: `1.5px solid ${m.border}` }}>
-                  {/* Nom */}
-                  <p className="text-sm font-bold mb-1" style={{ color: m.color }}>{m.label}</p>
-                  {/* Points en grand */}
-                  <p className="text-2xl font-bold leading-none mb-2" style={{ color: m.color }}>{m.pts}</p>
-                  {/* Jauge difficulté */}
+                  style={{
+                    background: dark ? 'rgba(255,255,255,0.06)' : m.bg,
+                    border: `1.5px solid ${dark ? 'rgba(255,255,255,0.1)' : m.border}`
+                  }}>
+                  <p className="text-sm font-bold mb-1" style={{ color: dark ? '#e9d5ff' : m.color }}>{m.label}</p>
+                  <p className="text-2xl font-bold leading-none mb-2" style={{ color: dark ? '#e9d5ff' : m.color }}>{m.pts}</p>
                   <div style={{ display: 'flex', gap: 4, justifyContent: 'center', marginBottom: 4 }}>
                     {[1, 2, 3].map(i => (
                       <div key={i} style={{
                         width: 7, height: 7, borderRadius: '50%',
-                        background: i <= m.dots ? m.dotFull : m.dotEmpty,
+                        background: dark
+                          ? (i <= m.dots ? '#a78bfa' : 'rgba(255,255,255,0.15)')
+                          : (i <= m.dots ? m.dotFull : m.dotEmpty),
                       }} />
                     ))}
                   </div>
-                  <p className="text-xs" style={{ color: m.color + 'aa' }}>{m.desc}</p>
+                  <p className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.4)' : m.color + 'aa' }}>{m.desc}</p>
                 </button>
               ))}
             </div>
           </>
         )}
 
-        {/* ── PHASE ANSWER — Options QCM ── */}
+        {/* ── PHASE ANSWER — QCM ── */}
         {phase === 'answer' && mode?.id !== 'cash' && (
           <>
             <div className="flex justify-center mb-3">
@@ -243,14 +258,14 @@ export default function QuizScreen({
                 <button key={i} onClick={() => handleChooseOption(opt)}
                   className="rounded-2xl border overflow-hidden active:scale-95 transition-all flex items-center justify-center"
                   style={{
-                    background: 'var(--color-background-secondary)',
-                    borderColor: 'var(--color-border-tertiary)',
+                    background: optBg,
+                    borderColor: optBorder,
                     minHeight: optionsAreImages ? 80 : 'auto',
                     padding: optionsAreImages ? 4 : '14px 12px',
                   }}>
                   {optionsAreImages
                     ? <img src={opt} alt="" className="w-full object-contain" style={{ maxHeight: 72 }} />
-                    : <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>{opt}</span>
+                    : <span className="text-sm font-semibold" style={{ color: textPri }}>{opt}</span>
                   }
                 </button>
               ))}
@@ -271,10 +286,14 @@ export default function QuizScreen({
               onChange={e => setCashInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && cashInput.trim() && handleSubmitCash()}
               placeholder="Ta réponse…"
-              className="w-full px-4 py-3.5 rounded-2xl border text-base font-semibold text-center text-gray-900 mb-1 focus:outline-none"
-              style={{ borderColor: '#FAC775' }}
+              className="w-full px-4 py-3.5 rounded-2xl border text-base font-semibold text-center mb-1 focus:outline-none"
+              style={{
+                background: dark ? '#0f0a1e' : '#ffffff',
+                borderColor: '#FAC775',
+                color: textPri,
+              }}
             />
-            <p className="text-xs text-gray-400 text-center mb-3">Accents et casse ignorés · petites fautes tolérées</p>
+            <p className="text-xs text-center mb-3" style={{ color: textSec }}>Accents et casse ignorés · petites fautes tolérées</p>
             <button onClick={handleSubmitCash} disabled={!cashInput.trim()}
               className="w-full py-4 rounded-2xl text-sm font-semibold text-white disabled:opacity-30 active:scale-95 transition-transform"
               style={{ background: '#854F0B' }}>
@@ -301,8 +320,8 @@ export default function QuizScreen({
             </div>
             <div className="rounded-xl px-4 py-3 text-sm font-medium text-center mb-3"
               style={chosen === answer
-                ? { background: '#EAF3DE', color: '#27500A' }
-                : { background: '#FCEBEB', color: '#791F1F' }}>
+                ? { background: dark ? '#14291a' : '#EAF3DE', color: '#27500A' }
+                : { background: dark ? '#2d1a1a' : '#FCEBEB', color: '#791F1F' }}>
               {chosen === answer
                 ? `✓ Bonne réponse ! +${pts} pt${pts > 1 ? 's' : ''}`
                 : `✗ La réponse était : ${answer}`}
@@ -314,32 +333,32 @@ export default function QuizScreen({
         {phase === 'result' && mode?.id === 'cash' && cashResult && (
           <>
             <div className="mb-3 px-4 py-3 rounded-2xl border text-base font-semibold text-center"
-              style={{ background: 'var(--color-background-secondary)', borderColor: 'var(--color-border-tertiary)' }}>
+              style={{ background: optBg, borderColor: optBorder, color: textPri }}>
               "{cashInput}"
             </div>
             {cashResult.exact ? (
               <div className="rounded-xl px-4 py-3 text-sm font-medium text-center mb-3"
-                style={{ background: '#EAF3DE', color: '#27500A' }}>
+                style={{ background: dark ? '#14291a' : '#EAF3DE', color: '#27500A' }}>
                 ✓ Parfait ! +5 pts
               </div>
             ) : cashResult.ok ? (
-              <div className="rounded-xl px-4 py-3 mb-3" style={{ background: '#FAEEDA' }}>
+              <div className="rounded-xl px-4 py-3 mb-3" style={{ background: dark ? '#2d2a1e' : '#FAEEDA' }}>
                 <p className="text-sm font-medium text-center" style={{ color: '#633806' }}>
                   {cashResult.partial ? '✓ Réponse partielle acceptée · +5 pts' : `✓ Accepté (${cashResult.dist} erreur${cashResult.dist > 1 ? 's' : ''}) · +5 pts`}
                 </p>
-                <p className="text-base font-bold text-center mt-1" style={{ color: '#412402' }}>
+                <p className="text-base font-bold text-center mt-1" style={{ color: dark ? '#fde68a' : '#412402' }}>
                   Réponse complète : {answer}
                 </p>
               </div>
             ) : cashResult.presque ? (
-              <div className="rounded-xl px-4 py-3 mb-3" style={{ background: '#EEEDFE' }}>
+              <div className="rounded-xl px-4 py-3 mb-3" style={{ background: dark ? '#1e1b4b' : '#EEEDFE' }}>
                 <p className="text-sm font-medium text-center" style={{ color: '#534AB7' }}>⚡ Presque ! Mais pas de points</p>
-                <p className="text-base font-bold text-center mt-1" style={{ color: '#26215C' }}>La réponse était : {answer}</p>
+                <p className="text-base font-bold text-center mt-1" style={{ color: dark ? '#c4b5fd' : '#26215C' }}>La réponse était : {answer}</p>
               </div>
             ) : (
-              <div className="rounded-xl px-4 py-3 mb-3" style={{ background: '#FCEBEB' }}>
+              <div className="rounded-xl px-4 py-3 mb-3" style={{ background: dark ? '#2d1a1a' : '#FCEBEB' }}>
                 <p className="text-sm font-medium text-center" style={{ color: '#791F1F' }}>✗ Pas tout à fait…</p>
-                <p className="text-base font-bold text-center mt-1" style={{ color: '#501313' }}>La réponse était : {answer}</p>
+                <p className="text-base font-bold text-center mt-1" style={{ color: dark ? '#fca5a5' : '#501313' }}>La réponse était : {answer}</p>
               </div>
             )}
           </>

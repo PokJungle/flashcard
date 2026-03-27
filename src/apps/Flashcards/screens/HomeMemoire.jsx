@@ -6,20 +6,18 @@ import { THEMES, THEME_COLOR } from '../constants'
 const ACTIVE_DECKS_KEY = (profileId) => `memoire-active-decks-${profileId}`
 
 export default function HomeMemoire({
-  profile, decks, dueMap, progressMap, totalDue, loading,
+  profile, decks, dueMap, progressMap, totalDue, loading, dark,
   onStartDeck, onManageDeck, onShowUpload, onDeckCreated,
 }) {
   const [filterMode, setFilterMode]   = useState(false)
   const [showNewDeck, setShowNewDeck] = useState(false)
-  const [launchDeck, setLaunchDeck]   = useState(null)  // deck en attente de lancement
+  const [launchDeck, setLaunchDeck]   = useState(null)
 
-  // Decks actifs par profil — localStorage
   const getActiveDecks = () => {
     try { return JSON.parse(localStorage.getItem(ACTIVE_DECKS_KEY(profile.id)) || 'null') }
     catch { return null }
   }
   const [activeDecks, setActiveDecks] = useState(() => getActiveDecks())
-  // null = tous actifs (défaut), sinon Set d'IDs actifs
 
   const isActive = (deckId) => activeDecks === null || activeDecks.includes(deckId)
 
@@ -29,7 +27,6 @@ export default function HomeMemoire({
       const next = current.includes(deckId)
         ? current.filter(id => id !== deckId)
         : [...current, deckId]
-      // Si tous actifs → revenir à null (défaut)
       const allActive = decks.every(d => next.includes(d.id))
       const result = allActive ? null : next
       localStorage.setItem(ACTIVE_DECKS_KEY(profile.id), JSON.stringify(result))
@@ -37,33 +34,33 @@ export default function HomeMemoire({
     })
   }
 
-  // Due count uniquement sur les decks actifs
   const activeTotalDue = decks
     .filter(d => isActive(d.id))
     .reduce((sum, d) => sum + (dueMap[d.id]?.badge ?? dueMap[d.id] ?? 0), 0)
 
   const themesPresents = THEMES.filter(t => decks.some(d => d.theme === t.id))
 
+  const bg      = dark ? '#0f0a1e' : '#f9fafb'
+  const textSec = dark ? '#a78bfa' : '#9ca3af'
+
   return (
-    <div className="flex-1 overflow-y-auto pb-4">
+    <div className="flex-1 overflow-y-auto pb-4" style={{ background: bg }}>
       <div className="px-4 pt-4 max-w-lg mx-auto">
 
-        {/* Header avec boutons action */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex-1">
             {activeTotalDue > 0 && !filterMode && (
               <div className="rounded-2xl px-4 py-2.5 flex items-center gap-3"
-                style={{ background: '#E6F1FB', border: '0.5px solid #B5D4F4' }}>
+                style={{ background: dark ? '#1a2744' : '#E6F1FB', border: `0.5px solid ${dark ? '#2d4a8a' : '#B5D4F4'}` }}>
                 <span style={{ fontSize: 18 }}>🧠</span>
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: '#185FA5' }}>
-                    {activeTotalDue} critère{activeTotalDue > 1 ? 's' : ''} à réviser
-                  </p>
-                </div>
+                <p className="text-sm font-semibold" style={{ color: dark ? '#93c5fd' : '#185FA5' }}>
+                  {activeTotalDue} critère{activeTotalDue > 1 ? 's' : ''} à réviser
+                </p>
               </div>
             )}
             {filterMode && (
-              <p className="text-sm font-semibold text-gray-700">Mes decks actifs</p>
+              <p className="text-sm font-semibold" style={{ color: dark ? '#e9d5ff' : '#374151' }}>Mes decks actifs</p>
             )}
           </div>
           <div className="flex gap-2 ml-3 flex-shrink-0">
@@ -71,8 +68,8 @@ export default function HomeMemoire({
               onClick={() => setFilterMode(f => !f)}
               className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
               style={{
-                background: filterMode ? '#533AB7' : 'var(--color-background-secondary)',
-                color: filterMode ? 'white' : 'var(--color-text-secondary)',
+                background: filterMode ? '#533AB7' : (dark ? '#2d1f5e' : '#f3f4f6'),
+                color: filterMode ? 'white' : textSec,
               }}>
               <Settings size={16} />
             </button>
@@ -82,19 +79,19 @@ export default function HomeMemoire({
         {!loading && decks.length === 0 && (
           <div className="text-center py-12">
             <div className="text-5xl mb-3">🎴</div>
-            <p className="text-gray-500 font-medium mb-1">Aucun jeu disponible</p>
-            <p className="text-gray-400 text-sm mb-4">Crée un deck ou importe un fichier JSON</p>
+            <p className="font-medium mb-1" style={{ color: dark ? '#c4b5fd' : '#6b7280' }}>Aucun jeu disponible</p>
+            <p className="text-sm mb-4" style={{ color: textSec }}>Crée un deck ou importe un fichier JSON</p>
             <button onClick={() => setShowNewDeck(true)}
-              className="px-5 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-semibold">
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
+              style={{ background: dark ? '#7c3aed' : '#111827' }}>
               + Créer un deck
             </button>
           </div>
         )}
 
-        {/* Decks par thème */}
         {themesPresents.map(t => (
           <div key={t.id} className="mb-5">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+            <h2 className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: textSec }}>
               {t.emoji} {t.label}
             </h2>
             <div className="space-y-2">
@@ -110,6 +107,7 @@ export default function HomeMemoire({
                     color={THEME_COLOR[deck.theme] || '#7A7A8A'}
                     active={active}
                     filterMode={filterMode}
+                    dark={dark}
                     onStart={() => !filterMode && setLaunchDeck(deck)}
                     onManage={() => !filterMode && onManageDeck(deck)}
                     onToggle={() => toggleDeck(deck.id)}
@@ -121,43 +119,46 @@ export default function HomeMemoire({
         ))}
 
         {filterMode && (
-          <p className="text-center text-xs text-gray-400 pb-4">
+          <p className="text-center text-xs pb-4" style={{ color: textSec }}>
             Les decks désactivés restent visibles mais sans notifications ni progression
           </p>
         )}
       </div>
 
-      {/* FAB — + Deck et Upload */}
+      {/* FAB */}
       <div className="fixed bottom-20 right-5 flex flex-col gap-2 z-40">
         <button
           onClick={() => setShowNewDeck(true)}
-          className="w-12 h-12 bg-white text-gray-700 rounded-full shadow-md border border-gray-200 flex items-center justify-center active:scale-95 transition-transform">
+          className="w-12 h-12 rounded-full shadow-md flex items-center justify-center active:scale-95 transition-transform"
+          style={{
+            background: dark ? '#1a1035' : '#ffffff',
+            border: `1px solid ${dark ? '#4338ca' : '#e5e7eb'}`,
+            color: dark ? '#c4b5fd' : '#374151',
+          }}>
           <Plus size={18} />
         </button>
         <button
           onClick={onShowUpload}
-          className="w-12 h-12 bg-gray-900 text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform">
+          className="w-12 h-12 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform text-white"
+          style={{ background: dark ? '#7c3aed' : '#111827' }}>
           <Upload size={18} />
         </button>
       </div>
 
-      {/* Modal lancement session */}
       {launchDeck && (
         <LaunchModal
           deck={launchDeck}
           stats={dueMap[launchDeck.id] || { badge: 0, todo: 0, neverSeen: 0, ahead: 0, total: 0 }}
           color={THEME_COLOR[launchDeck.theme] || '#7A7A8A'}
+          dark={dark}
           onClose={() => setLaunchDeck(null)}
-          onStart={(limit) => {
-            setLaunchDeck(null)
-            onStartDeck(launchDeck, limit)
-          }}
+          onStart={(limit) => { setLaunchDeck(null); onStartDeck(launchDeck, limit) }}
         />
       )}
 
-      {/* Modal nouveau deck */}
       {showNewDeck && (
         <NewDeckModal
+          dark={dark}
           onClose={() => setShowNewDeck(false)}
           onCreate={async (data) => {
             const { data: deck } = await supabase
@@ -174,21 +175,21 @@ export default function HomeMemoire({
 }
 
 // ── DeckCard ───────────────────────────────────────────────
-function DeckCard({ deck, themeEmoji, due, criteria, color, active, filterMode, onStart, onManage, onToggle }) {
+function DeckCard({ deck, themeEmoji, due, criteria, color, active, filterMode, dark, onStart, onManage, onToggle }) {
   const hasProgress = active && criteria.some(c => c.total > 0)
   const globalPct   = hasProgress
     ? Math.round(criteria.reduce((s, c) => s + c.pct, 0) / criteria.length)
     : 0
 
+  const cardBg     = dark ? '#1a1035' : '#ffffff'
+  const cardBorder = dark ? (active ? '#2d1f5e' : '#1e1040') : (active ? '#f3f4f6' : '#e5e7eb')
+  const textPri    = dark ? '#e9d5ff' : '#111827'
+  const textSec    = dark ? '#7c6aad' : '#9ca3af'
+
   return (
     <div className="rounded-2xl border shadow-sm overflow-hidden relative transition-opacity"
-      style={{
-        background: 'white',
-        borderColor: active ? '#f3f4f6' : '#e5e7eb',
-        opacity: active ? 1 : 0.5,
-      }}>
+      style={{ background: cardBg, borderColor: cardBorder, opacity: active ? 1 : 0.5 }}>
 
-      {/* Barre de fond globale */}
       {globalPct > 0 && (
         <div className="absolute top-0 left-0 bottom-0 rounded-2xl transition-all duration-700 pointer-events-none"
           style={{ width: `${globalPct}%`, background: globalPct >= 80 ? 'rgba(99,153,34,0.12)' : color + '28' }}
@@ -198,14 +199,13 @@ function DeckCard({ deck, themeEmoji, due, criteria, color, active, filterMode, 
       <div className="relative">
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
 
-          {/* Icône thème ou toggle en mode filtre */}
           {filterMode ? (
             <button onClick={onToggle}
               className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all active:scale-95"
-              style={{ background: active ? color + '18' : '#f3f4f6' }}>
+              style={{ background: active ? color + '18' : (dark ? '#2d1f5e' : '#f3f4f6') }}>
               {active
                 ? <Check size={16} style={{ color }} />
-                : <X size={16} className="text-gray-400" />
+                : <X size={16} style={{ color: textSec }} />
               }
             </button>
           ) : (
@@ -218,53 +218,52 @@ function DeckCard({ deck, themeEmoji, due, criteria, color, active, filterMode, 
 
           <button onClick={filterMode ? onToggle : onStart}
             className="flex-1 min-w-0 text-left active:scale-95 transition-transform">
-            <p className="font-semibold text-sm truncate" style={{ color: active ? '#111827' : '#6b7280' }}>
+            <p className="font-semibold text-sm truncate" style={{ color: active ? textPri : textSec }}>
               {deck.name}
             </p>
             {deck.description && (
-              <p className="text-xs text-gray-400 truncate mt-0.5">{deck.description}</p>
+              <p className="text-xs truncate mt-0.5" style={{ color: textSec }}>{deck.description}</p>
             )}
           </button>
 
-          {/* Badge dues ou statut filtre */}
           {!filterMode && (() => {
             const badge = due?.badge ?? due ?? 0
             return badge > 0 ? (
               <span className="text-xs font-semibold px-2 py-1 rounded-lg flex-shrink-0"
-                style={{ background: '#E6F1FB', color: '#185FA5' }}>
+                style={{ background: dark ? '#1a2744' : '#E6F1FB', color: dark ? '#93c5fd' : '#185FA5' }}>
                 {badge}
               </span>
             ) : active ? (
-              <span className="text-xs text-gray-300 flex-shrink-0">À jour</span>
+              <span className="text-xs flex-shrink-0" style={{ color: dark ? '#4338ca' : '#d1d5db' }}>À jour</span>
             ) : null
           })()}
+
           {filterMode && (
             <span className="text-xs font-medium px-2 py-1 rounded-lg flex-shrink-0"
               style={{
-                background: active ? color + '15' : '#f3f4f6',
-                color: active ? color : '#9ca3af',
+                background: active ? color + '15' : (dark ? '#2d1f5e' : '#f3f4f6'),
+                color: active ? color : textSec,
               }}>
               {active ? 'actif' : 'inactif'}
             </span>
           )}
 
           {!filterMode && (
-            <button onClick={onManage}
-              className="p-1.5 text-gray-300 hover:text-gray-600 transition-colors flex-shrink-0">
+            <button onClick={onManage} className="p-1.5 transition-colors flex-shrink-0" style={{ color: textSec }}>
               <Settings size={15} />
             </button>
           )}
         </div>
 
-        {/* Barres par critère */}
         {hasProgress && (
           <div className="px-4 pb-3 space-y-1.5">
             {criteria.map(crit => (
               <div key={crit.criterionId} className="flex items-center gap-2">
-                <span className="text-xs text-gray-400 capitalize flex-shrink-0" style={{ minWidth: 68 }}>
+                <span className="text-xs capitalize flex-shrink-0" style={{ minWidth: 68, color: textSec }}>
                   {crit.type === 'image' ? '🖼️' : '📝'} {crit.name}
                 </span>
-                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className="flex-1 h-1.5 rounded-full overflow-hidden"
+                  style={{ background: dark ? '#2d1f5e' : '#f3f4f6' }}>
                   <div className="h-full rounded-full transition-all duration-500"
                     style={{
                       width: `${crit.pct}%`,
@@ -274,7 +273,7 @@ function DeckCard({ deck, themeEmoji, due, criteria, color, active, filterMode, 
                 <span className="text-xs tabular-nums flex-shrink-0"
                   style={{
                     minWidth: 28, textAlign: 'right',
-                    color: crit.pct >= 80 ? '#639922' : crit.pct >= 40 ? color : '#d1d5db',
+                    color: crit.pct >= 80 ? '#639922' : crit.pct >= 40 ? color : (dark ? '#4338ca' : '#d1d5db'),
                   }}>
                   {crit.pct}%
                 </span>
@@ -288,11 +287,11 @@ function DeckCard({ deck, themeEmoji, due, criteria, color, active, filterMode, 
 }
 
 // ── Modal nouveau deck ─────────────────────────────────────
-function NewDeckModal({ onClose, onCreate }) {
-  const [name, setName]         = useState('')
-  const [theme, setTheme]       = useState('autre')
+function NewDeckModal({ onClose, onCreate, dark }) {
+  const [name, setName]               = useState('')
+  const [theme, setTheme]             = useState('autre')
   const [description, setDescription] = useState('')
-  const [saving, setSaving]     = useState(false)
+  const [saving, setSaving]           = useState(false)
 
   const handleCreate = async () => {
     if (!name.trim()) return
@@ -301,45 +300,36 @@ function NewDeckModal({ onClose, onCreate }) {
     setSaving(false)
   }
 
+  const cardBg  = dark ? '#1a1035' : '#ffffff'
+  const inputBg = dark ? '#0f0a1e' : '#ffffff'
+  const border  = dark ? '#2d1f5e' : '#e5e7eb'
+  const textPri = dark ? '#e9d5ff' : '#111827'
+  const textSec = dark ? '#a78bfa' : '#9ca3af'
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={onClose}>
-      <div className="bg-white w-full rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
+      <div className="w-full rounded-t-3xl p-6" style={{ background: cardBg }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="font-bold text-lg text-gray-900">Nouveau deck</h2>
-          <button onClick={onClose}><X size={20} className="text-gray-400" /></button>
+          <h2 className="font-bold text-lg" style={{ color: textPri }}>Nouveau deck</h2>
+          <button onClick={onClose}><X size={20} style={{ color: textSec }} /></button>
         </div>
-
-        <input
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder="Nom du deck *"
-          autoFocus
-          className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:border-gray-400 text-sm font-semibold mb-3"
-        />
-
-        <select
-          value={theme}
-          onChange={e => setTheme(e.target.value)}
-          className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none bg-white text-sm mb-3">
-          {THEMES.map(t => (
-            <option key={t.id} value={t.id}>{t.emoji} {t.label}</option>
-          ))}
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="Nom du deck *" autoFocus
+          className="w-full px-4 py-3 rounded-2xl text-sm font-semibold mb-3 focus:outline-none"
+          style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }} />
+        <select value={theme} onChange={e => setTheme(e.target.value)}
+          className="w-full px-4 py-3 rounded-2xl text-sm mb-3 focus:outline-none"
+          style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }}>
+          {THEMES.map(t => <option key={t.id} value={t.id}>{t.emoji} {t.label}</option>)}
         </select>
-
-        <input
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          placeholder="Description (optionnelle)"
-          className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:border-gray-400 text-sm mb-5"
-        />
-
-        <button
-          onClick={handleCreate}
-          disabled={!name.trim() || saving}
-          className="w-full py-4 bg-gray-900 text-white rounded-2xl text-sm font-semibold disabled:opacity-30 active:scale-95 transition-transform">
+        <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (optionnelle)"
+          className="w-full px-4 py-3 rounded-2xl text-sm mb-5 focus:outline-none"
+          style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }} />
+        <button onClick={handleCreate} disabled={!name.trim() || saving}
+          className="w-full py-4 rounded-2xl text-sm font-semibold text-white disabled:opacity-30 active:scale-95 transition-transform"
+          style={{ background: dark ? '#7c3aed' : '#111827' }}>
           {saving ? 'Création…' : 'Créer le deck'}
         </button>
-        <p className="text-center text-xs text-gray-400 mt-3">
+        <p className="text-center text-xs mt-3" style={{ color: textSec }}>
           Tu pourras ajouter les critères et cartes ensuite
         </p>
       </div>
@@ -348,16 +338,13 @@ function NewDeckModal({ onClose, onCreate }) {
 }
 
 // ── Modal lancement session ────────────────────────────────
-const SESSION_KEY     = (deckId) => `memoire-session-mode-${deckId}`
-const NEW_PER_DAY_KEY = (deckId) => `memoire-new-per-day-${deckId}`
-const NEW_SEEN_KEY    = (deckId) => `memoire-new-seen-${deckId}-${new Date().toISOString().slice(0,10)}`
+const SESSION_KEY = (deckId) => `memoire-session-mode-${deckId}`
 
-function LaunchModal({ deck, stats, color, onClose, onStart }) {
+function LaunchModal({ deck, stats, color, dark, onClose, onStart }) {
   const { todo = 0, neverSeen = 0, ahead = 0 } = stats
   const saved = localStorage.getItem(SESSION_KEY(deck.id)) || 'normal'
   const [mode, setMode] = useState(saved)
 
-  // Composition de chaque mode (priorité : à faire → jamais vues → en avance)
   const compose = (limit) => {
     const max = limit ?? Infinity
     const t = Math.min(todo,     max)
@@ -367,8 +354,8 @@ function LaunchModal({ deck, stats, color, onClose, onStart }) {
   }
 
   const MODES = [
-    { id: 'rapide',   label: '10',  emoji: '🐇', limit: 10  },
-    { id: 'normal',   label: '20',  emoji: '🐒', limit: 20  },
+    { id: 'rapide',   label: '10',   emoji: '🐇', limit: 10   },
+    { id: 'normal',   label: '20',   emoji: '🐒', limit: 20   },
     { id: 'marathon', label: 'Tout', emoji: '🐘', limit: null },
   ]
 
@@ -380,56 +367,46 @@ function LaunchModal({ deck, stats, color, onClose, onStart }) {
     onStart(MODES.find(m => m.id === mode).limit)
   }
 
+  const cardBg  = dark ? '#1a1035' : '#ffffff'
+  const border  = dark ? '#2d1f5e' : '#f3f4f6'
+  const textPri = dark ? '#e9d5ff' : '#111827'
+  const textSec = dark ? '#a78bfa' : '#9ca3af'
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={onClose}>
-      <div className="bg-white w-full rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
-
+      <div className="w-full rounded-t-3xl p-6" style={{ background: cardBg }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-lg text-gray-900">{deck.name}</h2>
-          <button onClick={onClose}><X size={20} className="text-gray-400" /></button>
+          <h2 className="font-bold text-lg" style={{ color: textPri }}>{deck.name}</h2>
+          <button onClick={onClose}><X size={20} style={{ color: textSec }} /></button>
         </div>
 
-        {/* Stats du deck */}
         <div className="flex gap-2 mb-5 flex-wrap">
-          {todo > 0 && (
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-              style={{ background: '#E6F1FB', color: '#185FA5' }}>
-              🔁 {todo} à faire
-            </span>
-          )}
-          {neverSeen > 0 && (
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-              style={{ background: '#EAF3DE', color: '#27500A' }}>
-              ✨ {neverSeen} jamais vues
-            </span>
-          )}
-          {ahead > 0 && (
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-              style={{ background: '#F1EFE8', color: '#5F5E5A' }}>
-              ⏳ {ahead} en avance
-            </span>
-          )}
-          {todo === 0 && neverSeen === 0 && ahead === 0 && (
-            <span className="text-xs text-gray-400">Rien à réviser pour l'instant</span>
-          )}
+          {todo > 0 && <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+            style={{ background: dark ? '#1a2744' : '#E6F1FB', color: dark ? '#93c5fd' : '#185FA5' }}>
+            🔁 {todo} à faire</span>}
+          {neverSeen > 0 && <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+            style={{ background: dark ? '#1a2b1a' : '#EAF3DE', color: dark ? '#86efac' : '#27500A' }}>
+            ✨ {neverSeen} jamais vues</span>}
+          {ahead > 0 && <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+            style={{ background: dark ? '#2a2520' : '#F1EFE8', color: dark ? '#d4b896' : '#5F5E5A' }}>
+            ⏳ {ahead} en avance</span>}
+          {todo === 0 && neverSeen === 0 && ahead === 0 &&
+            <span className="text-xs" style={{ color: textSec }}>Rien à réviser pour l'instant</span>}
         </div>
 
-        {/* Sélecteur 10 / 20 / MAX */}
         <div className="flex gap-2 mb-4">
           {MODES.map(m => {
             const c = comps[m.id]
+            const isSel = mode === m.id
             return (
-              <button key={m.id}
-                onClick={() => setMode(m.id)}
-                className="flex-1 py-3 px-1 rounded-2xl text-center transition-all active:scale-95 border"
+              <button key={m.id} onClick={() => setMode(m.id)}
+                className="flex-1 py-3 px-1 rounded-2xl text-center transition-all active:scale-95"
                 style={{
-                  background: mode === m.id ? color + '15' : '#f9fafb',
-                  borderColor: mode === m.id ? color : '#f3f4f6',
+                  background: isSel ? color + '15' : (dark ? '#0f0a1e' : '#f9fafb'),
+                  border: `1px solid ${isSel ? color : border}`,
                 }}>
-                <p className="text-base font-bold" style={{ color: mode === m.id ? color : '#374151' }}>
-                  {m.emoji} {m.label}
-                </p>
-                <p className="text-xs mt-0.5 font-medium" style={{ color: mode === m.id ? color : '#9ca3af' }}>
+                <p className="text-base font-bold" style={{ color: isSel ? color : textPri }}>{m.emoji} {m.label}</p>
+                <p className="text-xs mt-0.5 font-medium" style={{ color: isSel ? color : textSec }}>
                   {c.total} carte{c.total > 1 ? 's' : ''}
                 </p>
               </button>
@@ -437,33 +414,23 @@ function LaunchModal({ deck, stats, color, onClose, onStart }) {
           })}
         </div>
 
-        {/* Détail composition du mode sélectionné */}
         {sel.total > 0 && (
           <div className="flex gap-1.5 mb-4 flex-wrap">
-            {sel.todo > 0 && (
-              <span className="text-xs px-2 py-0.5 rounded-md"
-                style={{ background: '#E6F1FB', color: '#185FA5' }}>
-                {sel.todo} à faire
-              </span>
-            )}
-            {sel.neverSeen > 0 && (
-              <span className="text-xs px-2 py-0.5 rounded-md"
-                style={{ background: '#EAF3DE', color: '#27500A' }}>
-                {sel.neverSeen} jamais vues
-              </span>
-            )}
-            {sel.ahead > 0 && (
-              <span className="text-xs px-2 py-0.5 rounded-md"
-                style={{ background: '#F1EFE8', color: '#5F5E5A' }}>
-                {sel.ahead} en avance
-              </span>
-            )}
+            {sel.todo > 0 && <span className="text-xs px-2 py-0.5 rounded-md"
+              style={{ background: dark ? '#1a2744' : '#E6F1FB', color: dark ? '#93c5fd' : '#185FA5' }}>
+              {sel.todo} à faire</span>}
+            {sel.neverSeen > 0 && <span className="text-xs px-2 py-0.5 rounded-md"
+              style={{ background: dark ? '#1a2b1a' : '#EAF3DE', color: dark ? '#86efac' : '#27500A' }}>
+              {sel.neverSeen} jamais vues</span>}
+            {sel.ahead > 0 && <span className="text-xs px-2 py-0.5 rounded-md"
+              style={{ background: dark ? '#2a2520' : '#F1EFE8', color: dark ? '#d4b896' : '#5F5E5A' }}>
+              {sel.ahead} en avance</span>}
           </div>
         )}
 
         {sel.total === 0 ? (
-          <button onClick={onClose}
-            className="w-full py-4 rounded-2xl text-sm font-semibold bg-gray-100 text-gray-500">
+          <button onClick={onClose} className="w-full py-4 rounded-2xl text-sm font-semibold"
+            style={{ background: dark ? '#2d1f5e' : '#f3f4f6', color: textSec }}>
             Revenir plus tard
           </button>
         ) : (

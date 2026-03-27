@@ -12,7 +12,7 @@ function timeAgo(isoStr) {
   return `${d.getDate()}/${d.getMonth() + 1}`
 }
 
-export default function Bisou({ profile, onSeen }) {
+export default function Bisou({ profile, onSeen, dark }) {
   const [messages, setMessages] = useState([])
   const [profiles, setProfiles] = useState({})
   const [loading, setLoading] = useState(true)
@@ -56,39 +56,52 @@ export default function Bisou({ profile, onSeen }) {
   const latestProfile = latest ? profiles[latest.profile_id] : null
   const isMe = latest?.profile_id === profile.id
 
+  const bg      = dark ? '#0f0a1e' : '#f9fafb'
+  const card    = dark ? '#1a1035' : '#ffffff'
+  const border  = dark ? '#2d1f5e' : '#f3f4f6'
+  const textPri = dark ? '#e9d5ff' : '#374151'
+  const textSec = dark ? '#a78bfa' : '#9ca3af'
+
   return (
-    <div className="h-full bg-gray-50 overflow-y-auto pb-8">
+    <div className="h-full overflow-y-auto pb-8" style={{ background: bg }}>
 
       {/* Dernier bisou */}
       <div className="px-5 pt-6 pb-4">
         {loading ? (
-          <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm flex items-center justify-center">
-            <div className="w-6 h-6 rounded-full animate-spin" style={{ border: '2px solid #e5e7eb', borderTopColor: '#374151' }} />
+          <div className="rounded-3xl p-8 shadow-sm flex items-center justify-center"
+            style={{ background: card, border: `1px solid ${border}` }}>
+            <div className="w-6 h-6 rounded-full animate-spin"
+              style={{ border: `2px solid ${border}`, borderTopColor: dark ? '#a78bfa' : '#374151' }} />
           </div>
         ) : latest ? (
-          <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm text-center">
+          <div className="rounded-3xl p-6 shadow-sm text-center"
+            style={{ background: card, border: `1px solid ${border}` }}>
             <div className="text-6xl mb-3">{latest.emoji}</div>
             {latest.message && (
-              <p className="text-gray-700 font-medium text-base mb-3 leading-snug">"{latest.message}"</p>
+              <p className="font-medium text-base mb-3 leading-snug" style={{ color: textPri }}>
+                "{latest.message}"
+              </p>
             )}
             <div className="flex items-center justify-center gap-2">
               <span className="text-lg">{latestProfile?.avatar}</span>
-              <span className="text-sm text-gray-400">
+              <span className="text-sm" style={{ color: textSec }}>
                 {isMe ? 'Toi' : latestProfile?.name} · {timeAgo(latest.created_at)}
               </span>
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm text-center">
+          <div className="rounded-3xl p-8 shadow-sm text-center"
+            style={{ background: card, border: `1px solid ${border}` }}>
             <div className="text-5xl mb-3">💌</div>
-            <p className="text-gray-400 text-sm">Envoie le premier bisou !</p>
+            <p className="text-sm" style={{ color: textSec }}>Envoie le premier bisou !</p>
           </div>
         )}
       </div>
 
       {/* Composer */}
       <div className="px-5 mb-6">
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-4">
+        <div className="rounded-3xl shadow-sm p-4"
+          style={{ background: card, border: `1px solid ${border}` }}>
 
           {/* Sélection emoji */}
           <div className="flex flex-wrap gap-2 mb-4">
@@ -96,11 +109,11 @@ export default function Bisou({ profile, onSeen }) {
               <button
                 key={e}
                 onClick={() => setSelectedEmoji(e)}
-                className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl transition-all ${
-                  selectedEmoji === e
-                    ? 'bg-gray-900 scale-110 shadow-md'
-                    : 'bg-gray-100 active:scale-95'
-                }`}
+                className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl transition-all active:scale-95"
+                style={selectedEmoji === e
+                  ? { background: dark ? '#7c3aed' : '#111827', transform: 'scale(1.1)', boxShadow: '0 4px 6px rgba(0,0,0,0.2)' }
+                  : { background: dark ? '#2d1f5e' : '#f3f4f6' }
+                }
               >
                 {e}
               </button>
@@ -113,14 +126,20 @@ export default function Bisou({ profile, onSeen }) {
             onChange={e => setText(e.target.value.slice(0, 140))}
             placeholder="Un petit mot... (optionnel)"
             rows={2}
-            className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-gray-50 focus:outline-none focus:border-gray-300 text-sm resize-none mb-3"
+            className="w-full px-4 py-3 rounded-2xl text-sm resize-none mb-3 focus:outline-none"
+            style={{
+              background: dark ? '#0f0a1e' : '#f9fafb',
+              border: `1px solid ${dark ? '#4338ca' : '#f3f4f6'}`,
+              color: textPri,
+            }}
           />
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-300">{text.length}/140</span>
+            <span className="text-xs" style={{ color: dark ? '#4338ca' : '#d1d5db' }}>{text.length}/140</span>
             <button
               onClick={send}
               disabled={sending}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-full text-sm font-semibold active:scale-95 transition-transform disabled:opacity-40"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold active:scale-95 transition-transform disabled:opacity-40"
+              style={{ background: dark ? '#7c3aed' : '#111827', color: '#fff' }}
             >
               <span className="text-base">{selectedEmoji}</span>
               Envoyer
@@ -132,7 +151,9 @@ export default function Bisou({ profile, onSeen }) {
       {/* Historique */}
       {messages.length > 1 && (
         <div className="px-5">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Historique</p>
+          <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: textSec }}>
+            Historique
+          </p>
           <div className="space-y-2">
             {messages.slice(1).map(msg => {
               const p = profiles[msg.profile_id]
@@ -143,16 +164,24 @@ export default function Bisou({ profile, onSeen }) {
                   className={`flex items-start gap-3 ${mine ? 'flex-row-reverse' : ''}`}
                 >
                   <span className="text-xl flex-shrink-0 mt-1">{p?.avatar}</span>
-                  <div className={`max-w-xs rounded-2xl px-4 py-2.5 ${mine ? 'bg-gray-900 text-white' : 'bg-white border border-gray-100 shadow-sm'}`}>
+                  <div className="max-w-xs rounded-2xl px-4 py-2.5"
+                    style={mine
+                      ? { background: dark ? '#7c3aed' : '#111827', color: '#fff' }
+                      : { background: card, border: `1px solid ${border}` }
+                    }>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-lg">{msg.emoji}</span>
                       {msg.message && (
-                        <p className={`text-sm leading-snug ${mine ? 'text-white' : 'text-gray-700'}`}>
+                        <p className="text-sm leading-snug"
+                          style={{ color: mine ? '#fff' : textPri }}>
                           {msg.message}
                         </p>
                       )}
                     </div>
-                    <p className={`text-xs ${mine ? 'text-white/50' : 'text-gray-300'}`}>{timeAgo(msg.created_at)}</p>
+                    <p className="text-xs"
+                      style={{ color: mine ? 'rgba(255,255,255,0.5)' : textSec }}>
+                      {timeAgo(msg.created_at)}
+                    </p>
                   </div>
                 </div>
               )
