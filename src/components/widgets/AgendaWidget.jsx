@@ -25,29 +25,69 @@ export default function AgendaWidget({ onClick, dark }) {
   if (!loaded || !nextEvent) return null
 
   const days      = daysUntil(nextEvent)
+  const isToday   = days === 0
+  const isTomorrow= days === 1
   const isUrgent  = days <= 3
-  const countdown = days === 0 ? "Aujourd'hui 🎉" : days === 1 ? 'Demain' : `dans ${days} jours`
   const dateObj   = getNextOccurrence(nextEvent)
   const day       = dateObj.getDate()
   const mon       = dateObj.toLocaleDateString('fr-FR', { month:'short' }).replace('.','')
+  const weekDay   = dateObj.toLocaleDateString('fr-FR', { weekday:'long' })
 
   return (
     <button onClick={onClick}
-      className="w-full rounded-2xl p-3 text-left active:scale-95 transition-all"
+      className="w-full rounded-2xl text-left active:scale-95 transition-all overflow-hidden"
       style={{
-        background: dark ? '#1e1b4b' : '#fff',
-        border: `0.5px solid ${dark ? '#4338ca' : '#ede9fe'}`
+        background: isUrgent
+          ? (dark ? 'rgba(251,191,36,0.08)' : 'rgba(251,191,36,0.06)')
+          : (dark ? '#1a1035' : '#fff'),
+        border: isUrgent
+          ? `0.5px solid ${dark ? 'rgba(251,191,36,0.3)' : 'rgba(251,191,36,0.4)'}`
+          : `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`,
+        borderLeft: `3px solid ${isUrgent ? '#f59e0b' : '#8B5CF6'}`,
       }}>
-      <p className="text-[11px] mb-1.5" style={{ color:'#c4b5fd' }}>Prochain événement</p>
-      <div className="flex items-center gap-2">
-        <div className="w-9 h-9 rounded-xl flex flex-col items-center justify-center flex-shrink-0"
-          style={{ background: dark ? '#312e81' : '#f5f0ff', border:`0.5px solid ${dark ? '#4338ca' : '#e9d5ff'}` }}>
-          <span className="text-[14px] font-medium leading-none" style={{ color:'#5b21b6' }}>{day}</span>
-          <span className="text-[9px] uppercase" style={{ color:'#a78bfa' }}>{mon}</span>
+      <div className="px-4 py-4 flex items-center gap-4">
+        <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl flex-shrink-0"
+          style={{
+            background: isUrgent ? 'rgba(245,158,11,0.15)' : (dark ? '#312e81' : '#f5f0ff'),
+            border: `0.5px solid ${isUrgent ? 'rgba(245,158,11,0.4)' : (dark ? '#4338ca' : '#e9d5ff')}`,
+          }}>
+          <span className="text-[18px] font-bold leading-none"
+            style={{ color: isUrgent ? '#f59e0b' : '#5b21b6' }}>
+            {day}
+          </span>
+          <span className="text-[10px] uppercase tracking-wide"
+            style={{ color: isUrgent ? '#f59e0b' : '#a78bfa' }}>
+            {mon}
+          </span>
         </div>
-        <div className="min-w-0">
-          <p className="text-[12px] font-medium truncate" style={{ color: dark ? '#e9d5ff' : '#111827' }}>{nextEvent.emoji} {nextEvent.title}</p>
-          <p className={`text-[11px] ${isUrgent ? 'text-amber-500' : 'text-gray-400'}`}>{countdown}</p>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] capitalize mb-0.5" style={{ color: dark ? '#7c6fad' : '#a78bfa' }}>
+            {weekDay}
+          </p>
+          <p className="text-base font-semibold leading-tight truncate"
+            style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>
+            {nextEvent.emoji} {nextEvent.title}
+          </p>
+        </div>
+
+        <div className="flex flex-col items-end flex-shrink-0">
+          {isToday ? (
+            <span className="text-sm font-bold text-amber-500">Aujourd'hui 🎉</span>
+          ) : isTomorrow ? (
+            <span className="text-sm font-bold text-amber-500">Demain</span>
+          ) : (
+            <>
+              <span className="text-3xl font-bold leading-none"
+                style={{ color: isUrgent ? '#f59e0b' : (dark ? '#e9d5ff' : '#1e0a3c') }}>
+                {days}
+              </span>
+              <span className="text-[10px] mt-0.5"
+                style={{ color: isUrgent ? '#f59e0b' : (dark ? '#7c6fad' : '#9ca3af') }}>
+                jours
+              </span>
+            </>
+          )}
         </div>
       </div>
     </button>

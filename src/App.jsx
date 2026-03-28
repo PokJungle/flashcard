@@ -14,6 +14,8 @@ import BisouWidget from './components/widgets/BisouWidget'
 import CoursesWidget from './components/widgets/CoursesWidget'
 import AgendaWidget from './components/widgets/AgendaWidget'
 import OrbiteWidget from './components/widgets/OrbiteWidget'
+import MemoireWidget from './components/widgets/MemoireWidget'
+import TraineWidget from './components/widgets/TraineWidget'
 import { FETES, isFeteSpeciale, getFeteIcon } from './data/saints'
 
 const APPS = [
@@ -26,7 +28,8 @@ const APPS = [
   { id:'traine',     name:'Ça Traîne',                 emoji:'🐌', color:'#10b981', component:Traine },
 ]
 const HUB_APPS   = APPS.filter(a => a.id !== 'bisou')
-const HUB_LABELS = { flashcards:'Mémoire de Singe', meteo:'Parapluie ou Claquettes ?', recettes:'Le Grimoire Gourmand', programme:'Demandez le Programme !', orbite:'Mise en Orbite', traine:'Ça Traîne' }
+const HUB_LABELS = { flashcards:'Mémoire', meteo:'Météo', recettes:'Grimoire', programme:'Programme', orbite:'Orbite', traine:'Traîne' }
+const HUB_SUBLABELS = { flashcards:'Révisions', meteo:'Parapluie ?', recettes:'Recettes', programme:'Agenda', orbite:'Sport', traine:'Todos' }
 const APPS_EN_PREP = [
   { emoji:'🍵', name:'Tisane & Chauffeuse' },
   { emoji:'🎸', name:'Jukebox' },
@@ -322,44 +325,63 @@ export default function App() {
 
       <DayHeader profile={profile} dark={dark} />
 
-      <div className="px-3 pt-1.5 pb-8 max-w-lg mx-auto">
+      <div className="px-3 pt-1.5 pb-8 max-w-lg mx-auto space-y-2">
 
-        <div className="mb-2">
-          <AgendaWidget onClick={() => openApp('programme')} dark={dark} />
-        </div>
+        {/* Hero — Agenda */}
+        <AgendaWidget onClick={() => openApp('programme')} dark={dark} />
 
-        <div className="flex gap-2 items-stretch mb-2">
+        {/* Météo + Bisou */}
+        <div className="flex gap-2 items-stretch">
           <MeteoWidget key={meteoKey} profileId={profile?.id}
             onOpenCityPicker={() => setShowCityPicker(true)} onClick={openMeteo} />
           <BisouWidget profile={profile} hasBadge={bisouBadge} dark={dark}
             onClick={() => openApp('bisou')} />
-          <OrbiteWidget profile={profile} onClick={() => openApp('orbite')} />
         </div>
 
-        <p className="text-[11px] uppercase tracking-widest mt-3 mb-2" style={{ color:'#a78bfa' }}>
+        {/* Mémoire */}
+        <MemoireWidget profile={profile} dark={dark} onClick={() => openApp('flashcards')} />
+
+        {/* Courses + Ça Traîne */}
+        <div className="flex gap-2 items-stretch">
+          <CoursesWidget profileId={profile?.id} dark={dark}
+            onClick={() => openApp('recettes', { initialShoppingList: true })} />
+          <TraineWidget profile={profile} dark={dark} onClick={() => openApp('traine')} />
+        </div>
+
+        {/* Orbite */}
+        <OrbiteWidget profile={profile} dark={dark} onClick={() => openApp('orbite')} />
+
+        {/* Apps */}
+        <p className="text-[11px] uppercase tracking-widest pt-2" style={{ color:'#a78bfa' }}>
           Applications
         </p>
-        <div className="grid grid-cols-4 gap-2 mb-1">
+        <div className="grid grid-cols-3 gap-2">
           {HUB_APPS.map(app => (
             <button key={app.id}
               onClick={() => app.id === 'meteo' ? openMeteo() : openApp(app.id)}
-              className="rounded-2xl py-2.5 px-1 flex flex-col items-center gap-1.5 active:scale-95 transition-all"
+              className="rounded-2xl py-3 px-2 flex flex-col items-center gap-1.5 active:scale-95 transition-all"
               style={{
                 background: dark ? '#1a1035' : '#fff',
                 border: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`
               }}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg"
-                style={{ background:app.color+'18' }}>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                style={{ background: app.color + '18' }}>
                 {app.emoji}
               </div>
-              <p className="text-[10px] font-medium text-center leading-tight" style={{ color: dark ? '#c4b5fd' : '#1e0a3c' }}>
+              <p className="text-[11px] font-semibold text-center leading-tight"
+                style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>
                 {HUB_LABELS[app.id] ?? app.name}
+              </p>
+              <p className="text-[10px] text-center leading-tight"
+                style={{ color: app.color }}>
+                {HUB_SUBLABELS[app.id]}
               </p>
             </button>
           ))}
         </div>
 
-        <p className="text-[11px] uppercase tracking-widest mt-3 mb-2" style={{ color:'#a78bfa' }}>
+        {/* En préparation */}
+        <p className="text-[11px] uppercase tracking-widest pt-2" style={{ color:'#a78bfa' }}>
           En préparation
         </p>
         <div className="grid grid-cols-2 gap-1.5">
