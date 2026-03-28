@@ -3,35 +3,37 @@ import { supabase } from '../../supabase'
 import { getNextOccurrence, daysUntil } from '../../apps/Programme/hooks/useProgramme'
 
 export default function AgendaWidget({ onClick, dark }) {
-  const [nextEvent, setNextEvent] = useState(null)
-  const [loaded, setLoaded]       = useState(false)
+  const [events, setEvents] = useState([])
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    supabase.from('programme_events').select('*').order('event_date', { ascending:true })
+    supabase.from('programme_events').select('*').order('event_date', { ascending: true })
       .then(({ data }) => {
         if (!data) { setLoaded(true); return }
-        const today = new Date(); today.setHours(0,0,0,0)
+        const today = new Date(); today.setHours(0, 0, 0, 0)
         const future = data.filter(e => {
           if (e.is_annual) return true
-          const [y,m,d] = e.event_date.split('-').map(Number)
-          return new Date(y,m-1,d) >= today
+          const [y, m, d] = e.event_date.split('-').map(Number)
+          return new Date(y, m - 1, d) >= today
         })
-        future.sort((a,b) => getNextOccurrence(a) - getNextOccurrence(b))
-        setNextEvent(future[0] || null)
+        future.sort((a, b) => getNextOccurrence(a) - getNextOccurrence(b))
+        setEvents(future.slice(0, 4))
         setLoaded(true)
       })
   }, [])
 
-  if (!loaded || !nextEvent) return null
+  if (!loaded || events.length === 0) return null
 
-  const days      = daysUntil(nextEvent)
-  const isToday   = days === 0
-  const isTomorrow= days === 1
-  const isUrgent  = days <= 3
-  const dateObj   = getNextOccurrence(nextEvent)
-  const day       = dateObj.getDate()
-  const mon       = dateObj.toLocaleDateString('fr-FR', { month:'short' }).replace('.','')
-  const weekDay   = dateObj.toLocaleDateString('fr-FR', { weekday:'long' })
+  const first    = events[0]
+  const rest     = events.slice(1)
+  const days     = daysUntil(first)
+  const isToday  = days === 0
+  const isTomorrow = days === 1
+  const isUrgent = days <= 3
+  const dateObj  = getNextOccurrence(first)
+  const day      = dateObj.getDate()
+  const mon      = dateObj.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')
+  const weekDay  = dateObj.toLocaleDateString('fr-FR', { weekday: 'long' })
 
   return (
     <button onClick={onClick}
@@ -45,6 +47,8 @@ export default function AgendaWidget({ onClick, dark }) {
           : `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`,
         borderLeft: `3px solid ${isUrgent ? '#f59e0b' : '#8B5CF6'}`,
       }}>
+
+      {/* Événement principal */}
       <div className="px-4 py-4 flex items-center gap-4">
         <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl flex-shrink-0"
           style={{
@@ -52,13 +56,9 @@ export default function AgendaWidget({ onClick, dark }) {
             border: `0.5px solid ${isUrgent ? 'rgba(245,158,11,0.4)' : (dark ? '#4338ca' : '#e9d5ff')}`,
           }}>
           <span className="text-[18px] font-bold leading-none"
-            style={{ color: isUrgent ? '#f59e0b' : '#5b21b6' }}>
-            {day}
-          </span>
+            style={{ color: isUrgent ? '#f59e0b' : '#5b21b6' }}>{day}</span>
           <span className="text-[10px] uppercase tracking-wide"
-            style={{ color: isUrgent ? '#f59e0b' : '#a78bfa' }}>
-            {mon}
-          </span>
+            style={{ color: isUrgent ? '#f59e0b' : '#a78bfa' }}>{mon}</span>
         </div>
 
         <div className="min-w-0 flex-1">
@@ -67,7 +67,7 @@ export default function AgendaWidget({ onClick, dark }) {
           </p>
           <p className="text-base font-semibold leading-tight truncate"
             style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>
-            {nextEvent.emoji} {nextEvent.title}
+            {first.emoji} {first.title}
           </p>
         </div>
 
@@ -90,6 +90,34 @@ export default function AgendaWidget({ onClick, dark }) {
           )}
         </div>
       </div>
+
+      {/* Événements suivants */}
+      {rest.length > 0 && (
+        <div style={{ borderTop: `0.5px solid ${dark ? 'rgba(67,56,202,0.4)' : '#f3e8ff'}` }}>
+          {rest.map((ev) => {
+            const d   = daysUntil(ev)
+            const evDate = getNextOccurrence(ev)
+            const evDay  = evDate.getDate()
+            const evMon  = evDate.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')
+            const urgent = d <= 3
+            return (
+              <div key={ev.id}
+                className="px-4 py-2 flex items-center gap-3"
+                style={{ borderTop: `0.5px solid ${dark ? 'rgba(45,31,94,0.6)' : '#faf5ff'}` }}>
+                <span className="text-[13px] flex-shrink-0">{ev.emoji || '📅'}</span>
+                <p className="text-[12px] flex-1 truncate"
+                  style={{ color: dark ? '#c4b5fd' : '#4b1a6a' }}>
+                  {ev.title}
+                </p>
+                <span className="text-[11px] flex-shrink-0 font-medium"
+                  style={{ color: urgent ? '#f59e0b' : (dark ? '#7c6fad' : '#a78bfa') }}>
+                  {d === 0 ? "Auj." : d === 1 ? 'Dem.' : `${evDay} ${evMon}`}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </button>
   )
 }

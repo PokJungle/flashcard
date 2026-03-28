@@ -325,16 +325,19 @@ export default function App() {
 
       <div className="px-3 pt-1.5 pb-8 max-w-lg mx-auto space-y-2">
 
-        {/* Hero — Agenda */}
+        {/* Hero — Agenda (multi-événements) */}
         <AgendaWidget onClick={() => openApp('programme')} dark={dark} />
 
-        {/* Météo + Bisou */}
-        <div className="flex gap-2 items-stretch">
-          <MeteoWidget key={meteoKey} profileId={profile?.id}
-            onOpenCityPicker={() => setShowCityPicker(true)} onClick={openMeteo} />
-          <BisouWidget profile={profile} hasBadge={bisouBadge} dark={dark}
-            onClick={() => openApp('bisou')} />
-        </div>
+        {/* Bisou — bandeau horizontal */}
+        <BisouWidget profile={profile} hasBadge={bisouBadge} dark={dark}
+          onClick={() => openApp('bisou')} />
+
+        {/* Ça Traîne — mis en avant, haut de page */}
+        <TraineWidget profile={profile} dark={dark} onClick={() => openApp('traine')} />
+
+        {/* Météo */}
+        <MeteoWidget key={meteoKey} profileId={profile?.id}
+          onOpenCityPicker={() => setShowCityPicker(true)} onClick={openMeteo} />
 
         {/* Mémoire + Courses — compact côte à côte */}
         <div className="flex gap-2 items-stretch">
@@ -342,9 +345,6 @@ export default function App() {
           <CoursesWidget profileId={profile?.id} dark={dark}
             onClick={() => openApp('recettes', { initialShoppingList: true })} />
         </div>
-
-        {/* Ça Traîne — full width, mis en avant */}
-        <TraineWidget profile={profile} dark={dark} onClick={() => openApp('traine')} />
 
         {/* Orbite */}
         <OrbiteWidget profile={profile} dark={dark} onClick={() => openApp('orbite')} />
