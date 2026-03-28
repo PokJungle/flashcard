@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { Check, Upload, X } from 'lucide-react'
 import { supabase } from '../../supabase'
 import { TABS, SCREENS } from './constants'
+import { useThemeColors } from '../../hooks/useThemeColors'
+import { ls } from '../../utils/localStorage'
+import BottomModal from '../../components/BottomModal'
 import { useMemoire } from './hooks/useMemoire'
 import { useStudySession } from './hooks/useStudySession'
 import { useQuiz } from './hooks/useQuiz'
@@ -40,11 +43,9 @@ export default function Flashcards({ profile, dark }) {
   const { decks, dueMap, progressMap, totalDue, loading: memoireLoading, reload } = useMemoire(profile)
 
   const activeTotalDue = (() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(`memoire-active-decks-${profile?.id}`) || 'null')
-      if (saved === null) return totalDue
-      return decks.filter(d => saved.includes(d.id)).reduce((s, d) => s + (dueMap[d.id]?.badge ?? dueMap[d.id] ?? 0), 0)
-    } catch { return totalDue }
+    const saved = ls.get(`memoire-active-decks-${profile?.id}`)
+    if (saved === null) return totalDue
+    return decks.filter(d => saved.includes(d.id)).reduce((s, d) => s + (dueMap[d.id]?.badge ?? dueMap[d.id] ?? 0), 0)
   })()
 
   const {
@@ -247,10 +248,7 @@ export default function Flashcards({ profile, dark }) {
     return null
   }
 
-  const card   = dark ? '#1a1035' : '#ffffff'
-  const border = dark ? '#2d1f5e' : '#f3f4f6'
-  const textPri  = dark ? '#e9d5ff' : '#111827'
-  const textSec  = dark ? '#a78bfa' : '#9ca3af'
+  const { card: cardBg, textPri, textSec } = useThemeColors(dark)
 
   return (
     <div className="flex flex-col" style={{ height: '100%' }}>
@@ -267,36 +265,32 @@ export default function Flashcards({ profile, dark }) {
       />
 
       {showUpload && (
-        <div className="fixed inset-0 bg-black/50 flex items-end z-50"
-          onClick={() => { setShowUpload(false); setUploadStatus(null) }}>
-          <div className="w-full rounded-t-3xl p-6" style={{ background: card }}
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="font-bold text-lg" style={{ color: textPri }}>Importer un jeu</h2>
-              <button onClick={() => { setShowUpload(false); setUploadStatus(null) }}>
-                <X size={20} style={{ color: textSec }} />
-              </button>
-            </div>
-            <p className="text-sm mb-5" style={{ color: textSec }}>
-              Format classique <code className="text-xs px-1 rounded" style={{ background: dark ? '#2d1f5e' : '#f3f4f6' }}>front/back</code> ou
-              nouveau format <code className="text-xs px-1 rounded" style={{ background: dark ? '#2d1f5e' : '#f3f4f6' }}>criteria/values</code>
-            </p>
-            {uploadStatus === 'success' ? (
-              <div className="flex items-center gap-2 text-green-500 font-semibold justify-center py-4">
-                <Check size={20} /> Jeu importé !
-              </div>
-            ) : uploadStatus === 'error' ? (
-              <p className="text-red-500 text-center py-4">Erreur — vérifie le format JSON</p>
-            ) : (
-              <label className="block w-full py-4 border-2 border-dashed rounded-2xl text-center cursor-pointer transition-colors"
-                style={{ borderColor: dark ? '#4338ca' : '#e5e7eb', color: textSec }}>
-                <Upload size={24} className="mx-auto mb-2" style={{ color: textSec }} />
-                {uploadStatus === 'loading' ? 'Import en cours…' : 'Touche pour choisir un fichier'}
-                <input type="file" accept=".json" className="hidden" onChange={handleUploadJSON} />
-              </label>
-            )}
+        <BottomModal open onClose={() => { setShowUpload(false); setUploadStatus(null) }} dark={dark} cardBg={cardBg}>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-bold text-lg" style={{ color: textPri }}>Importer un jeu</h2>
+            <button onClick={() => { setShowUpload(false); setUploadStatus(null) }}>
+              <X size={20} style={{ color: textSec }} />
+            </button>
           </div>
-        </div>
+          <p className="text-sm mb-5" style={{ color: textSec }}>
+            Format classique <code className="text-xs px-1 rounded" style={{ background: dark ? '#2d1f5e' : '#f3f4f6' }}>front/back</code> ou
+            nouveau format <code className="text-xs px-1 rounded" style={{ background: dark ? '#2d1f5e' : '#f3f4f6' }}>criteria/values</code>
+          </p>
+          {uploadStatus === 'success' ? (
+            <div className="flex items-center gap-2 text-green-500 font-semibold justify-center py-4">
+              <Check size={20} /> Jeu importé !
+            </div>
+          ) : uploadStatus === 'error' ? (
+            <p className="text-red-500 text-center py-4">Erreur — vérifie le format JSON</p>
+          ) : (
+            <label className="block w-full py-4 border-2 border-dashed rounded-2xl text-center cursor-pointer transition-colors"
+              style={{ borderColor: dark ? '#4338ca' : '#e5e7eb', color: textSec }}>
+              <Upload size={24} className="mx-auto mb-2" style={{ color: textSec }} />
+              {uploadStatus === 'loading' ? 'Import en cours…' : 'Touche pour choisir un fichier'}
+              <input type="file" accept=".json" className="hidden" onChange={handleUploadJSON} />
+            </label>
+          )}
+        </BottomModal>
       )}
     </div>
   )

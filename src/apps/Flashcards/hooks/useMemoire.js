@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../../supabase'
-
-const NEW_PER_DAY_KEY     = (deckId) => `memoire-new-per-day-${deckId}`
-const NEW_SEEN_KEY        = (deckId) => `memoire-new-seen-${deckId}-${new Date().toISOString().slice(0,10)}`
-const NEW_PER_DAY_DEFAULT = 10
+import { getActiveCriteria } from '../utils/criteriaUtils'
+import { getNewPerDay, getDoneToday } from '../services/progressStorage'
 
 const MASTERED_LEVEL = 4  // 2× Facile minimum
 
@@ -67,17 +65,12 @@ export function useMemoire(profile) {
       const criteria = criteriaByDeck[deck.id] || []
 
       // Critères interrogeables uniquement (exclure verso et interrogeable=false)
-      const activeCriteria = criteria.filter(
-        c => c.name !== 'verso' && c.interrogeable !== false
-      )
+      const activeCriteria = getActiveCriteria(criteria)
 
       // Quota journalier
-      const newPerDay     = parseInt(localStorage.getItem(NEW_PER_DAY_KEY(deck.id)) || NEW_PER_DAY_DEFAULT)
-      const newSeenKey    = NEW_SEEN_KEY(deck.id)
-      const doneTodayKey  = `memoire-done-today-${deck.id}-${new Date().toISOString().slice(0,10)}`
-      const doneToday     = parseInt(localStorage.getItem(doneTodayKey) || '0')
-      const newSeenToday  = parseInt(localStorage.getItem(newSeenKey) || '0')
-      const quota         = newPerDay === 999 ? Infinity : newPerDay
+      const newPerDay = getNewPerDay(deck.id)
+      const doneToday = getDoneToday(deck.id)
+      const quota     = newPerDay === 999 ? Infinity : newPerDay
 
       // Compter en QUESTIONS (items = carte × critère), pas en cartes
       let todoCount      = 0  // questions en retard

@@ -29,3 +29,25 @@ export const SCREENS = {
 
 // Clé localStorage pour les sources Quiz cochées
 export const QUIZ_SOURCES_KEY = 'memoire-singe-quiz-sources'
+
+// Labels thèmes dérivés de THEMES (emoji + label) — source unique
+export const THEME_LABELS = Object.fromEntries(THEMES.map(t => [t.id, `${t.emoji} ${t.label}`]))
+
+// Modes du Quiz (Duo / Carré / Cash) — utilisés dans HomeQuiz et QuizScreen
+export const QUIZ_MODES = [
+  { id: 'duo',   label: 'Duo',   pts: 1, desc: '2 choix',     dots: 1, color: '#0C447C', border: '#85B7EB', bg: '#E6F1FB', dotFull: '#185FA5', dotEmpty: '#B5D4F4' },
+  { id: 'carre', label: 'Carré', pts: 3, desc: '4 choix',     dots: 2, color: '#26215C', border: '#AFA9EC', bg: '#EEEDFE', dotFull: '#534AB7', dotEmpty: '#CECBF6' },
+  { id: 'cash',  label: 'Cash',  pts: 5, desc: 'texte libre', dots: 3, color: '#412402', border: '#FAC775', bg: '#FAEEDA', dotFull: '#854F0B', dotEmpty: '#FAC775' },
+]
+
+// Couleurs d'ambiance par thème (utilisées dans QuizScreen)
+export const QUIZ_THEME_COLORS = {
+  geographie:   { bg: '#E6F1FB', border: '#B5D4F4', text: '#185FA5' },
+  histoire:     { bg: '#FAECE7', border: '#F5C4B3', text: '#712B13' },
+  sciences:     { bg: '#E1F5EE', border: '#9FE1CB', text: '#085041' },
+  sciences_nat: { bg: '#EAF3DE', border: '#C0DD97', text: '#27500A' },
+  culture:      { bg: '#FBEAF0', border: '#F4C0D1', text: '#72243E' },
+  langues:      { bg: '#EEEDFE', border: '#CECBF6', text: '#3C3489' },
+  math:         { bg: '#FAEEDA', border: '#FAC775', text: '#633806' },
+  autre:        { bg: '#F1EFE8', border: '#D3D1C7', text: '#444441' },
+}
