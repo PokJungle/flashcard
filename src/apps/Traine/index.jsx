@@ -32,10 +32,16 @@ export default function Traine({ profile, dark }) {
       supabase.from('traine_tasks').select('*').order('created_at', { ascending: true }),
       supabase.from('profiles').select('*'),
     ])
-    setTasks(tasksData || [])
+    setTasks((tasksData || []).map(parsePriorityBy))
     setAllProfiles(profilesData || [])
     setLoading(false)
   }
+
+  // priority_by est stocké en JSON texte dans Supabase
+  const parsePriorityBy = (t) => ({
+    ...t,
+    priority_by: typeof t.priority_by === 'string' ? JSON.parse(t.priority_by) : (t.priority_by || [])
+  })
 
   const otherProfile = allProfiles.find(p => p.id !== profile.id)
   const myPriorityCount = tasks.filter(t => !t.done && (t.priority_by || []).includes(profile.id)).length
@@ -59,9 +65,9 @@ export default function Traine({ profile, dark }) {
       title: newTitle.trim(),
       note: newNote.trim() || null,
       created_by: profile.id,
-      priority_by: [],
+      priority_by: '[]',
     }).select().single()
-    if (data) setTasks(prev => [...prev, data])
+    if (data) setTasks(prev => [...prev, parsePriorityBy(data)])
     setNewTitle('')
     setNewNote('')
     setShowAdd(false)
@@ -80,7 +86,7 @@ export default function Traine({ profile, dark }) {
     const newPriorityBy = has
       ? task.priority_by.filter(id => id !== profile.id)
       : [...(task.priority_by || []), profile.id]
-    await supabase.from('traine_tasks').update({ priority_by: newPriorityBy }).eq('id', task.id)
+    await supabase.from('traine_tasks').update({ priority_by: JSON.stringify(newPriorityBy) }).eq('id', task.id)
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, priority_by: newPriorityBy } : t))
   }
 
