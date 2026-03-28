@@ -60,11 +60,9 @@ export default function OrbiteWidget({ profile, onClick, dark }) {
           )}
         </div>
 
-        {/* Barre + explosion à la fin */}
+        {/* Barre */}
         <div className="flex-1 relative h-3">
-          {/* Rail */}
           <div className="absolute inset-0 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }} />
-          {/* Remplissage empilé */}
           {totalPct > 0 && (
             <div className="absolute left-0 top-0 h-full rounded-full overflow-hidden"
               style={{ width: `${totalPct * 100}%`, display: 'flex' }}>
@@ -74,19 +72,12 @@ export default function OrbiteWidget({ profile, onClick, dark }) {
               )}
             </div>
           )}
-          {/* 💥 à la pointe de la barre */}
-          {totalPct > 0 && (
-            <span className="absolute top-1/2 -translate-y-1/2 text-[14px] leading-none pointer-events-none"
-              style={{ left: `calc(${totalPct * 100}% - 8px)` }}>
-              💥
-            </span>
-          )}
         </div>
 
-        {/* % à droite */}
-        <span className="text-[11px] font-mono font-bold flex-shrink-0 w-8 text-right"
+        {/* 💥 + % à droite */}
+        <span className="text-[11px] font-mono font-bold flex-shrink-0 flex items-center gap-1"
           style={{ color: data.launched ? '#ff7a1e' : 'rgba(255,255,255,0.35)' }}>
-          {Math.round(totalPct * 100)}%
+          {Math.round(totalPct * 100)}% 💥
         </span>
       </div>
     </button>

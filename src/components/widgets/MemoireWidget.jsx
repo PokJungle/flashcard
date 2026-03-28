@@ -80,7 +80,7 @@ export default function MemoireWidget({ profile, onClick, dark }) {
 
   return (
     <button onClick={onClick}
-      className="w-full rounded-xl px-3.5 py-2.5 text-left active:scale-95 transition-all flex items-center gap-3"
+      className="flex-1 rounded-xl px-3 py-2.5 text-left active:scale-95 transition-all flex items-center gap-2"
       style={{
         background: dark ? '#1a1035' : '#fff',
         border: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`,
