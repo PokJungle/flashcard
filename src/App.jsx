@@ -6,6 +6,7 @@ import Grimoire from './apps/Grimoire/index.jsx'
 import Bisou from './apps/Bisou/index.jsx'
 import Programme from './apps/Programme/index.jsx'
 import Orbite from './apps/Orbite/index.jsx'
+import Traine from './apps/Traine/index.jsx'
 
 import { useDarkMode } from './hooks/useDarkMode'
 import MeteoWidget, { getPreferredCity } from './components/widgets/MeteoWidget'
@@ -22,12 +23,12 @@ const APPS = [
   { id:'bisou',      name:'Bisou',                     emoji:'💌', color:'#E91E8C', component:Bisou },
   { id:'programme',  name:'Demandez le Programme !',   emoji:'🗞️', color:'#8B5CF6', component:Programme },
   { id:'orbite',     name:'Mise en Orbite',            emoji:'💥', color:'#FF7A1E', component:Orbite },
+  { id:'traine',     name:'Ça Traîne',                 emoji:'🐌', color:'#10b981', component:Traine },
 ]
 const HUB_APPS   = APPS.filter(a => a.id !== 'bisou')
-const HUB_LABELS = { flashcards:'Mémoire de Singe', meteo:'Parapluie ou Claquettes ?', recettes:'Le Grimoire Gourmand', programme:'Demandez le Programme !', orbite:'Mise en Orbite' }
+const HUB_LABELS = { flashcards:'Mémoire de Singe', meteo:'Parapluie ou Claquettes ?', recettes:'Le Grimoire Gourmand', programme:'Demandez le Programme !', orbite:'Mise en Orbite', traine:'Ça Traîne' }
 const APPS_EN_PREP = [
   { emoji:'🍵', name:'Tisane & Chauffeuse' },
-  { emoji:'🐌', name:'Ça Traîne' },
   { emoji:'🎸', name:'Jukebox' },
   { emoji:'👣', name:'Nos Empreintes' },
   { emoji:'💧', name:'Arrose-moi' },
