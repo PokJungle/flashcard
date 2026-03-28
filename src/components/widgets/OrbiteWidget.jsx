@@ -24,75 +24,61 @@ export default function OrbiteWidget({ profile, onClick, dark }) {
       const target = settingsRes.data?.weekly_rocket_target || 10000
       const byProfile = {}
       acts.forEach(a => { byProfile[a.profile_id] = (byProfile[a.profile_id]||0) + a.props })
-      const myProps = byProfile[profile.id] || 0
-      const other   = profiles.find(p => p.id !== profile.id)
+      const myProps    = byProfile[profile.id] || 0
+      const other      = profiles.find(p => p.id !== profile.id)
       const otherProps = other ? (byProfile[other.id]||0) : 0
-      const total   = myProps + otherProps
+      const total      = myProps + otherProps
       setData({ myProps, otherProps, total, other, target, launched: total >= target })
     })
   }, [profile])
 
   if (!data || (data.myProps === 0 && data.otherProps === 0)) return null
 
-  const myPct    = Math.min(data.myProps / data.target, 1)
-  const otherPct = Math.min(data.otherProps / data.target, 1)
+  const totalPct  = Math.min(data.total / data.target, 1)
+  const myShare   = data.total > 0 ? data.myProps / data.total : 0.5
+  const otherShare = 1 - myShare
 
   return (
     <button onClick={onClick}
-      className="w-full rounded-2xl px-4 py-3.5 text-left active:scale-95 transition-all"
+      className="w-full rounded-2xl px-3.5 py-3 text-left active:scale-95 transition-all flex items-center gap-3"
       style={{
         background: dark ? '#0d1117' : '#0f172a',
         border: '1px solid rgba(255,122,30,0.2)',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
       }}>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold tracking-wide text-white/40 uppercase">
-          💥 Orbite · Cette semaine
-        </span>
-        {data.launched && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
-            style={{ background: 'rgba(255,122,30,0.2)', color: '#ff7a1e' }}>
-            Décollage ! 🚀
-          </span>
-        )}
-      </div>
+      <span className="text-lg flex-shrink-0">💥</span>
 
-      <div className="space-y-2.5">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 w-16 flex-shrink-0">
-            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#ff7a1e' }} />
-            <span className="text-sm">{profile.avatar}</span>
-            <span className="text-[10px] text-white/50 truncate">{profile.name?.split(' ')[0]}</span>
-          </div>
-          <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
-            {myPct > 0 && (
-              <div className="h-full rounded-full transition-all"
-                style={{ width: `${myPct * 100}%`, background: 'linear-gradient(90deg,#ffb34d,#ff7a1e)' }} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-2 text-[10px] text-white/40">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background:'#ff7a1e' }} />
+              {profile.avatar}
+            </span>
+            {data.other && (
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background:'#4a8cff' }} />
+                {data.other.avatar}
+              </span>
             )}
           </div>
-          <span className="text-[11px] font-mono text-white/60 w-8 text-right flex-shrink-0">
-            {Math.round(myPct * 100)}%
+          <span className="text-[10px] font-mono font-bold"
+            style={{ color: data.launched ? '#ff7a1e' : 'rgba(255,255,255,0.35)' }}>
+            {Math.round(totalPct * 100)}%
+            {data.launched && ' 🚀'}
           </span>
         </div>
 
-        {data.other && (
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 w-16 flex-shrink-0">
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#4a8cff' }} />
-              <span className="text-sm">{data.other.avatar}</span>
-              <span className="text-[10px] text-white/50 truncate">{data.other.name?.split(' ')[0]}</span>
-            </div>
-            <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
-              {otherPct > 0 && (
-                <div className="h-full rounded-full transition-all"
-                  style={{ width: `${otherPct * 100}%`, background: 'linear-gradient(90deg,#6aa8ff,#4a8cff)' }} />
+        {/* Jauge unique empilée */}
+        <div className="h-3 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+          {totalPct > 0 && (
+            <div className="h-full flex" style={{ width: `${totalPct * 100}%` }}>
+              <div style={{ flex: myShare, background: 'linear-gradient(90deg,#ffb34d,#ff7a1e)' }} />
+              {data.other && (
+                <div style={{ flex: otherShare, background: 'linear-gradient(90deg,#6aa8ff,#4a8cff)' }} />
               )}
             </div>
-            <span className="text-[11px] font-mono text-white/60 w-8 text-right flex-shrink-0">
-              {Math.round(otherPct * 100)}%
-            </span>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </button>
   )

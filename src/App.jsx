@@ -27,9 +27,7 @@ const APPS = [
   { id:'orbite',     name:'Mise en Orbite',            emoji:'💥', color:'#FF7A1E', component:Orbite },
   { id:'traine',     name:'Ça Traîne',                 emoji:'🐌', color:'#10b981', component:Traine },
 ]
-const HUB_APPS   = APPS.filter(a => a.id !== 'bisou')
-const HUB_LABELS = { flashcards:'Mémoire', meteo:'Météo', recettes:'Grimoire', programme:'Programme', orbite:'Orbite', traine:'Traîne' }
-const HUB_SUBLABELS = { flashcards:'Révisions', meteo:'Parapluie ?', recettes:'Recettes', programme:'Agenda', orbite:'Sport', traine:'Todos' }
+const HUB_APPS = APPS.filter(a => a.id !== 'bisou')
 const APPS_EN_PREP = [
   { emoji:'🍵', name:'Tisane & Chauffeuse' },
   { emoji:'🎸', name:'Jukebox' },
@@ -368,13 +366,9 @@ export default function App() {
                 style={{ background: app.color + '18' }}>
                 {app.emoji}
               </div>
-              <p className="text-[11px] font-semibold text-center leading-tight"
+              <p className="text-[10px] font-medium text-center leading-tight"
                 style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>
-                {HUB_LABELS[app.id] ?? app.name}
-              </p>
-              <p className="text-[10px] text-center leading-tight"
-                style={{ color: app.color }}>
-                {HUB_SUBLABELS[app.id]}
+                {app.name}
               </p>
             </button>
           ))}
