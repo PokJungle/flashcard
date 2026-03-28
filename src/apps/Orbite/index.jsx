@@ -371,6 +371,28 @@ const CSS = `
     color: #ff7a1e;
   }
 
+  .orbite-date-row { display: flex; gap: 8px; }
+  .orbite-date-btn {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 10px 8px;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    overflow: hidden;
+  }
+  .orbite-date-btn--active {
+    background: rgba(255,122,30,0.15);
+    border-color: #ff7a1e;
+    color: #ff7a1e;
+  }
+  .orbite-date-btn--pick { flex: 1.4; }
+
   .orbite-value-wrap {
     display: flex;
     align-items: center;

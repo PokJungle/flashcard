@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS = {
 
 export function useOrbite(profile) {
   const [activities, setActivities] = useState([])
+  const [pastActivities, setPastActivities] = useState([])
   const [allProfiles, setAllProfiles] = useState([])
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [weekHistory, setWeekHistory] = useState([])
@@ -54,6 +55,7 @@ export function useOrbite(profile) {
       .gte('created_at', eightWeeksAgo.toISOString())
       .lt('created_at', weekStart.toISOString())
       .order('created_at', { ascending: false })
+    setPastActivities(histActs || [])
 
     const target = settingsData?.weekly_rocket_target ?? DEFAULT_SETTINGS.weekly_rocket_target
 
@@ -99,18 +101,19 @@ export function useOrbite(profile) {
     return 0
   }, [settings])
 
-  const logActivity = useCallback(async (type, value, unit) => {
+  // dateStr = 'YYYY-MM-DD' ou null (= maintenant)
+  const logActivity = useCallback(async (type, value, unit, dateStr = null) => {
     const props = computeProps(type, value, unit)
-    const { data, error } = await supabase.from('orbite_activities').insert({
-      profile_id: profile.id,
-      type,
-      value,
-      unit,
-      props,
-    }).select().single()
-    if (!error) setActivities(prev => [data, ...prev])
+    const insertData = { profile_id: profile.id, type, value, unit, props }
+    if (dateStr) {
+      // Midi heure locale pour éviter les décalages UTC
+      insertData.created_at = new Date(dateStr + 'T12:00:00').toISOString()
+    }
+    const { data, error } = await supabase
+      .from('orbite_activities').insert(insertData).select().single()
+    if (!error) await fetchAll()
     return { props, error }
-  }, [profile, computeProps])
+  }, [profile, computeProps, fetchAll])
 
   const saveSettings = useCallback(async (newSettings) => {
     const merged = { ...settings, ...newSettings, profile_id: profile.id }
@@ -138,10 +141,11 @@ export function useOrbite(profile) {
   const rocketProgress = Math.min(totalProps / weeklyTarget, 1)
   const rocketLaunched = totalProps >= weeklyTarget
 
-  // Streak
+  // Streak — utilise les activités courantes + l'historique pour couvrir 30 jours
   const computeStreak = useCallback((profileId) => {
+    const allActs = [...activities, ...pastActivities]
     const dayProps = {}
-    activities
+    allActs
       .filter(a => a.profile_id === profileId)
       .forEach(a => {
         const day = new Date(a.created_at).toDateString()
@@ -157,7 +161,7 @@ export function useOrbite(profile) {
       else if (i > 0) break
     }
     return streak
-  }, [activities, settings.daily_goal])
+  }, [activities, pastActivities, settings.daily_goal])
 
   const encouragementMessage = useCallback(() => {
     if (allProfiles.length < 2) return null
