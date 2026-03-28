@@ -24,100 +24,122 @@ export default function AgendaWidget({ onClick, dark }) {
 
   if (!loaded || events.length === 0) return null
 
-  const first    = events[0]
-  const rest     = events.slice(1)
-  const days     = daysUntil(first)
-  const isToday  = days === 0
-  const isTomorrow = days === 1
-  const isUrgent = days <= 3
-  const dateObj  = getNextOccurrence(first)
-  const day      = dateObj.getDate()
-  const mon      = dateObj.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')
-  const weekDay  = dateObj.toLocaleDateString('fr-FR', { weekday: 'long' })
+  const first  = events[0]
+  const rest   = events.slice(1)
 
   return (
     <button onClick={onClick}
       className="w-full rounded-2xl text-left active:scale-95 transition-all overflow-hidden"
       style={{
-        background: isUrgent
-          ? (dark ? 'rgba(251,191,36,0.08)' : 'rgba(251,191,36,0.06)')
-          : (dark ? '#1a1035' : '#fff'),
-        border: isUrgent
-          ? `0.5px solid ${dark ? 'rgba(251,191,36,0.3)' : 'rgba(251,191,36,0.4)'}`
-          : `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`,
-        borderLeft: `3px solid ${isUrgent ? '#f59e0b' : '#8B5CF6'}`,
+        background: dark ? '#1a1035' : '#fff',
+        border: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`,
+        borderLeft: '3px solid #8B5CF6',
       }}>
 
-      {/* Événement principal */}
-      <div className="px-4 py-4 flex items-center gap-4">
-        <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl flex-shrink-0"
-          style={{
-            background: isUrgent ? 'rgba(245,158,11,0.15)' : (dark ? '#312e81' : '#f5f0ff'),
-            border: `0.5px solid ${isUrgent ? 'rgba(245,158,11,0.4)' : (dark ? '#4338ca' : '#e9d5ff')}`,
-          }}>
-          <span className="text-[18px] font-bold leading-none"
-            style={{ color: isUrgent ? '#f59e0b' : '#5b21b6' }}>{day}</span>
-          <span className="text-[10px] uppercase tracking-wide"
-            style={{ color: isUrgent ? '#f59e0b' : '#a78bfa' }}>{mon}</span>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🗞️</span>
+          <span className="text-sm font-semibold" style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>
+            Demandez le Programme
+          </span>
         </div>
-
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] capitalize mb-0.5" style={{ color: dark ? '#7c6fad' : '#a78bfa' }}>
-            {weekDay}
-          </p>
-          <p className="text-base font-semibold leading-tight truncate"
-            style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>
-            {first.emoji} {first.title}
-          </p>
-        </div>
-
-        <div className="flex flex-col items-end flex-shrink-0">
-          {isToday ? (
-            <span className="text-sm font-bold text-amber-500">Aujourd'hui 🎉</span>
-          ) : isTomorrow ? (
-            <span className="text-sm font-bold text-amber-500">Demain</span>
-          ) : (
-            <>
-              <span className="text-3xl font-bold leading-none"
-                style={{ color: isUrgent ? '#f59e0b' : (dark ? '#e9d5ff' : '#1e0a3c') }}>
-                {days}
-              </span>
-              <span className="text-[10px] mt-0.5"
-                style={{ color: isUrgent ? '#f59e0b' : (dark ? '#7c6fad' : '#9ca3af') }}>
-                jours
-              </span>
-            </>
-          )}
-        </div>
+        {events.length > 1 && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full"
+            style={{ background: dark ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.1)', color: '#8B5CF6' }}>
+            {events.length} à venir
+          </span>
+        )}
       </div>
 
-      {/* Événements suivants */}
-      {rest.length > 0 && (
-        <div style={{ borderTop: `0.5px solid ${dark ? 'rgba(67,56,202,0.4)' : '#f3e8ff'}` }}>
-          {rest.map((ev) => {
-            const d   = daysUntil(ev)
-            const evDate = getNextOccurrence(ev)
-            const evDay  = evDate.getDate()
-            const evMon  = evDate.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')
-            const urgent = d <= 3
-            return (
-              <div key={ev.id}
-                className="px-4 py-2 flex items-center gap-3"
-                style={{ borderTop: `0.5px solid ${dark ? 'rgba(45,31,94,0.6)' : '#faf5ff'}` }}>
-                <span className="text-[13px] flex-shrink-0">{ev.emoji || '📅'}</span>
-                <p className="text-[12px] flex-1 truncate"
-                  style={{ color: dark ? '#c4b5fd' : '#4b1a6a' }}>
-                  {ev.title}
-                </p>
-                <span className="text-[11px] flex-shrink-0 font-medium"
-                  style={{ color: urgent ? '#f59e0b' : (dark ? '#7c6fad' : '#a78bfa') }}>
-                  {d === 0 ? "Auj." : d === 1 ? 'Dem.' : `${evDay} ${evMon}`}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      )}
+      {/* Séparateur */}
+      <div style={{ height: '0.5px', background: dark ? 'rgba(67,56,202,0.4)' : '#f3e8ff', margin: '0 16px' }} />
+
+      {/* Tous les événements — même layout : [calendrier] [titre] [countdown] */}
+      {[first, ...rest].map((ev, i) => {
+        const days       = daysUntil(ev)
+        const isToday    = days === 0
+        const isTomorrow = days === 1
+        const isUrgent   = days <= 3
+        const dateObj    = getNextOccurrence(ev)
+        const day        = dateObj.getDate()
+        const mon        = dateObj.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')
+        const isFirst    = i === 0
+
+        return (
+          <div key={ev.id}
+            className="flex items-center gap-3 px-4"
+            style={{
+              paddingTop:    isFirst ? 10 : 8,
+              paddingBottom: isFirst ? 10 : 8,
+              borderTop: i > 0 ? `0.5px solid ${dark ? 'rgba(45,31,94,0.6)' : '#faf5ff'}` : undefined,
+              background: isFirst && isUrgent
+                ? (dark ? 'rgba(251,191,36,0.06)' : 'rgba(251,191,36,0.04)')
+                : undefined,
+            }}>
+
+            {/* Calendrier */}
+            <div className="flex flex-col items-center justify-center rounded-lg flex-shrink-0"
+              style={{
+                width: isFirst ? 44 : 34,
+                height: isFirst ? 44 : 34,
+                background: isUrgent
+                  ? 'rgba(245,158,11,0.15)'
+                  : (dark ? '#312e81' : '#f5f0ff'),
+                border: `0.5px solid ${isUrgent ? 'rgba(245,158,11,0.4)' : (dark ? '#4338ca' : '#e9d5ff')}`,
+              }}>
+              <span style={{
+                fontSize: isFirst ? 16 : 12,
+                fontWeight: 700,
+                lineHeight: 1,
+                color: isUrgent ? '#f59e0b' : '#5b21b6',
+              }}>{day}</span>
+              <span style={{
+                fontSize: 9,
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                color: isUrgent ? '#f59e0b' : '#a78bfa',
+              }}>{mon}</span>
+            </div>
+
+            {/* Titre */}
+            <div className="flex-1 min-w-0">
+              <p style={{
+                fontSize: isFirst ? 14 : 12,
+                fontWeight: isFirst ? 600 : 400,
+                color: dark ? '#e9d5ff' : '#1e0a3c',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {ev.emoji} {ev.title}
+              </p>
+            </div>
+
+            {/* Countdown */}
+            <div className="flex-shrink-0 text-right">
+              {isToday ? (
+                <span style={{ fontSize: isFirst ? 12 : 11, fontWeight: 700, color: '#f59e0b' }}>Auj. 🎉</span>
+              ) : isTomorrow ? (
+                <span style={{ fontSize: isFirst ? 12 : 11, fontWeight: 700, color: '#f59e0b' }}>Dem.</span>
+              ) : (
+                <>
+                  <span style={{
+                    display: 'block',
+                    fontSize: isFirst ? 28 : 16,
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    color: isUrgent ? '#f59e0b' : (dark ? '#e9d5ff' : '#1e0a3c'),
+                  }}>{days}</span>
+                  <span style={{
+                    display: 'block',
+                    fontSize: 9,
+                    color: isUrgent ? '#f59e0b' : (dark ? '#7c6fad' : '#9ca3af'),
+                  }}>j</span>
+                </>
+              )}
+            </div>
+          </div>
+        )
+      })}
     </button>
   )
 }

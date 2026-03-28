@@ -108,8 +108,11 @@ function CityPicker({ profileId, onClose, dark }) {
 }
 
 // ─── Composant entête date + fête ─────────────────────────────────────────────
-function DayHeader({ profile, dark }) {
-  const [fete, setFete] = useState(null)
+const WMO_MINI = {0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',71:'🌨️',73:'🌨️',75:'❄️',80:'🌦️',81:'🌧️',82:'⛈️',95:'⛈️',96:'⛈️',99:'⛈️'}
+
+function DayHeader({ profile, dark, onMeteoClick, onOpenCityPicker, cityKey }) {
+  const [fete, setFete]       = useState(null)
+  const [weather, setWeather] = useState(null)
 
   useEffect(() => {
     const now = new Date()
@@ -118,73 +121,113 @@ function DayHeader({ profile, dark }) {
     if (name) setFete(name)
   }, [])
 
+  useEffect(() => {
+    if (!profile?.id) return
+    const c = getPreferredCity(profile.id)
+    fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}` +
+      `&daily=weathercode,temperature_2m_max,temperature_2m_min,windspeed_10m_max&timezone=Europe%2FParis&forecast_days=1&models=best_match`
+    )
+      .then(r => r.json())
+      .then(d => {
+        const code = d.daily?.weathercode?.[0] ?? null
+        const tMin = d.daily?.temperature_2m_min?.[0] ?? null
+        const tMax = d.daily?.temperature_2m_max?.[0] ?? null
+        const wind = d.daily?.windspeed_10m_max?.[0] ?? null
+        const avg  = tMin != null && tMax != null ? Math.round((tMin+tMax)/2) : null
+        const rainy = code != null && [51,53,55,61,63,65,80,81,82,95,96,99].includes(code)
+        setWeather({ icon: WMO_MINI[code] ?? '🌡️', avg, conseil: rainy ? '☂️' : '🩴', wind })
+      })
+      .catch(() => {})
+  }, [profile?.id, cityKey])
+
   const now       = new Date()
   const dateStr   = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })
   const dateLabel = dateStr.charAt(0).toUpperCase() + dateStr.slice(1)
-  const hour      = now.getHours()
-  const greeting  = hour < 6 ? 'Bonne nuit' : hour < 12 ? 'Bonjour' : hour < 18 ? 'Bonne après-midi' : 'Bonsoir'
 
   return (
-    <div className="max-w-lg mx-auto px-3 pt-2 pb-1 text-center">
-      <p className="text-[16px] font-medium" style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>
-        {greeting} {profile?.avatar}
-      </p>
-      <p className="text-[12px] mt-0.5" style={{ color:'#7c3aed' }}>
-        {dateLabel}
-      </p>
-      {fete && (
-        isFeteSpeciale(fete) ? (
-          <div style={{ margin:'4px 0 0', background:'linear-gradient(135deg,#b45309,#d97706,#f59e0b)', padding:'8px 14px', borderRadius:12, position:'relative', overflow:'hidden' }}>
-            <span style={{ position:'absolute', top:11, left:18, width:5, height:5, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite 0.7s' }} />
-            <span style={{ position:'absolute', top:11, right:73, width:5, height:5, borderRadius:'50%', background:'#bfdbfe', display:'block', animation:'bbp-float1 1.2s ease-in-out infinite 0.2s' }} />
-            <span style={{ position:'absolute', top:9, left:81, width:5, height:5, borderRadius:2, background:'#bfdbfe', display:'block', animation:'bbp-float3 1.8s ease-in-out infinite 0.5s' }} />
-            <span style={{ position:'absolute', top:4, right:61, width:9, height:9, borderRadius:2, background:'#6ee7b7', display:'block', animation:'bbp-float1 1.9s ease-in-out infinite 0.3s' }} />
-            <span style={{ position:'absolute', top:3, left:31, width:7, height:7, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float2 1.3s ease-in-out infinite 0.8s' }} />
-            <span style={{ position:'absolute', top:10, right:37, width:5, height:5, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float3 1.3s ease-in-out infinite 0.9s' }} />
-            <span style={{ position:'absolute', top:2, left:74, width:7, height:7, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float3 1.4s ease-in-out infinite 0.1s' }} />
-            <span style={{ position:'absolute', top:11, right:33, width:7, height:7, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float1 1.6s ease-in-out infinite 0.5s' }} />
-            <span style={{ position:'absolute', top:6, left:24, width:7, height:7, borderRadius:2, background:'#6ee7b7', display:'block', animation:'bbp-float3 1.5s ease-in-out infinite 0.9s' }} />
-            <span style={{ position:'absolute', top:11, right:13, width:9, height:9, borderRadius:2, background:'#fef08a', display:'block', animation:'bbp-float3 1.9s ease-in-out infinite 0.2s' }} />
-            <span style={{ position:'absolute', top:7, left:38, width:9, height:9, borderRadius:'50%', background:'#fce7f3', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite' }} />
-            <span style={{ position:'absolute', top:6, right:55, width:7, height:7, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float3 2.1s ease-in-out infinite 0.3s' }} />
-            <span style={{ position:'absolute', top:11, left:67, width:8, height:8, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float1 1.5s ease-in-out infinite 0.2s' }} />
-            <span style={{ position:'absolute', top:9, right:72, width:7, height:7, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float3 1.6s ease-in-out infinite 0.2s' }} />
-            <span style={{ position:'absolute', top:3, left:69, width:8, height:8, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite 0.2s' }} />
-            <span style={{ position:'absolute', top:11, right:58, width:9, height:9, borderRadius:'50%', background:'#fff', display:'block', animation:'bbp-float2 1.8s ease-in-out infinite 0.5s' }} />
-            <span style={{ position:'absolute', top:5, left:74, width:5, height:5, borderRadius:2, background:'#fef08a', display:'block', animation:'bbp-float3 2.1s ease-in-out infinite 0.8s' }} />
-            <span style={{ position:'absolute', top:11, right:47, width:5, height:5, borderRadius:'50%', background:'#6ee7b7', display:'block', animation:'bbp-float1 1.7s ease-in-out infinite 1.0s' }} />
-            <span style={{ position:'absolute', bottom:6, left:68, width:6, height:6, borderRadius:2, background:'#bfdbfe', display:'block', animation:'bbp-float3 1.5s ease-in-out infinite 0.6s' }} />
-            <span style={{ position:'absolute', bottom:5, right:23, width:7, height:7, borderRadius:2, background:'#fce7f3', display:'block', animation:'bbp-float3 1.5s ease-in-out infinite' }} />
-            <span style={{ position:'absolute', bottom:7, left:43, width:6, height:6, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float3 2.1s ease-in-out infinite 0.1s' }} />
-            <span style={{ position:'absolute', bottom:9, right:12, width:9, height:9, borderRadius:2, background:'#fce7f3', display:'block', animation:'bbp-float3 1.7s ease-in-out infinite 0.5s' }} />
-            <span style={{ position:'absolute', bottom:6, left:71, width:9, height:9, borderRadius:2, background:'#c4b5fd', display:'block', animation:'bbp-float3 2.0s ease-in-out infinite 0.7s' }} />
-            <span style={{ position:'absolute', bottom:6, right:55, width:7, height:7, borderRadius:'50%', background:'#c4b5fd', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite 0.1s' }} />
-            <span style={{ position:'absolute', bottom:2, left:79, width:9, height:9, borderRadius:2, background:'#fce7f3', display:'block', animation:'bbp-float1 1.3s ease-in-out infinite 0.6s' }} />
-            <span style={{ position:'absolute', bottom:5, right:12, width:5, height:5, borderRadius:2, background:'#6ee7b7', display:'block', animation:'bbp-float3 1.4s ease-in-out infinite 0.7s' }} />
-            <span style={{ position:'absolute', bottom:5, left:73, width:6, height:6, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float1 2.0s ease-in-out infinite 0.8s' }} />
-            <span style={{ position:'absolute', bottom:5, right:16, width:5, height:5, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float2 1.6s ease-in-out infinite 0.5s' }} />
-            <span style={{ position:'absolute', bottom:2, left:90, width:5, height:5, borderRadius:'50%', background:'#fff', display:'block', animation:'bbp-float3 1.5s ease-in-out infinite 0.9s' }} />
-            <span style={{ position:'absolute', bottom:5, right:28, width:6, height:6, borderRadius:'50%', background:'#bfdbfe', display:'block', animation:'bbp-float1 1.6s ease-in-out infinite 0.3s' }} />
-            <span style={{ position:'absolute', bottom:5, left:13, width:8, height:8, borderRadius:2, background:'#bfdbfe', display:'block', animation:'bbp-float1 1.9s ease-in-out infinite 0.5s' }} />
-            <span style={{ position:'absolute', bottom:2, right:15, width:6, height:6, borderRadius:'50%', background:'#fce7f3', display:'block', animation:'bbp-float2 1.7s ease-in-out infinite 0.9s' }} />
-            <span style={{ position:'absolute', bottom:2, left:25, width:8, height:8, borderRadius:'50%', background:'#fff', display:'block', animation:'bbp-float2 2.1s ease-in-out infinite 0.8s' }} />
-            <span style={{ position:'absolute', bottom:6, right:58, width:9, height:9, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite 0.2s' }} />
-            <span style={{ position:'absolute', bottom:2, left:78, width:9, height:9, borderRadius:'50%', background:'#fff', display:'block', animation:'bbp-float1 1.3s ease-in-out infinite 0.5s' }} />
-            <span style={{ position:'absolute', bottom:10, right:24, width:5, height:5, borderRadius:2, background:'#bfdbfe', display:'block', animation:'bbp-float1 1.3s ease-in-out infinite 0.1s' }} />
-            <p style={{ color:'#fff', fontSize:15, fontWeight:600, margin:0, position:'relative', textShadow:'0 1px 3px rgba(0,0,0,0.3)' }}>
-              {getFeteIcon(fete)} Fête de {fete} !
-            </p>
-            <style>{`
-              @keyframes bbp-float1 { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-7px) rotate(12deg)} }
-              @keyframes bbp-float2 { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-10px) rotate(-18deg)} }
-              @keyframes bbp-float3 { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-6px) rotate(25deg)} }
-            `}</style>
-          </div>
-        ) : (
-          <p className="text-[10px] mt-0.5" style={{ color:'#c4b5fd' }}>
-            Fête des {fete}
+    <div className="max-w-lg mx-auto px-3 pt-2 pb-1">
+      <div className="flex items-start gap-3">
+
+        {/* Mini météo */}
+        <button onClick={onMeteoClick}
+          className="rounded-xl flex flex-col items-center px-2 py-1.5 gap-0.5 active:scale-95 transition-all flex-shrink-0"
+          style={{ background: '#4f3ea0', minWidth: 50 }}>
+          <span className="text-[22px] leading-none">{weather?.icon ?? '…'}</span>
+          <span className="text-[12px] font-semibold text-white leading-none">
+            {weather?.avg != null ? `${weather.avg}°` : '—'}
+          </span>
+          {weather && (
+            <span className="text-[11px] leading-none">{weather.conseil}</span>
+          )}
+          <span onClick={e => { e.stopPropagation(); onOpenCityPicker() }}
+            className="text-[8px] text-white/30 underline underline-offset-1 mt-0.5 cursor-pointer"
+            style={{ WebkitTapHighlightColor:'transparent' }}>
+            ›ville
+          </span>
+        </button>
+
+        {/* Date + fête */}
+        <div className="flex-1 text-right">
+          <p className="text-[13px] font-medium" style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>
+            {dateLabel}
           </p>
-        )
+          {fete && !isFeteSpeciale(fete) && (
+            <p className="text-[10px] mt-0.5" style={{ color:'#c4b5fd' }}>
+              Fête des {fete}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Fête spéciale — pleine largeur en dessous */}
+      {fete && isFeteSpeciale(fete) && (
+        <div style={{ marginTop:6, background:'linear-gradient(135deg,#b45309,#d97706,#f59e0b)', padding:'8px 14px', borderRadius:12, position:'relative', overflow:'hidden' }}>
+          <span style={{ position:'absolute', top:11, left:18, width:5, height:5, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite 0.7s' }} />
+          <span style={{ position:'absolute', top:11, right:73, width:5, height:5, borderRadius:'50%', background:'#bfdbfe', display:'block', animation:'bbp-float1 1.2s ease-in-out infinite 0.2s' }} />
+          <span style={{ position:'absolute', top:9, left:81, width:5, height:5, borderRadius:2, background:'#bfdbfe', display:'block', animation:'bbp-float3 1.8s ease-in-out infinite 0.5s' }} />
+          <span style={{ position:'absolute', top:4, right:61, width:9, height:9, borderRadius:2, background:'#6ee7b7', display:'block', animation:'bbp-float1 1.9s ease-in-out infinite 0.3s' }} />
+          <span style={{ position:'absolute', top:3, left:31, width:7, height:7, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float2 1.3s ease-in-out infinite 0.8s' }} />
+          <span style={{ position:'absolute', top:10, right:37, width:5, height:5, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float3 1.3s ease-in-out infinite 0.9s' }} />
+          <span style={{ position:'absolute', top:2, left:74, width:7, height:7, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float3 1.4s ease-in-out infinite 0.1s' }} />
+          <span style={{ position:'absolute', top:11, right:33, width:7, height:7, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float1 1.6s ease-in-out infinite 0.5s' }} />
+          <span style={{ position:'absolute', top:6, left:24, width:7, height:7, borderRadius:2, background:'#6ee7b7', display:'block', animation:'bbp-float3 1.5s ease-in-out infinite 0.9s' }} />
+          <span style={{ position:'absolute', top:11, right:13, width:9, height:9, borderRadius:2, background:'#fef08a', display:'block', animation:'bbp-float3 1.9s ease-in-out infinite 0.2s' }} />
+          <span style={{ position:'absolute', top:7, left:38, width:9, height:9, borderRadius:'50%', background:'#fce7f3', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite' }} />
+          <span style={{ position:'absolute', top:6, right:55, width:7, height:7, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float3 2.1s ease-in-out infinite 0.3s' }} />
+          <span style={{ position:'absolute', top:11, left:67, width:8, height:8, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float1 1.5s ease-in-out infinite 0.2s' }} />
+          <span style={{ position:'absolute', top:9, right:72, width:7, height:7, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float3 1.6s ease-in-out infinite 0.2s' }} />
+          <span style={{ position:'absolute', top:3, left:69, width:8, height:8, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite 0.2s' }} />
+          <span style={{ position:'absolute', top:11, right:58, width:9, height:9, borderRadius:'50%', background:'#fff', display:'block', animation:'bbp-float2 1.8s ease-in-out infinite 0.5s' }} />
+          <span style={{ position:'absolute', top:5, left:74, width:5, height:5, borderRadius:2, background:'#fef08a', display:'block', animation:'bbp-float3 2.1s ease-in-out infinite 0.8s' }} />
+          <span style={{ position:'absolute', top:11, right:47, width:5, height:5, borderRadius:'50%', background:'#6ee7b7', display:'block', animation:'bbp-float1 1.7s ease-in-out infinite 1.0s' }} />
+          <span style={{ position:'absolute', bottom:6, left:68, width:6, height:6, borderRadius:2, background:'#bfdbfe', display:'block', animation:'bbp-float3 1.5s ease-in-out infinite 0.6s' }} />
+          <span style={{ position:'absolute', bottom:5, right:23, width:7, height:7, borderRadius:2, background:'#fce7f3', display:'block', animation:'bbp-float3 1.5s ease-in-out infinite' }} />
+          <span style={{ position:'absolute', bottom:7, left:43, width:6, height:6, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float3 2.1s ease-in-out infinite 0.1s' }} />
+          <span style={{ position:'absolute', bottom:9, right:12, width:9, height:9, borderRadius:2, background:'#fce7f3', display:'block', animation:'bbp-float3 1.7s ease-in-out infinite 0.5s' }} />
+          <span style={{ position:'absolute', bottom:6, left:71, width:9, height:9, borderRadius:2, background:'#c4b5fd', display:'block', animation:'bbp-float3 2.0s ease-in-out infinite 0.7s' }} />
+          <span style={{ position:'absolute', bottom:6, right:55, width:7, height:7, borderRadius:'50%', background:'#c4b5fd', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite 0.1s' }} />
+          <span style={{ position:'absolute', bottom:2, left:79, width:9, height:9, borderRadius:2, background:'#fce7f3', display:'block', animation:'bbp-float1 1.3s ease-in-out infinite 0.6s' }} />
+          <span style={{ position:'absolute', bottom:5, right:12, width:5, height:5, borderRadius:2, background:'#6ee7b7', display:'block', animation:'bbp-float3 1.4s ease-in-out infinite 0.7s' }} />
+          <span style={{ position:'absolute', bottom:5, left:73, width:6, height:6, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float1 2.0s ease-in-out infinite 0.8s' }} />
+          <span style={{ position:'absolute', bottom:5, right:16, width:5, height:5, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float2 1.6s ease-in-out infinite 0.5s' }} />
+          <span style={{ position:'absolute', bottom:2, left:90, width:5, height:5, borderRadius:'50%', background:'#fff', display:'block', animation:'bbp-float3 1.5s ease-in-out infinite 0.9s' }} />
+          <span style={{ position:'absolute', bottom:5, right:28, width:6, height:6, borderRadius:'50%', background:'#bfdbfe', display:'block', animation:'bbp-float1 1.6s ease-in-out infinite 0.3s' }} />
+          <span style={{ position:'absolute', bottom:5, left:13, width:8, height:8, borderRadius:2, background:'#bfdbfe', display:'block', animation:'bbp-float1 1.9s ease-in-out infinite 0.5s' }} />
+          <span style={{ position:'absolute', bottom:2, right:15, width:6, height:6, borderRadius:'50%', background:'#fce7f3', display:'block', animation:'bbp-float2 1.7s ease-in-out infinite 0.9s' }} />
+          <span style={{ position:'absolute', bottom:2, left:25, width:8, height:8, borderRadius:'50%', background:'#fff', display:'block', animation:'bbp-float2 2.1s ease-in-out infinite 0.8s' }} />
+          <span style={{ position:'absolute', bottom:6, right:58, width:9, height:9, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite 0.2s' }} />
+          <span style={{ position:'absolute', bottom:2, left:78, width:9, height:9, borderRadius:'50%', background:'#fff', display:'block', animation:'bbp-float1 1.3s ease-in-out infinite 0.5s' }} />
+          <span style={{ position:'absolute', bottom:10, right:24, width:5, height:5, borderRadius:2, background:'#bfdbfe', display:'block', animation:'bbp-float1 1.3s ease-in-out infinite 0.1s' }} />
+          <p style={{ color:'#fff', fontSize:15, fontWeight:600, margin:0, position:'relative', textShadow:'0 1px 3px rgba(0,0,0,0.3)' }}>
+            {getFeteIcon(fete)} Fête de {fete} !
+          </p>
+          <style>{`
+            @keyframes bbp-float1 { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-7px) rotate(12deg)} }
+            @keyframes bbp-float2 { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-10px) rotate(-18deg)} }
+            @keyframes bbp-float3 { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-6px) rotate(25deg)} }
+          `}</style>
+        </div>
       )}
     </div>
   )
@@ -321,23 +364,22 @@ export default function App() {
         </div>
       </div>
 
-      <DayHeader profile={profile} dark={dark} />
+      <DayHeader profile={profile} dark={dark}
+        onMeteoClick={openMeteo}
+        onOpenCityPicker={() => { setShowCityPicker(true) }}
+        cityKey={meteoKey} />
 
       <div className="px-3 pt-1.5 pb-8 max-w-lg mx-auto space-y-2">
 
-        {/* Hero — Agenda (multi-événements) */}
-        <AgendaWidget onClick={() => openApp('programme')} dark={dark} />
-
-        {/* Bisou — bandeau horizontal */}
+        {/* Bisou — bandeau tout en haut, remplace le greeting */}
         <BisouWidget profile={profile} hasBadge={bisouBadge} dark={dark}
           onClick={() => openApp('bisou')} />
 
-        {/* Ça Traîne — mis en avant, haut de page */}
+        {/* Ça Traîne */}
         <TraineWidget profile={profile} dark={dark} onClick={() => openApp('traine')} />
 
-        {/* Météo */}
-        <MeteoWidget key={meteoKey} profileId={profile?.id}
-          onOpenCityPicker={() => setShowCityPicker(true)} onClick={openMeteo} />
+        {/* Agenda — multi-événements */}
+        <AgendaWidget onClick={() => openApp('programme')} dark={dark} />
 
         {/* Mémoire + Courses — compact côte à côte */}
         <div className="flex gap-2 items-stretch">
