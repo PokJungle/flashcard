@@ -12,15 +12,22 @@ const TABS = [
   { id: 'done', emoji: '✅', label: 'Terminées' },
 ]
 
+const EMOJIS = [
+  '🛒','🧹','🔧','💊','📞','✉️','🏠','🚗','💰','📚',
+  '🎁','🌱','🍳','👔','💻','🎯','🏋️','🐕','💡','🔑',
+  '🧺','🪴','🎨','📦','🧴','🪥','🛁','🌿','🍷','🎵',
+]
+
+const EMPTY_FORM = { title: '', note: '', emoji: '' }
+
 export default function Traine({ profile, dark }) {
-  const [tasks, setTasks] = useState([])
+  const [tasks, setTasks]           = useState([])
   const [allProfiles, setAllProfiles] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('todo')
-  const [showAdd, setShowAdd] = useState(false)
-  const [newTitle, setNewTitle] = useState('')
-  const [newNote, setNewNote] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [loading, setLoading]       = useState(true)
+  const [tab, setTab]               = useState('todo')
+  const [modal, setModal]           = useState(null) // null | 'add' | task (pour edit)
+  const [form, setForm]             = useState(EMPTY_FORM)
+  const [saving, setSaving]         = useState(false)
 
   const { bg, card, border, border2, textPri, textSec, textMed } = useThemeColors(dark)
   const inputBg = dark ? '#0f0a1e' : '#ffffff'
@@ -37,13 +44,12 @@ export default function Traine({ profile, dark }) {
     setLoading(false)
   }
 
-  // priority_by est stocké en JSON texte dans Supabase
   const parsePriorityBy = (t) => ({
     ...t,
     priority_by: typeof t.priority_by === 'string' ? JSON.parse(t.priority_by) : (t.priority_by || [])
   })
 
-  const otherProfile = allProfiles.find(p => p.id !== profile.id)
+  const otherProfile    = allProfiles.find(p => p.id !== profile.id)
   const myPriorityCount = tasks.filter(t => !t.done && (t.priority_by || []).includes(profile.id)).length
 
   const visibleTasks = tasks
@@ -58,20 +64,25 @@ export default function Traine({ profile, dark }) {
       return new Date(a.created_at) - new Date(b.created_at)
     })
 
-  const addTask = async () => {
-    if (!newTitle.trim()) return
+  const openAdd = () => { setForm(EMPTY_FORM); setModal('add') }
+  const openEdit = (task) => { setForm({ title: task.title, note: task.note || '', emoji: task.emoji || '' }); setModal(task) }
+  const closeModal = () => { setModal(null); setForm(EMPTY_FORM) }
+
+  const saveTask = async () => {
+    if (!form.title.trim()) return
     setSaving(true)
-    const { data } = await supabase.from('traine_tasks').insert({
-      title: newTitle.trim(),
-      note: newNote.trim() || null,
-      created_by: profile.id,
-      priority_by: '[]',
-    }).select().single()
-    if (data) setTasks(prev => [...prev, parsePriorityBy(data)])
-    setNewTitle('')
-    setNewNote('')
-    setShowAdd(false)
+    const payload = { title: form.title.trim(), note: form.note.trim() || null, emoji: form.emoji || null }
+    if (modal === 'add') {
+      const { data } = await supabase.from('traine_tasks').insert({
+        ...payload, created_by: profile.id, priority_by: '[]',
+      }).select().single()
+      if (data) setTasks(prev => [...prev, parsePriorityBy(data)])
+    } else {
+      await supabase.from('traine_tasks').update(payload).eq('id', modal.id)
+      setTasks(prev => prev.map(t => t.id === modal.id ? { ...t, ...payload } : t))
+    }
     setSaving(false)
+    closeModal()
   }
 
   const toggleDone = async (task) => {
@@ -96,6 +107,8 @@ export default function Traine({ profile, dark }) {
   }
 
   const getProfile = (id) => allProfiles.find(p => p.id === id)
+
+  const isEditing = modal && modal !== 'add'
 
   if (loading) return (
     <div className="flex justify-center py-16" style={{ background: bg }}>
@@ -143,17 +156,21 @@ export default function Traine({ profile, dark }) {
                     boxShadow: bothPrio ? '0 0 0 1px #10b98130' : undefined,
                   }}>
 
-                  {/* Bouton priorité */}
+                  {/* Priorité */}
                   {!task.done && (
                     <button onClick={() => togglePriority(task)}
-                      className="flex-shrink-0 mt-0.5 active:scale-90 transition-transform"
-                      title={myPrio ? 'Retirer priorité' : myPriorityCount >= 3 ? 'Max 3 priorités' : 'Marquer prioritaire'}>
+                      className="flex-shrink-0 mt-0.5 active:scale-90 transition-transform">
                       <span className="text-lg" style={{ opacity: myPrio ? 1 : 0.2 }}>🔥</span>
                     </button>
                   )}
 
-                  {/* Contenu */}
-                  <div className="flex-1 min-w-0">
+                  {/* Emoji tâche */}
+                  {task.emoji && (
+                    <span className="text-xl flex-shrink-0 mt-0.5">{task.emoji}</span>
+                  )}
+
+                  {/* Contenu — tap pour éditer */}
+                  <button className="flex-1 min-w-0 text-left" onClick={() => !task.done && openEdit(task)}>
                     <p className="text-sm font-medium leading-snug"
                       style={{ color: textPri, textDecoration: task.done ? 'line-through' : 'none', opacity: task.done ? 0.5 : 1 }}>
                       {task.title}
@@ -170,7 +187,7 @@ export default function Traine({ profile, dark }) {
                         </span>
                       )}
                     </div>
-                  </div>
+                  </button>
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
@@ -192,12 +209,11 @@ export default function Traine({ profile, dark }) {
               )
             })}
           </div>
-
         </div>
       </div>
 
       {tab === 'todo' && (
-        <button onClick={() => setShowAdd(true)}
+        <button onClick={openAdd}
           className="fixed bottom-20 right-4 w-14 h-14 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform z-10"
           style={{ background: COLOR }}>
           <Plus size={24} color="white" />
@@ -206,28 +222,55 @@ export default function Traine({ profile, dark }) {
 
       <TabBar tabs={TABS} active={tab} onChange={setTab} color={COLOR} dark={dark} />
 
-      <BottomModal open={showAdd} onClose={() => { setShowAdd(false); setNewTitle(''); setNewNote('') }} dark={dark}>
-        <p className="font-bold text-base mb-4" style={{ color: textPri }}>🐌 Nouvelle tâche</p>
+      {/* Modal ajout / édition */}
+      <BottomModal open={!!modal} onClose={closeModal} dark={dark}>
+        <p className="font-bold text-base mb-4" style={{ color: textPri }}>
+          {isEditing ? '✏️ Modifier la tâche' : '🐌 Nouvelle tâche'}
+        </p>
+
+        {/* Picker emoji */}
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          <button onClick={() => setForm(f => ({ ...f, emoji: '' }))}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold transition-all"
+            style={{
+              background: !form.emoji ? COLOR : (dark ? '#1f2937' : '#f3f4f6'),
+              color: !form.emoji ? '#fff' : textSec,
+              border: `1px solid ${!form.emoji ? COLOR : border2}`
+            }}>
+            ∅
+          </button>
+          {EMOJIS.map(e => (
+            <button key={e} onClick={() => setForm(f => ({ ...f, emoji: e }))}
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-all active:scale-90"
+              style={{
+                background: form.emoji === e ? (dark ? '#052e16' : '#d1fae5') : (dark ? '#1f2937' : '#f3f4f6'),
+                border: `1px solid ${form.emoji === e ? COLOR : 'transparent'}`
+              }}>
+              {e}
+            </button>
+          ))}
+        </div>
+
         <input
-          value={newTitle}
-          onChange={e => setNewTitle(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && addTask()}
+          value={form.title}
+          onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+          onKeyDown={e => e.key === 'Enter' && saveTask()}
           placeholder="Quoi qui traîne ?"
           autoFocus
           className="w-full px-4 py-3 rounded-xl text-sm mb-3 focus:outline-none"
           style={{ background: inputBg, border: `1px solid ${border2}`, color: textPri }}
         />
         <input
-          value={newNote}
-          onChange={e => setNewNote(e.target.value)}
+          value={form.note}
+          onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
           placeholder="Note (optionnel)"
           className="w-full px-4 py-3 rounded-xl text-sm mb-4 focus:outline-none"
           style={{ background: inputBg, border: `1px solid ${border2}`, color: textPri }}
         />
-        <button onClick={addTask} disabled={!newTitle.trim() || saving}
+        <button onClick={saveTask} disabled={!form.title.trim() || saving}
           className="w-full py-3.5 rounded-full text-white font-semibold disabled:opacity-30 active:scale-95 transition-transform"
           style={{ background: COLOR }}>
-          {saving ? 'Ajout…' : 'Ajouter'}
+          {saving ? 'Sauvegarde…' : isEditing ? 'Modifier' : 'Ajouter'}
         </button>
       </BottomModal>
     </div>
