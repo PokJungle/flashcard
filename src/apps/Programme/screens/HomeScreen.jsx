@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
 import { daysUntil, getNextOccurrence } from '../hooks/useProgramme'
 import AddEventModal from './AddEventModal'
+import { useThemeColors } from '../../../hooks/useThemeColors'
 
 function getNextOccurrenceLabel(days) {
   const months = Math.round(days / 30)
@@ -53,15 +54,13 @@ function EventCard({ event, onDelete, dark }) {
   const days = daysUntil(event)
   const isUrgent = days <= 3
 
-  const cardBg     = dark ? '#1a1035' : '#ffffff'
+  const { card: cardBg, textPri, textSec } = useThemeColors(dark)
   const cardBorder = dark
     ? (isUrgent ? '#78350f' : '#2d1f5e')
     : (isUrgent ? '#fde68a' : '#f3f4f6')
   const iconBg = dark
     ? (isUrgent ? '#2d250a' : '#2d1f5e')
     : (isUrgent ? '#fffbeb' : '#f9fafb')
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
 
   return (
     <div className="rounded-2xl p-4 transition-all"
@@ -103,8 +102,7 @@ function EventCard({ event, onDelete, dark }) {
 function ListView({ events, loading, onDelete, dark }) {
   const urgent   = events.filter(e => daysUntil(e) <= 3)
   const upcoming = events.filter(e => daysUntil(e) > 3)
-  const textSec  = dark ? '#a78bfa' : '#9ca3af'
-  const textMed  = dark ? '#c4b5fd' : '#4b5563'
+  const { textSec, textMed } = useThemeColors(dark)
 
   if (loading) return (
     <div className="text-center py-20" style={{ color: textSec }}>
@@ -175,10 +173,7 @@ function MonthView({ events, onDelete, dark }) {
   for (let i = 0; i < startOffset; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
-  const card    = dark ? '#1a1035' : '#ffffff'
-  const border  = dark ? '#2d1f5e' : '#f3f4f6'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const { card, border, textPri, textSec } = useThemeColors(dark)
 
   return (
     <div>

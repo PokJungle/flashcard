@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { useThemeColors } from '../../../hooks/useThemeColors'
 
 const EMOJI_SUGGESTIONS = ['🎂', '🎉', '✈️', '🏥', '🎓', '💍', '🎸', '🍽️', '🎭', '🌿', '📅', '❤️']
 
@@ -27,10 +28,7 @@ export default function AddEventModal({ onAdd, onClose, dark }) {
     }
   }
 
-  const card     = dark ? '#1a1035' : '#ffffff'
-  const border   = dark ? '#2d1f5e' : '#e5e7eb'
-  const textPri  = dark ? '#e9d5ff' : '#111827'
-  const textSec  = dark ? '#a78bfa' : '#6b7280'
+  const { card, border, textPri, textSec } = useThemeColors(dark)
   const inputBg  = dark ? '#0f0a1e' : '#ffffff'
 
   return (

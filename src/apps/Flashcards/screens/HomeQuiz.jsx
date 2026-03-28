@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { Settings, Zap } from 'lucide-react'
 import { supabase } from '../../../supabase'
 import { THEMES, THEME_COLOR, QUIZ_SOURCES_KEY } from '../constants'
+import { useThemeColors } from '../../../hooks/useThemeColors'
+import { ls } from '../../../utils/localStorage'
 
 const THEME_MAP = Object.fromEntries(THEMES.map(t => [t.id, t]))
 
@@ -21,14 +23,14 @@ export default function HomeQuiz({ profile, onStartQuiz, onManageQuestions, dark
     ])
     setDecks(decksData || [])
     setFreeCount(freeQs?.length || 0)
-    setSources(JSON.parse(localStorage.getItem(QUIZ_SOURCES_KEY) || '{}'))
+    setSources(ls.get(QUIZ_SOURCES_KEY, {}))
     setLoading(false)
   }
 
   const toggleSource = (key) => {
     setSources(prev => {
       const next = { ...prev, [key]: prev[key] === false ? true : false }
-      localStorage.setItem(QUIZ_SOURCES_KEY, JSON.stringify(next))
+      ls.set(QUIZ_SOURCES_KEY, next)
       return next
     })
   }
@@ -43,12 +45,7 @@ export default function HomeQuiz({ profile, onStartQuiz, onManageQuestions, dark
   }, {})
 
   // Couleurs dark
-  const bg      = dark ? '#0f0a1e' : '#f9fafb'
-  const card    = dark ? '#1a1035' : '#ffffff'
-  const border  = dark ? '#2d1f5e' : '#f3f4f6'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
-  const textMed = dark ? '#c4b5fd' : '#4b5563'
+  const { bg, card, border, textPri, textSec, textMed } = useThemeColors(dark)
 
   return (
     <div className="flex-1 overflow-y-auto pb-6" style={{ background: bg }}>

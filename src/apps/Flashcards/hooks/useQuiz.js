@@ -1,17 +1,8 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '../../../supabase'
-import { QUIZ_SOURCES_KEY } from '../constants'
-
-const THEME_LABELS = {
-  sciences:     '🔬 Sciences',
-  histoire:     '🏛️ Histoire',
-  geographie:   '🌍 Géographie',
-  langues:      '💬 Langues',
-  culture:      '🎨 Culture',
-  sciences_nat: '🌿 Sciences nat.',
-  math:         '📐 Maths',
-  autre:        '✨ Autre',
-}
+import { QUIZ_SOURCES_KEY, THEME_LABELS } from '../constants'
+import { getActiveCriteria } from '../utils/criteriaUtils'
+import { ls } from '../../../utils/localStorage'
 
 function selectDiversified(questions, n) {
   if (questions.length <= n) return shuffle([...questions])
@@ -65,7 +56,7 @@ export function useQuiz(profile) {
     setScore({ points: 0, correct: 0, wrong: 0 })
 
     // Lire les sources cochées depuis localStorage
-    const savedSources = JSON.parse(localStorage.getItem(QUIZ_SOURCES_KEY) || '{}')
+    const savedSources = ls.get(QUIZ_SOURCES_KEY, {})
 
     const allQuestions = []
 
@@ -81,8 +72,8 @@ export function useQuiz(profile) {
       const sourceKey = `deck_${deck.id}`
       if (savedSources[sourceKey] === false) continue
 
-      const criteria = (allCriteria || []).filter(
-        c => c.deck_id === deck.id && c.interrogeable !== false && c.name !== 'verso'
+      const criteria = getActiveCriteria(
+        (allCriteria || []).filter(c => c.deck_id === deck.id)
       )
       if (!criteria.length) continue
 

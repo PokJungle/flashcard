@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../supabase'
 import { THEME_COLOR, THEMES } from '../constants'
+import { useThemeColors } from '../../../hooks/useThemeColors'
 
 const MASTERED_LEVEL = 4
 
@@ -77,12 +78,7 @@ export default function SessionEnd({ deck, stats, onBack, onRestart, profile, da
     setLoadingProgress(false)
   }
 
-  const bg      = dark ? '#0f0a1e' : '#f9fafb'
-  const card    = dark ? '#1a1035' : '#ffffff'
-  const border  = dark ? '#2d1f5e' : '#f3f4f6'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
-  const textMed = dark ? '#c4b5fd' : '#4b5563'
+  const { bg, card, border, textPri, textSec, textMed } = useThemeColors(dark)
 
   return (
     <div className="flex flex-col h-full overflow-y-auto" style={{ background: bg }}>

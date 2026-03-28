@@ -1,18 +1,16 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Plus, X, ChevronDown, ChevronUp, Camera, ExternalLink } from 'lucide-react'
-import { supabase } from '../../../supabase'
-import { THEMES } from '../constants'
-import { compressImage } from '../utils.js'
-
-const NEW_PER_DAY_KEY = (deckId) => `memoire-new-per-day-${deckId}`
-const NEW_PER_DAY_DEFAULT = 10
+import { ArrowLeft, Plus, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { supabase } from '../../../../supabase'
+import { THEMES } from '../../constants'
+import { compressImage } from '../../utils.js'
+import { useThemeColors } from '../../../../hooks/useThemeColors'
+import { getNewPerDay, setNewPerDay } from '../../services/progressStorage'
+import CriterionForm from './CriterionForm'
+import CardForm from './CardForm'
 
 export default function ManageDeck({ deck, dark, onBack, onDelete }) {
   const [deckInfo, setDeckInfo]     = useState({ name: deck.name, theme: deck.theme, description: deck.description || '' })
-  const [newPerDay, setNewPerDay]   = useState(() => {
-    const saved = localStorage.getItem(NEW_PER_DAY_KEY(deck.id))
-    return saved ? parseInt(saved) : NEW_PER_DAY_DEFAULT
-  })
+  const [newPerDay, setNewPerDayState] = useState(() => getNewPerDay(deck.id))
   const [criteria, setCriteria]     = useState([])
   const [cards, setCards]           = useState([])
   const [cardValues, setCardValues] = useState({})
@@ -155,13 +153,7 @@ export default function ManageDeck({ deck, dark, onBack, onDelete }) {
     return null
   }
 
-  // ── Couleurs dark ──
-  const bg      = dark ? '#0f0a1e' : '#f9fafb'
-  const card    = dark ? '#1a1035' : '#ffffff'
-  const border  = dark ? '#2d1f5e' : '#f3f4f6'
-  const border2 = dark ? '#2d1f5e' : '#e5e7eb'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const { bg, card, border, border2, textPri, textSec } = useThemeColors(dark)
   const inputBg = dark ? '#0f0a1e' : '#ffffff'
 
   if (loading) return (
@@ -231,8 +223,8 @@ export default function ManageDeck({ deck, dark, onBack, onDelete }) {
               {[5, 10, 20, 999].map(n => (
                 <button key={n}
                   onClick={() => {
-                    setNewPerDay(n)
-                    localStorage.setItem(NEW_PER_DAY_KEY(deck.id), String(n))
+                    setNewPerDayState(n)
+                    setNewPerDay(deck.id, n)
                   }}
                   className="flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all"
                   style={{
@@ -392,9 +384,9 @@ export default function ManageDeck({ deck, dark, onBack, onDelete }) {
   )
 }
 
-// ── Section repliable ──────────────────────────────────────
+// ── Section repliable (locale à ManageDeck) ────────────────
 function Section({ title, isOpen, onToggle, action, children, dark }) {
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const { textSec } = useThemeColors(dark)
   return (
     <div className="mx-4 mt-4">
       <div className="flex items-center justify-between mb-2 px-1">
@@ -406,149 +398,6 @@ function Section({ title, isOpen, onToggle, action, children, dark }) {
         {action}
       </div>
       {isOpen && children}
-    </div>
-  )
-}
-
-// ── Formulaire critère ─────────────────────────────────────
-function CriterionForm({ form, onChange, onSave, onCancel, isNew, allCriteria = [], dark }) {
-  const border  = dark ? '#2d1f5e' : '#e5e7eb'
-  const inputBg = dark ? '#0f0a1e' : '#ffffff'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
-  const otherCriteria = allCriteria.filter(c => c.name !== form.name)
-
-  return (
-    <div className="px-3 pb-3 pt-2 space-y-2" style={{ borderTop: `1px solid ${border}` }}>
-      <div className="flex gap-2">
-        <input
-          value={form.name}
-          onChange={e => onChange(p => ({ ...p, name: e.target.value }))}
-          placeholder="Nom du critère (ex: drapeau)"
-          className="flex-1 text-sm px-3 py-2 rounded-xl focus:outline-none"
-          style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }}
-        />
-        <select
-          value={form.type}
-          onChange={e => onChange(p => ({ ...p, type: e.target.value }))}
-          className="text-sm px-2 py-2 rounded-xl focus:outline-none"
-          style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }}>
-          <option value="text">📝 texte</option>
-          <option value="image">🖼️ image</option>
-        </select>
-      </div>
-      <input
-        value={form.question_title}
-        onChange={e => onChange(p => ({ ...p, question_title: e.target.value }))}
-        placeholder="Question posée (ex: Quel est ce pays ?)"
-        className="w-full text-sm px-3 py-2 rounded-xl focus:outline-none"
-        style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }}
-      />
-      {form.interrogeable && otherCriteria.length > 0 && (
-        <div>
-          <label className="text-xs block mb-1" style={{ color: textSec }}>Réponse attendue en Quiz</label>
-          <select
-            value={form.quiz_answer_criterion_id || ''}
-            onChange={e => onChange(p => ({ ...p, quiz_answer_criterion_id: e.target.value || null }))}
-            className="w-full text-sm px-3 py-2 rounded-xl focus:outline-none"
-            style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }}>
-            <option value="">— Non configuré —</option>
-            {otherCriteria.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
-      )}
-      <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: textPri }}>
-        <input
-          type="checkbox"
-          checked={form.interrogeable}
-          onChange={e => onChange(p => ({ ...p, interrogeable: e.target.checked }))}
-          className="accent-indigo-500"
-        />
-        Utilisé comme question (interrogeable)
-      </label>
-      <div className="flex gap-2 pt-1">
-        <button onClick={onSave} disabled={!form.name.trim()}
-          className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-30"
-          style={{ background: dark ? '#7c3aed' : '#111827' }}>
-          {isNew ? 'Ajouter' : 'Sauvegarder'}
-        </button>
-        <button onClick={onCancel}
-          className="px-4 py-2 rounded-xl text-sm"
-          style={{ background: dark ? '#2d1f5e' : '#f3f4f6', color: textPri }}>
-          Annuler
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ── Formulaire carte ───────────────────────────────────────
-function CardForm({ criteria, form, onChange, onSave, onCancel, saving, onImageUpload, uploadingCriterion, dark }) {
-  const border  = dark ? '#2d1f5e' : '#e5e7eb'
-  const inputBg = dark ? '#0f0a1e' : '#ffffff'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
-
-  return (
-    <div className="px-3 pb-3 pt-1 space-y-2" style={{ borderTop: `1px solid ${border}` }}>
-      {criteria.map(c => (
-        <div key={c.id}>
-          <label className="text-xs mb-1 block capitalize" style={{ color: textSec }}>{c.name}</label>
-          {c.type === 'image' ? (
-            <div className="space-y-1.5">
-              {form[c.id] && (
-                <img src={form[c.id]} alt="" className="h-20 object-contain rounded-xl"
-                  style={{ border: `1px solid ${border}` }} />
-              )}
-              <div className="flex gap-2">
-                <label className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm cursor-pointer active:scale-95 transition-transform"
-                  style={{ background: dark ? '#2d1f5e' : '#f3f4f6', color: textPri }}>
-                  <Camera size={14} />
-                  {uploadingCriterion === c.id ? 'Upload…' : 'Photo'}
-                  <input type="file" accept="image/*" capture="environment" className="hidden"
-                    onChange={e => onImageUpload(e, c.id)} />
-                </label>
-                <input
-                  value={form[c.id] || ''}
-                  onChange={e => onChange(p => ({ ...p, [c.id]: e.target.value }))}
-                  placeholder="ou coller une URL…"
-                  className="flex-1 text-xs px-3 py-2 rounded-xl focus:outline-none"
-                  style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }}
-                />
-              </div>
-              {form[c.id] && (
-                <a href={`https://fr.wikipedia.org/wiki/${encodeURIComponent(form[c.id])}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-blue-400">
-                  <ExternalLink size={11} /> Chercher sur Wikipédia
-                </a>
-              )}
-            </div>
-          ) : (
-            <input
-              value={form[c.id] || ''}
-              onChange={e => onChange(p => ({ ...p, [c.id]: e.target.value }))}
-              placeholder={c.question_title || c.name}
-              className="w-full text-sm px-3 py-2 rounded-xl focus:outline-none"
-              style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }}
-            />
-          )}
-        </div>
-      ))}
-      <div className="flex gap-2 pt-1">
-        <button onClick={onSave} disabled={saving}
-          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 active:scale-95 transition-transform"
-          style={{ background: dark ? '#7c3aed' : '#111827' }}>
-          {saving ? 'Sauvegarde…' : 'Sauvegarder'}
-        </button>
-        <button onClick={onCancel}
-          className="px-4 py-2.5 rounded-xl text-sm"
-          style={{ background: dark ? '#2d1f5e' : '#f3f4f6', color: textPri }}>
-          Annuler
-        </button>
-      </div>
     </div>
   )
 }

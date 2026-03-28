@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { THEME_COLOR, THEMES } from '../constants'
+import { useThemeColors } from '../../../hooks/useThemeColors'
 
 export default function StudyScreen({ profile, deck, session, currentItem, idx, onRate, onSkip, onBack, dark }) {
   const [revealed, setRevealed] = useState(false)
@@ -45,10 +46,7 @@ export default function StudyScreen({ profile, deck, session, currentItem, idx, 
   const wikiTerm = wikiCrit ? cardValues[wikiCrit.id] : (isImageCrit ? null : questionValue)
   const wikiUrl  = wikiTerm ? `https://fr.wikipedia.org/wiki/${encodeURIComponent(wikiTerm)}` : null
 
-  // Les cartes blanches s'adaptent au dark mode
-  const cardBg   = dark ? '#1a1035' : '#ffffff'
-  const cardText = dark ? '#e9d5ff' : '#1f2937'
-  const cardSub  = dark ? '#a78bfa' : '#9ca3af'
+  const { card: cardBg, textPri: cardText, textSec: cardSub } = useThemeColors(dark)
   const revealBg = dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.15)'
 
   return (

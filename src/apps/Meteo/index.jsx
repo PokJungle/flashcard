@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Search, StarOff, Wind, Droplets, ChevronRight, ArrowLeft, X } from 'lucide-react'
+import { useThemeColors } from '../../hooks/useThemeColors'
+import { ls } from '../../utils/localStorage'
+import Spinner from '../../components/Spinner'
 
 // URLs préconfigurées pour certaines villes
 const CITY_URLS = {
@@ -95,10 +98,7 @@ function getCountryCode(city) {
 }
 
 export default function Meteo({ initialCity, dark }) {
-  const [favorites, setFavorites] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('meteo-fav2') || 'null') || [DEFAULT_CITY] }
-    catch { return [DEFAULT_CITY] }
-  })
+  const [favorites, setFavorites] = useState(() => ls.get('meteo-fav2') || [DEFAULT_CITY])
   const [activeCity, setActiveCity] = useState(favorites[0])
   const [modelData, setModelData] = useState({})
   const [loading, setLoading] = useState(false)
@@ -119,7 +119,7 @@ export default function Meteo({ initialCity, dark }) {
     }
   }, []) // une seule fois au mount
 
-  useEffect(() => { localStorage.setItem('meteo-fav2', JSON.stringify(favorites)) }, [favorites])
+  useEffect(() => { ls.set('meteo-fav2', favorites) }, [favorites])
   useEffect(() => { if (activeCity) loadWeather() }, [activeCity])
 
   const loadWeather = async () => {
@@ -209,13 +209,7 @@ export default function Meteo({ initialCity, dark }) {
   const meteoCielLabel = cityUrls.meteociel ? '🌦️ MétéoCiel' : '🔍 MétéoCiel'
   const weather24Label = cityUrls.weather24 ? '🇫🇷 Météo France' : '🔍 Weather24'
 
-  // ── Couleurs dark mode ──
-  const bg     = dark ? '#0f0a1e' : '#f9fafb'
-  const card   = dark ? '#1a1035' : '#ffffff'
-  const border = dark ? '#2d1f5e' : '#f3f4f6'
-  const textPri  = dark ? '#e9d5ff' : '#111827'
-  const textSec  = dark ? '#a78bfa' : '#9ca3af'
-  const textMed  = dark ? '#c4b5fd' : '#4b5563'
+  const { bg, card, border, textPri, textSec, textMed } = useThemeColors(dark)
 
   return (
     <div className="h-full overflow-y-auto" style={{ background: bg }}>
@@ -243,8 +237,7 @@ export default function Meteo({ initialCity, dark }) {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <div className="w-8 h-8 rounded-full animate-spin"
-            style={{ border: `3px solid ${border}`, borderTopColor: dark ? '#a78bfa' : '#374151' }} />
+          <Spinner color={dark ? '#a78bfa' : '#374151'} />
           <p className="text-xs" style={{ color: textSec }}>Chargement des modèles météo…</p>
         </div>
 

@@ -1,10 +1,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '../../../supabase'
-
-const NEW_PER_DAY_KEY  = (deckId) => `memoire-new-per-day-${deckId}`
-const NEW_SEEN_KEY     = (deckId) => `memoire-new-seen-${deckId}-${new Date().toISOString().slice(0,10)}`
-const DONE_TODAY_KEY   = (deckId) => `memoire-done-today-${deckId}-${new Date().toISOString().slice(0,10)}`
-const NEW_PER_DAY_DEFAULT = 10
+import { getActiveCriteria } from '../utils/criteriaUtils'
+import { getNewPerDay, getNewSeenToday, markCardSeenToday, incrementDoneToday } from '../services/progressStorage'
 
 function computeNextReview(currentLevel, rating) {
   let newLevel, daysUntilNext
@@ -23,15 +20,6 @@ function computeNextReview(currentLevel, rating) {
   return { newLevel, next }
 }
 
-function sortByPriority(items) {
-  const now = Date.now()
-  return [...items].sort((a, b) => {
-    const aScore = a.next_review === null ? Infinity : (now - new Date(a.next_review).getTime())
-    const bScore = b.next_review === null ? Infinity : (now - new Date(b.next_review).getTime())
-    if (Math.abs(aScore - bScore) > 3600000) return bScore - aScore
-    return Math.random() - 0.5
-  })
-}
 
 export function useStudySession(profile) {
   const [session, setSession]           = useState(null)
@@ -52,7 +40,7 @@ export function useStudySession(profile) {
       .eq('deck_id', deck.id)
       .order('position')
 
-    const activeCriteria = (criteria || []).filter(c => c.interrogeable !== false && c.name !== 'verso')
+    const activeCriteria = getActiveCriteria(criteria)
     console.log('activeCriteria:', activeCriteria)
 
     const { data: cards } = await supabase
@@ -116,9 +104,8 @@ export function useStudySession(profile) {
 
     // Limite nouvelles cartes/jour — la limite est en CARTES, pas en items
     // Une carte avec 3 critères = 1 nouvelle carte, pas 3
-    const newPerDay    = parseInt(localStorage.getItem(NEW_PER_DAY_KEY(deck.id)) || NEW_PER_DAY_DEFAULT)
-    const newSeenKey   = NEW_SEEN_KEY(deck.id)
-    const newSeenToday = parseInt(localStorage.getItem(newSeenKey) || '0')
+    const newPerDay    = getNewPerDay(deck.id)
+    const newSeenToday = getNewSeenToday(deck.id)
     const newRemaining = newPerDay === 999 ? Infinity : Math.max(0, newPerDay - newSeenToday)
 
     // Grouper les jamais vus par cardId pour compter en cartes
@@ -219,21 +206,13 @@ export function useStudySession(profile) {
       // Incrémenter le compteur de nouvelles cartes vues aujourd'hui
       // On ne compte qu'une fois par cardId (pas par critère)
       if (session?.deck?.id) {
-        const key = NEW_SEEN_KEY(session.deck.id)
-        const seenCards = JSON.parse(localStorage.getItem(key + '_ids') || '[]')
-        if (!seenCards.includes(item.cardId)) {
-          seenCards.push(item.cardId)
-          localStorage.setItem(key + '_ids', JSON.stringify(seenCards))
-          localStorage.setItem(key, String(seenCards.length))
-        }
+        markCardSeenToday(session.deck.id, item.cardId)
       }
     }
 
-    // Incrémenter le compteur de cartes faites aujourd'hui
+    // Incrémenter le compteur de questions faites aujourd'hui
     if (session?.deck?.id) {
-      const key = DONE_TODAY_KEY(session.deck.id)
-      const done = parseInt(localStorage.getItem(key) || '0')
-      localStorage.setItem(key, String(done + 1))
+      incrementDoneToday(session.deck.id)
     }
     setSessionStats(s => ({ ...s, [rating]: s[rating] + 1 }))
     advanceIdx(session)

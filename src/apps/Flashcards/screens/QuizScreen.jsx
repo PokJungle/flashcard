@@ -1,70 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { ArrowLeft } from 'lucide-react'
-
-// ── Algo Cash ─────────────────────────────────────────────
-function normalize(s) {
-  return s.toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[''`]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function levenshtein(a, b) {
-  const m = a.length, n = b.length
-  const d = Array.from({ length: m + 1 }, (_, i) =>
-    Array.from({ length: n + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0)
-  )
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      d[i][j] = a[i-1] === b[j-1] ? d[i-1][j-1] : 1 + Math.min(d[i-1][j], d[i][j-1], d[i-1][j-1])
-  return d[m][n]
-}
-
-function cashThreshold(len) {
-  if (len <= 3)  return 0
-  if (len <= 6)  return 1
-  if (len <= 12) return 2
-  return 3
-}
-
-function checkCash(input, answer) {
-  const inp = normalize(input)
-  const ans = normalize(answer)
-  if (inp === ans) return { ok: true, exact: true, dist: 0 }
-  const dist = levenshtein(inp, ans)
-  const thr  = cashThreshold(ans.length)
-  if (dist <= thr) return { ok: true, exact: false, dist }
-  if (ans.includes(',') || ans.includes(';')) {
-    const parts = ans.split(/[,;]/).map(p => p.trim()).filter(Boolean)
-    for (const part of parts) {
-      const d = levenshtein(inp, part)
-      if (d <= cashThreshold(part.length)) return { ok: true, exact: d === 0, dist: d, partial: true }
-    }
-    if (ans.includes(inp) && inp.length >= 3) return { ok: true, exact: false, dist: 0, partial: true }
-  }
-  const presque = dist <= thr + 2
-  return { ok: false, exact: false, dist, presque }
-}
-
-// ── Config modes ───────────────────────────────────────────
-const MODES = [
-  { id: 'duo',   label: 'Duo',   pts: 1, desc: '2 choix',     dots: 1, color: '#0C447C', border: '#85B7EB', bg: '#E6F1FB', dotFull: '#185FA5', dotEmpty: '#B5D4F4' },
-  { id: 'carre', label: 'Carré', pts: 3, desc: '4 choix',     dots: 2, color: '#26215C', border: '#AFA9EC', bg: '#EEEDFE', dotFull: '#534AB7', dotEmpty: '#CECBF6' },
-  { id: 'cash',  label: 'Cash',  pts: 5, desc: 'texte libre', dots: 3, color: '#412402', border: '#FAC775', bg: '#FAEEDA', dotFull: '#854F0B', dotEmpty: '#FAC775' },
-]
-
-const THEME_COLORS = {
-  geographie:   { bg: '#E6F1FB', border: '#B5D4F4', text: '#185FA5' },
-  histoire:     { bg: '#FAECE7', border: '#F5C4B3', text: '#712B13' },
-  sciences:     { bg: '#E1F5EE', border: '#9FE1CB', text: '#085041' },
-  sciences_nat: { bg: '#EAF3DE', border: '#C0DD97', text: '#27500A' },
-  culture:      { bg: '#FBEAF0', border: '#F4C0D1', text: '#72243E' },
-  langues:      { bg: '#EEEDFE', border: '#CECBF6', text: '#3C3489' },
-  math:         { bg: '#FAEEDA', border: '#FAC775', text: '#633806' },
-  autre:        { bg: '#F1EFE8', border: '#D3D1C7', text: '#444441' },
-}
+import { useThemeColors } from '../../../hooks/useThemeColors'
+import { checkCash } from '../utils/quizEngine'
+import { QUIZ_MODES as MODES, QUIZ_THEME_COLORS as THEME_COLORS } from '../constants'
 
 export default function QuizScreen({
   currentQuestion, idx, total, score,
@@ -140,11 +78,7 @@ export default function QuizScreen({
   }
 
   // Couleurs dark
-  const bg      = dark ? '#0f0a1e' : '#f9fafb'
-  const card    = dark ? '#1a1035' : '#ffffff'
-  const border  = dark ? '#2d1f5e' : '#f3f4f6'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const { bg, card, border, textPri, textSec } = useThemeColors(dark)
   const optBg   = dark ? '#2d1f5e' : '#f9fafb'
   const optBorder = dark ? '#4338ca' : '#f3f4f6'
 

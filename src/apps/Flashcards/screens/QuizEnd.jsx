@@ -1,3 +1,5 @@
+import { useThemeColors } from '../../../hooks/useThemeColors'
+
 export default function QuizEnd({ score, total, onRestart, onBack, dark }) {
   const maxPoints = total * 5
   const pct      = maxPoints > 0 ? Math.round((score.points / maxPoints) * 100) : 0
@@ -5,11 +7,7 @@ export default function QuizEnd({ score, total, onRestart, onBack, dark }) {
   const emoji    = accuracy >= 80 ? '🎉' : accuracy >= 50 ? '💪' : '🐒'
   const message  = accuracy >= 80 ? 'Excellent !' : accuracy >= 50 ? 'Pas mal !' : 'Continue à t\'entraîner !'
 
-  const bg      = dark ? '#0f0a1e' : '#f9fafb'
-  const card    = dark ? '#1a1035' : '#ffffff'
-  const border  = dark ? '#2d1f5e' : '#e5e7eb'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const { bg, card, border, textPri, textSec } = useThemeColors(dark)
 
   return (
     <div className="flex flex-col h-full items-center justify-center px-6 text-center"

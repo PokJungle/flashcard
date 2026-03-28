@@ -2,31 +2,10 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase'
 import { ArrowLeft, Search, BookOpen, ShoppingCart, Plus, X, Check, Clock, Users, Settings } from 'lucide-react'
 import TabBar from '../../components/TabBar'
-
-const SPOONACULAR_KEY = import.meta.env.VITE_SPOONACULAR_KEY
-const CACHE_PREFIX = 'grimoire_cache_'
-const CACHE_TTL = 60 * 60 * 1000
-
-function cacheGet(key) {
-  try {
-    const raw = sessionStorage.getItem(CACHE_PREFIX + key)
-    if (!raw) return null
-    const { value, ts } = JSON.parse(raw)
-    if (Date.now() - ts > CACHE_TTL) { sessionStorage.removeItem(CACHE_PREFIX + key); return null }
-    return value
-  } catch { return null }
-}
-
-function cacheSet(key, value) {
-  try {
-    sessionStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ value, ts: Date.now() }))
-  } catch {
-    try {
-      const keys = Object.keys(sessionStorage).filter(k => k.startsWith(CACHE_PREFIX))
-      if (keys.length > 0) { sessionStorage.removeItem(keys[0]); sessionStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ value, ts: Date.now() })) }
-    } catch { }
-  }
-}
+import { useThemeColors } from '../../hooks/useThemeColors'
+import { getStartOfWeekKey } from '../../utils/dateUtils'
+import Spinner from '../../components/Spinner'
+import { translateOne, translateBatch, translateRecipe, searchRecipes, getTranslatedRecipeDetails } from './services/spoonacular'
 
 function getCurrentSeason() {
   const now = new Date()
@@ -70,92 +49,6 @@ function IngredientText({ text, dark }) {
   )
 }
 
-async function translateOne(text, langpair = 'en|fr') {
-  if (!text?.trim()) return text
-  const cacheKey = `tr_${langpair}_${text.slice(0, 120)}`
-  const cached = cacheGet(cacheKey)
-  if (cached) return cached
-  try {
-    const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langpair}`)
-    const d = await r.json()
-    const result = d.responseData?.translatedText || text
-    cacheSet(cacheKey, result)
-    return result
-  } catch { return text }
-}
-
-async function translateBatch(texts, langpair = 'en|fr', batchSize = 4, delayMs = 250) {
-  const results = new Array(texts.length)
-  for (let i = 0; i < texts.length; i += batchSize) {
-    const batch = texts.slice(i, i + batchSize)
-    const translated = await Promise.all(batch.map(t => translateOne(t, langpair)))
-    translated.forEach((t, j) => { results[i + j] = t })
-    if (i + batchSize < texts.length) await new Promise(r => setTimeout(r, delayMs))
-  }
-  return results
-}
-
-async function translateRecipe(recipe) {
-  const ingredients = recipe.extendedIngredients?.map(i => i.original) || []
-  const steps = recipe.analyzedInstructions?.[0]?.steps?.map(s => s.step) || []
-  const allTexts = [recipe.title, ...ingredients, ...steps]
-  const allTranslated = await translateBatch(allTexts)
-  return {
-    title: allTranslated[0] || recipe.title,
-    ingredients: allTranslated.slice(1, 1 + ingredients.length),
-    steps: allTranslated.slice(1 + ingredients.length),
-  }
-}
-
-async function searchRecipes(query, filters = {}) {
-  const key = `search_${query}_${JSON.stringify(filters)}`
-  const cached = cacheGet(key)
-  if (cached) return cached
-  const params = new URLSearchParams({ apiKey: SPOONACULAR_KEY, query, number: 12 })
-  if (filters.vegetarian) params.set('diet', 'vegetarian')
-  if (filters.maxTime) params.set('maxReadyTime', filters.maxTime)
-  const r = await fetch(`https://api.spoonacular.com/recipes/complexSearch?${params}`)
-  const d = await r.json()
-  const results = d.results || []
-  cacheSet(key, results)
-  return results
-}
-
-async function getRecipeDetails(id) {
-  const key = `detail_${id}`
-  const cached = cacheGet(key)
-  if (cached) return cached
-  const r = await fetch(`https://api.spoonacular.com/recipes/${id}/information?apiKey=${SPOONACULAR_KEY}&includeNutrition=false`)
-  const d = await r.json()
-  cacheSet(key, d)
-  return d
-}
-
-async function getTranslatedRecipeDetails(id) {
-  const key = `translated_${id}`
-  const cached = cacheGet(key)
-  if (cached) return cached
-  const details = await getRecipeDetails(id)
-  const translated = await translateRecipe(details)
-  const result = {
-    ...details,
-    title: translated.title,
-    extendedIngredients: (details.extendedIngredients || []).map((ing, i) => ({ ...ing, original: translated.ingredients[i] || ing.original })),
-    analyzedInstructions: [{ steps: (translated.steps || []).map((step, i) => ({ step, number: i + 1 })) }],
-    _translated: true,
-  }
-  cacheSet(key, result)
-  return result
-}
-
-function getStartOfWeek() {
-  const d = new Date()
-  const day = d.getDay()
-  d.setDate(d.getDate() - day + (day === 0 ? -6 : 1))
-  d.setHours(0, 0, 0, 0)
-  return d.toISOString().split('T')[0]
-}
-
 const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 const DEFAULT_PANTRY = ["huile d'olive", 'huile', 'sel', 'poivre', 'sel et poivre']
 const GRIMOIRE_COLOR = '#f97316'
@@ -186,14 +79,7 @@ export default function Grimoire({ profile, initialShoppingList, dark }) {
   const [newPantryItem, setNewPantryItem] = useState('')
   const season = getCurrentSeason()
 
-  // ── Couleurs dark ──
-  const bg       = dark ? '#0f0a1e' : '#f9fafb'
-  const card     = dark ? '#1a1035' : '#ffffff'
-  const border   = dark ? '#2d1f5e' : '#f3f4f6'
-  const border2  = dark ? '#2d1f5e' : '#e5e7eb'
-  const textPri  = dark ? '#e9d5ff' : '#111827'
-  const textSec  = dark ? '#a78bfa' : '#9ca3af'
-  const textMed  = dark ? '#c4b5fd' : '#4b5563'
+  const { bg, card, border, border2, textPri, textSec, textMed } = useThemeColors(dark)
   const inputBg  = dark ? '#0f0a1e' : '#ffffff'
 
   useEffect(() => { loadSaved(); loadMealPlan(); loadPantry() }, [])
@@ -204,7 +90,7 @@ export default function Grimoire({ profile, initialShoppingList, dark }) {
   }
 
   const loadMealPlan = async () => {
-    const week = getStartOfWeek()
+    const week = getStartOfWeekKey()
     const { data } = await supabase.from('meal_plan').select('*').eq('profile_id', profile.id).eq('week_start', week).maybeSingle()
     setMealPlan(data?.meals || [])
     if (initialShoppingList) setShowShoppingList(true)
@@ -371,7 +257,7 @@ export default function Grimoire({ profile, initialShoppingList, dark }) {
   }
 
   const saveMealPlan = async (meals) => {
-    const week = getStartOfWeek()
+    const week = getStartOfWeekKey()
     await supabase.from('meal_plan').upsert({ profile_id: profile.id, week_start: week, meals }, { onConflict: 'profile_id,week_start' })
   }
 
@@ -788,7 +674,7 @@ export default function Grimoire({ profile, initialShoppingList, dark }) {
             )}
             {loading && (
               <div className="flex justify-center py-12">
-                <div className="w-8 h-8 rounded-full animate-spin" style={{ border: '3px solid #fed7aa', borderTopColor: '#f97316' }} />
+                <Spinner color="#f97316" />
               </div>
             )}
             <div className="grid grid-cols-2 gap-3">
