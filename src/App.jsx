@@ -339,12 +339,12 @@ export default function App() {
         {/* Mémoire */}
         <MemoireWidget profile={profile} dark={dark} onClick={() => openApp('flashcards')} />
 
-        {/* Courses + Ça Traîne */}
-        <div className="flex gap-2 items-stretch">
-          <CoursesWidget profileId={profile?.id} dark={dark}
-            onClick={() => openApp('recettes', { initialShoppingList: true })} />
-          <TraineWidget profile={profile} dark={dark} onClick={() => openApp('traine')} />
-        </div>
+        {/* Ça Traîne — full width, mis en avant */}
+        <TraineWidget profile={profile} dark={dark} onClick={() => openApp('traine')} />
+
+        {/* Courses */}
+        <CoursesWidget profileId={profile?.id} dark={dark}
+          onClick={() => openApp('recettes', { initialShoppingList: true })} />
 
         {/* Orbite */}
         <OrbiteWidget profile={profile} dark={dark} onClick={() => openApp('orbite')} />

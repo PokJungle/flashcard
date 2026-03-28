@@ -34,51 +34,60 @@ export default function OrbiteWidget({ profile, onClick, dark }) {
 
   if (!data || (data.myProps === 0 && data.otherProps === 0)) return null
 
-  const totalPct  = Math.min(data.total / data.target, 1)
-  const myShare   = data.total > 0 ? data.myProps / data.total : 0.5
+  const totalPct   = Math.min(data.total / data.target, 1)
+  const myShare    = data.total > 0 ? data.myProps / data.total : 0.5
   const otherShare = 1 - myShare
 
   return (
     <button onClick={onClick}
-      className="w-full rounded-2xl px-3.5 py-3 text-left active:scale-95 transition-all flex items-center gap-3"
+      className="w-full rounded-2xl px-3.5 py-3 text-left active:scale-95 transition-all"
       style={{
         background: dark ? '#0d1117' : '#0f172a',
         border: '1px solid rgba(255,122,30,0.2)',
       }}>
-      <span className="text-lg flex-shrink-0">💥</span>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-2 text-[10px] text-white/40">
-            <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background:'#ff7a1e' }} />
-              {profile.avatar}
-            </span>
-            {data.other && (
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background:'#4a8cff' }} />
-                {data.other.avatar}
-              </span>
-            )}
-          </div>
-          <span className="text-[10px] font-mono font-bold"
-            style={{ color: data.launched ? '#ff7a1e' : 'rgba(255,255,255,0.35)' }}>
-            {Math.round(totalPct * 100)}%
-            {data.launched && ' 🚀'}
+      <div className="flex items-center gap-3">
+        {/* Légende gauche */}
+        <div className="flex items-center gap-2 flex-shrink-0 text-[10px] text-white/40">
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background:'#ff7a1e' }} />
+            {profile.avatar}
           </span>
+          {data.other && (
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background:'#4a8cff' }} />
+              {data.other.avatar}
+            </span>
+          )}
         </div>
 
-        {/* Jauge unique empilée */}
-        <div className="h-3 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+        {/* Barre + explosion à la fin */}
+        <div className="flex-1 relative h-3">
+          {/* Rail */}
+          <div className="absolute inset-0 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }} />
+          {/* Remplissage empilé */}
           {totalPct > 0 && (
-            <div className="h-full flex" style={{ width: `${totalPct * 100}%` }}>
+            <div className="absolute left-0 top-0 h-full rounded-full overflow-hidden"
+              style={{ width: `${totalPct * 100}%`, display: 'flex' }}>
               <div style={{ flex: myShare, background: 'linear-gradient(90deg,#ffb34d,#ff7a1e)' }} />
               {data.other && (
                 <div style={{ flex: otherShare, background: 'linear-gradient(90deg,#6aa8ff,#4a8cff)' }} />
               )}
             </div>
           )}
+          {/* 💥 à la pointe de la barre */}
+          {totalPct > 0 && (
+            <span className="absolute top-1/2 -translate-y-1/2 text-[14px] leading-none pointer-events-none"
+              style={{ left: `calc(${totalPct * 100}% - 8px)` }}>
+              💥
+            </span>
+          )}
         </div>
+
+        {/* % à droite */}
+        <span className="text-[11px] font-mono font-bold flex-shrink-0 w-8 text-right"
+          style={{ color: data.launched ? '#ff7a1e' : 'rgba(255,255,255,0.35)' }}>
+          {Math.round(totalPct * 100)}%
+        </span>
       </div>
     </button>
   )
