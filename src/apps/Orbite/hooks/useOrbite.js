@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../../supabase'
+import { getWeekStart, getWeekEnd } from '../../../utils/dateUtils'
 
 const DEFAULT_SETTINGS = {
   daily_goal: 1000,
@@ -11,21 +12,6 @@ const DEFAULT_SETTINGS = {
   rate_workout_sessions: 500,
 }
 
-function getWeekStart(date = new Date()) {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-function getWeekEnd(weekStart) {
-  const d = new Date(weekStart)
-  d.setDate(d.getDate() + 6)
-  d.setHours(23, 59, 59, 999)
-  return d
-}
 
 export function useOrbite(profile) {
   const [activities, setActivities] = useState([])

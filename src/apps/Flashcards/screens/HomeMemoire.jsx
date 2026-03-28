@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Upload, Settings, Plus, X, Check } from 'lucide-react'
 import { supabase } from '../../../supabase'
 import { THEMES, THEME_COLOR } from '../constants'
+import { useThemeColors } from '../../../hooks/useThemeColors'
+import { ls } from '../../../utils/localStorage'
 
 const ACTIVE_DECKS_KEY = (profileId) => `memoire-active-decks-${profileId}`
 
@@ -13,11 +15,7 @@ export default function HomeMemoire({
   const [showNewDeck, setShowNewDeck] = useState(false)
   const [launchDeck, setLaunchDeck]   = useState(null)
 
-  const getActiveDecks = () => {
-    try { return JSON.parse(localStorage.getItem(ACTIVE_DECKS_KEY(profile.id)) || 'null') }
-    catch { return null }
-  }
-  const [activeDecks, setActiveDecks] = useState(() => getActiveDecks())
+  const [activeDecks, setActiveDecks] = useState(() => ls.get(ACTIVE_DECKS_KEY(profile.id)))
 
   const isActive = (deckId) => activeDecks === null || activeDecks.includes(deckId)
 
@@ -29,7 +27,7 @@ export default function HomeMemoire({
         : [...current, deckId]
       const allActive = decks.every(d => next.includes(d.id))
       const result = allActive ? null : next
-      localStorage.setItem(ACTIVE_DECKS_KEY(profile.id), JSON.stringify(result))
+      ls.set(ACTIVE_DECKS_KEY(profile.id), result)
       return result
     })
   }
@@ -40,8 +38,7 @@ export default function HomeMemoire({
 
   const themesPresents = THEMES.filter(t => decks.some(d => d.theme === t.id))
 
-  const bg      = dark ? '#0f0a1e' : '#f9fafb'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const { bg, textSec } = useThemeColors(dark)
 
   return (
     <div className="flex-1 overflow-y-auto pb-4" style={{ background: bg }}>
@@ -181,10 +178,8 @@ function DeckCard({ deck, themeEmoji, due, criteria, color, active, filterMode, 
     ? Math.round(criteria.reduce((s, c) => s + c.pct, 0) / criteria.length)
     : 0
 
-  const cardBg     = dark ? '#1a1035' : '#ffffff'
+  const { card: cardBg, textPri, textSec } = useThemeColors(dark)
   const cardBorder = dark ? (active ? '#2d1f5e' : '#1e1040') : (active ? '#f3f4f6' : '#e5e7eb')
-  const textPri    = dark ? '#e9d5ff' : '#111827'
-  const textSec    = dark ? '#7c6aad' : '#9ca3af'
 
   return (
     <div className="rounded-2xl border shadow-sm overflow-hidden relative transition-opacity"
@@ -300,11 +295,8 @@ function NewDeckModal({ onClose, onCreate, dark }) {
     setSaving(false)
   }
 
-  const cardBg  = dark ? '#1a1035' : '#ffffff'
+  const { card: cardBg, border, textPri, textSec } = useThemeColors(dark)
   const inputBg = dark ? '#0f0a1e' : '#ffffff'
-  const border  = dark ? '#2d1f5e' : '#e5e7eb'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={onClose}>
@@ -367,10 +359,7 @@ function LaunchModal({ deck, stats, color, dark, onClose, onStart }) {
     onStart(MODES.find(m => m.id === mode).limit)
   }
 
-  const cardBg  = dark ? '#1a1035' : '#ffffff'
-  const border  = dark ? '#2d1f5e' : '#f3f4f6'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const { card: cardBg, border, textPri, textSec } = useThemeColors(dark)
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={onClose}>

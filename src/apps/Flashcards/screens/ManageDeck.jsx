@@ -3,6 +3,7 @@ import { ArrowLeft, Plus, X, ChevronDown, ChevronUp, Camera, ExternalLink } from
 import { supabase } from '../../../supabase'
 import { THEMES } from '../constants'
 import { compressImage } from '../utils.js'
+import { useThemeColors } from '../../../hooks/useThemeColors'
 
 const NEW_PER_DAY_KEY = (deckId) => `memoire-new-per-day-${deckId}`
 const NEW_PER_DAY_DEFAULT = 10
@@ -156,12 +157,7 @@ export default function ManageDeck({ deck, dark, onBack, onDelete }) {
   }
 
   // ── Couleurs dark ──
-  const bg      = dark ? '#0f0a1e' : '#f9fafb'
-  const card    = dark ? '#1a1035' : '#ffffff'
-  const border  = dark ? '#2d1f5e' : '#f3f4f6'
-  const border2 = dark ? '#2d1f5e' : '#e5e7eb'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const { bg, card, border, border2, textPri, textSec } = useThemeColors(dark)
   const inputBg = dark ? '#0f0a1e' : '#ffffff'
 
   if (loading) return (
@@ -394,7 +390,7 @@ export default function ManageDeck({ deck, dark, onBack, onDelete }) {
 
 // ── Section repliable ──────────────────────────────────────
 function Section({ title, isOpen, onToggle, action, children, dark }) {
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const { textSec } = useThemeColors(dark)
   return (
     <div className="mx-4 mt-4">
       <div className="flex items-center justify-between mb-2 px-1">
@@ -412,10 +408,8 @@ function Section({ title, isOpen, onToggle, action, children, dark }) {
 
 // ── Formulaire critère ─────────────────────────────────────
 function CriterionForm({ form, onChange, onSave, onCancel, isNew, allCriteria = [], dark }) {
-  const border  = dark ? '#2d1f5e' : '#e5e7eb'
+  const { border, textPri, textSec } = useThemeColors(dark)
   const inputBg = dark ? '#0f0a1e' : '#ffffff'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
   const otherCriteria = allCriteria.filter(c => c.name !== form.name)
 
   return (
@@ -486,10 +480,8 @@ function CriterionForm({ form, onChange, onSave, onCancel, isNew, allCriteria = 
 
 // ── Formulaire carte ───────────────────────────────────────
 function CardForm({ criteria, form, onChange, onSave, onCancel, saving, onImageUpload, uploadingCriterion, dark }) {
-  const border  = dark ? '#2d1f5e' : '#e5e7eb'
+  const { border, textPri, textSec } = useThemeColors(dark)
   const inputBg = dark ? '#0f0a1e' : '#ffffff'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
 
   return (
     <div className="px-3 pb-3 pt-1 space-y-2" style={{ borderTop: `1px solid ${border}` }}>

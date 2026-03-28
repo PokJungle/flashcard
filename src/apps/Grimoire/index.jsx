@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase'
 import { ArrowLeft, Search, BookOpen, ShoppingCart, Plus, X, Check, Clock, Users, Settings } from 'lucide-react'
 import TabBar from '../../components/TabBar'
+import { useThemeColors } from '../../hooks/useThemeColors'
+import { getStartOfWeekKey } from '../../utils/dateUtils'
+import Spinner from '../../components/Spinner'
 
 const SPOONACULAR_KEY = import.meta.env.VITE_SPOONACULAR_KEY
 const CACHE_PREFIX = 'grimoire_cache_'
@@ -148,13 +151,6 @@ async function getTranslatedRecipeDetails(id) {
   return result
 }
 
-function getStartOfWeek() {
-  const d = new Date()
-  const day = d.getDay()
-  d.setDate(d.getDate() - day + (day === 0 ? -6 : 1))
-  d.setHours(0, 0, 0, 0)
-  return d.toISOString().split('T')[0]
-}
 
 const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 const DEFAULT_PANTRY = ["huile d'olive", 'huile', 'sel', 'poivre', 'sel et poivre']
@@ -186,14 +182,7 @@ export default function Grimoire({ profile, initialShoppingList, dark }) {
   const [newPantryItem, setNewPantryItem] = useState('')
   const season = getCurrentSeason()
 
-  // ── Couleurs dark ──
-  const bg       = dark ? '#0f0a1e' : '#f9fafb'
-  const card     = dark ? '#1a1035' : '#ffffff'
-  const border   = dark ? '#2d1f5e' : '#f3f4f6'
-  const border2  = dark ? '#2d1f5e' : '#e5e7eb'
-  const textPri  = dark ? '#e9d5ff' : '#111827'
-  const textSec  = dark ? '#a78bfa' : '#9ca3af'
-  const textMed  = dark ? '#c4b5fd' : '#4b5563'
+  const { bg, card, border, border2, textPri, textSec, textMed } = useThemeColors(dark)
   const inputBg  = dark ? '#0f0a1e' : '#ffffff'
 
   useEffect(() => { loadSaved(); loadMealPlan(); loadPantry() }, [])
@@ -204,7 +193,7 @@ export default function Grimoire({ profile, initialShoppingList, dark }) {
   }
 
   const loadMealPlan = async () => {
-    const week = getStartOfWeek()
+    const week = getStartOfWeekKey()
     const { data } = await supabase.from('meal_plan').select('*').eq('profile_id', profile.id).eq('week_start', week).maybeSingle()
     setMealPlan(data?.meals || [])
     if (initialShoppingList) setShowShoppingList(true)
@@ -371,7 +360,7 @@ export default function Grimoire({ profile, initialShoppingList, dark }) {
   }
 
   const saveMealPlan = async (meals) => {
-    const week = getStartOfWeek()
+    const week = getStartOfWeekKey()
     await supabase.from('meal_plan').upsert({ profile_id: profile.id, week_start: week, meals }, { onConflict: 'profile_id,week_start' })
   }
 
@@ -788,7 +777,7 @@ export default function Grimoire({ profile, initialShoppingList, dark }) {
             )}
             {loading && (
               <div className="flex justify-center py-12">
-                <div className="w-8 h-8 rounded-full animate-spin" style={{ border: '3px solid #fed7aa', borderTopColor: '#f97316' }} />
+                <Spinner color="#f97316" />
               </div>
             )}
             <div className="grid grid-cols-2 gap-3">

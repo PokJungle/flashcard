@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { ArrowLeft } from 'lucide-react'
+import { useThemeColors } from '../../../hooks/useThemeColors'
 
 // ── Algo Cash ─────────────────────────────────────────────
 function normalize(s) {
@@ -140,11 +141,7 @@ export default function QuizScreen({
   }
 
   // Couleurs dark
-  const bg      = dark ? '#0f0a1e' : '#f9fafb'
-  const card    = dark ? '#1a1035' : '#ffffff'
-  const border  = dark ? '#2d1f5e' : '#f3f4f6'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const { bg, card, border, textPri, textSec } = useThemeColors(dark)
   const optBg   = dark ? '#2d1f5e' : '#f9fafb'
   const optBorder = dark ? '#4338ca' : '#f3f4f6'
 

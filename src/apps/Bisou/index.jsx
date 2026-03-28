@@ -1,16 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase'
+import { useThemeColors } from '../../hooks/useThemeColors'
+import { timeAgo } from '../../utils/dateUtils'
 
 const EMOJIS = ['💌','😘','🥰','💕','🐒','🚀','☀️','🌙','💤','😴','🍕','🎉','😅','🥲','💪','🌿','☕','🫶']
-
-function timeAgo(isoStr) {
-  const diff = Math.floor((Date.now() - new Date(isoStr)) / 1000)
-  if (diff < 60) return "à l'instant"
-  if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`
-  if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`
-  const d = new Date(isoStr)
-  return `${d.getDate()}/${d.getMonth() + 1}`
-}
 
 export default function Bisou({ profile, onSeen, dark }) {
   const [messages, setMessages] = useState([])
@@ -56,11 +49,7 @@ export default function Bisou({ profile, onSeen, dark }) {
   const latestProfile = latest ? profiles[latest.profile_id] : null
   const isMe = latest?.profile_id === profile.id
 
-  const bg      = dark ? '#0f0a1e' : '#f9fafb'
-  const card    = dark ? '#1a1035' : '#ffffff'
-  const border  = dark ? '#2d1f5e' : '#f3f4f6'
-  const textPri = dark ? '#e9d5ff' : '#374151'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const { bg, card, border, textPri, textSec } = useThemeColors(dark)
 
   return (
     <div className="h-full overflow-y-auto pb-8" style={{ background: bg }}>

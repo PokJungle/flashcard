@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Plus, X } from 'lucide-react'
 import { supabase } from '../../../supabase'
+import { useThemeColors } from '../../../hooks/useThemeColors'
+import BottomModal from '../../../components/BottomModal'
 
 const EMPTY_FORM = { question: '', answer: '', wrong_answers: ['', '', ''] }
 
@@ -52,11 +54,7 @@ export default function ManageQuestions({ profile, onBack, dark }) {
 
   const hasWrongs = (q) => q.wrong_answers?.filter(Boolean).length >= 2
 
-  const bg      = dark ? '#0f0a1e' : '#f9fafb'
-  const card    = dark ? '#1a1035' : '#ffffff'
-  const border  = dark ? '#2d1f5e' : '#f3f4f6'
-  const textPri = dark ? '#e9d5ff' : '#111827'
-  const textSec = dark ? '#a78bfa' : '#9ca3af'
+  const { bg, card, border, textPri, textSec } = useThemeColors(dark)
   const inputBg = dark ? '#0f0a1e' : '#ffffff'
   const inputBorder = dark ? '#2d1f5e' : '#e5e7eb'
 
@@ -148,33 +146,29 @@ export default function ManageQuestions({ profile, onBack, dark }) {
       </div>
 
       {/* Modal nouvelle question */}
-      {editing?.id === null && (
-        <div className="fixed inset-0 bg-black/50 flex items-end z-50" onClick={() => setEditing(null)}>
-          <div className="w-full rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto"
-            style={{ background: card }}
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-lg" style={{ color: textPri }}>✨ Nouvelle question</h2>
-              <button onClick={() => setEditing(null)}>
-                <X size={20} style={{ color: textSec }} />
-              </button>
-            </div>
-            <QuestionForm
-              form={form}
-              onChange={setForm}
-              onSave={save}
-              onCancel={() => setEditing(null)}
-              saving={saving}
-              dark={dark}
-              inputBg={inputBg}
-              inputBorder={inputBorder}
-              textPri={textPri}
-              textSec={textSec}
-              border={border}
-            />
+      <BottomModal open={editing?.id === null} onClose={() => setEditing(null)} cardBg={card}>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold text-lg" style={{ color: textPri }}>✨ Nouvelle question</h2>
+            <button onClick={() => setEditing(null)}>
+              <X size={20} style={{ color: textSec }} />
+            </button>
           </div>
+          <QuestionForm
+            form={form}
+            onChange={setForm}
+            onSave={save}
+            onCancel={() => setEditing(null)}
+            saving={saving}
+            dark={dark}
+            inputBg={inputBg}
+            inputBorder={inputBorder}
+            textPri={textPri}
+            textSec={textSec}
+            border={border}
+          />
         </div>
-      )}
+      </BottomModal>
     </div>
   )
 }
