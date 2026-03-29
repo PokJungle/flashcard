@@ -8,6 +8,7 @@ import Bisou from './apps/Bisou/index.jsx'
 import Programme from './apps/Programme/index.jsx'
 import Orbite from './apps/Orbite/index.jsx'
 import Traine from './apps/Traine/index.jsx'
+import Canon from './apps/Canon/index.jsx'
 
 import { useDarkMode } from './hooks/useDarkMode'
 import MeteoWidget, { getPreferredCity } from './components/widgets/MeteoWidget'
@@ -27,6 +28,7 @@ const APPS = [
   { id:'programme',  name:'Demandez le Programme !',   emoji:'🗞️', color:'#8B5CF6', component:Programme },
   { id:'orbite',     name:'Mise en Orbite',            emoji:'💥', color:'#FF7A1E', component:Orbite },
   { id:'traine',     name:'Ça Traîne',                 emoji:'🐌', color:'#10b981', component:Traine },
+  { id:'canon',      name:'Canon',                     emoji:'🍷', color:'#9b1c1c', component:Canon },
 ]
 const HUB_APPS = APPS.filter(a => a.id !== 'bisou')
 const APPS_EN_PREP = [
