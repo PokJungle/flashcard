@@ -10,7 +10,7 @@ const PROGRAMME_TABS = [
 ]
 
 export default function Programme({ profile, dark }) {
-  const { events, loading, error, addEvent, deleteEvent } = useProgramme()
+  const { events, loading, error, addEvent, updateEvent, deleteEvent } = useProgramme()
   const [view, setView] = useState('list')
 
   return (
@@ -26,6 +26,7 @@ export default function Programme({ profile, dark }) {
           events={events}
           loading={loading}
           onAdd={addEvent}
+          onUpdate={updateEvent}
           onDelete={deleteEvent}
           profile={profile}
           view={view}

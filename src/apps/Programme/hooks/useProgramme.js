@@ -29,9 +29,26 @@ export function daysUntil(event) {
   return Math.round(diff / (1000 * 60 * 60 * 24))
 }
 
+// Est-ce que l'événement est actuellement en cours (multi-jours) ?
+export function isOngoing(event) {
+  if (!event.event_end_date) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const [y, m, d] = event.event_date.split('-').map(Number)
+  const start = new Date(y, m - 1, d)
+  const end = new Date(event.event_end_date + 'T00:00:00')
+  return start <= today && today <= end
+}
+
 // Est-ce que l'événement est passé (et non annuel) ?
 export function isPast(event) {
   if (event.is_annual) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  if (event.event_end_date) {
+    const end = new Date(event.event_end_date + 'T00:00:00')
+    return end < today
+  }
   return daysUntil(event) < 0
 }
 
@@ -63,11 +80,12 @@ export default function useProgramme() {
     fetchEvents()
   }, [fetchEvents])
 
-  const addEvent = async ({ title, emoji, event_date, event_time, note, is_annual, profile_id }) => {
+  const addEvent = async ({ title, emoji, event_date, event_end_date, event_time, note, is_annual, profile_id }) => {
     const { error } = await supabase.from('programme_events').insert([{
       title,
       emoji: emoji || '📅',
       event_date,
+      event_end_date: event_end_date || null,
       event_time: event_time || null,
       note: note || null,
       is_annual: is_annual || false,
@@ -77,11 +95,12 @@ export default function useProgramme() {
     await fetchEvents()
   }
 
-  const updateEvent = async (id, { title, emoji, event_date, event_time, note, is_annual }) => {
+  const updateEvent = async (id, { title, emoji, event_date, event_end_date, event_time, note, is_annual }) => {
     const { error } = await supabase.from('programme_events').update({
       title,
       emoji: emoji || '📅',
       event_date,
+      event_end_date: event_end_date || null,
       event_time: event_time || null,
       note: note || null,
       is_annual: is_annual || false,
