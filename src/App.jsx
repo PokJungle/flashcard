@@ -107,6 +107,25 @@ function CityPicker({ profileId, onClose, dark }) {
   )
 }
 
+// ─── Calendrier lunaire biodynamique ─────────────────────────────────────────
+function getMoonDayType(date) {
+  const J2000 = new Date('2000-01-01T12:00:00Z')
+  const d = (date.getTime() - J2000.getTime()) / 86400000
+  const Lraw = 218.316 + 13.176396 * d
+  const Mrad = ((134.963 + 13.064993 * d) % 360) * Math.PI / 180
+  let lon = Lraw + 6.289 * Math.sin(Mrad)
+  lon = ((lon % 360) + 360) % 360
+  const sign = Math.floor(lon / 30) % 12
+  // Bélier=Fruit Taureau=Racine Gémeaux=Fleur Cancer=Feuille (cycle x3)
+  const TYPES = [
+    { type:'Fruit',  icon:'🍎', color:'#f97316' },
+    { type:'Racine', icon:'🌱', color:'#a3a3a3' },
+    { type:'Fleur',  icon:'🌸', color:'#ec4899' },
+    { type:'Feuille',icon:'🍃', color:'#22c55e' },
+  ]
+  return TYPES[sign % 4]
+}
+
 // ─── Composant entête date + météo ───────────────────────────────────────────
 const WMO_ICONS_HD = {0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',71:'🌨️',73:'🌨️',75:'❄️',80:'🌦️',81:'🌧️',82:'⛈️',95:'⛈️',96:'⛈️',99:'⛈️'}
 
@@ -205,21 +224,27 @@ function DayHeader({ profile, dark, onMeteoClick, onOpenCityPicker, cityKey }) {
   const dateStr   = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })
   const dateLabel = dateStr.charAt(0).toUpperCase() + dateStr.slice(1)
   const conseil   = weather ? getConseilHD(weather.code, weather.wind) : null
+  const moon      = getMoonDayType(now)
 
   return (
     <div className="max-w-lg mx-auto px-3 pt-2 pb-1">
       <button onClick={onMeteoClick}
-        className="w-full rounded-2xl text-left active:scale-95 transition-all relative overflow-hidden"
+        className="w-full rounded-2xl text-left active:scale-95 transition-all"
         style={{ background:'#4f3ea0' }}>
-        <span className="absolute -top-14 -right-14 w-40 h-40 rounded-full bg-white opacity-[0.07] pointer-events-none" />
 
         <div className="px-4 pt-3 pb-3">
-          {/* Date + fête du jour */}
-          <div className="flex items-baseline justify-between mb-3">
+          {/* Date + fête + jour lune */}
+          <div className="flex items-center justify-between mb-3">
             <p className="text-white font-semibold text-[16px] leading-tight">{dateLabel}</p>
-            {fete && !isFeteSpeciale(fete) && (
-              <p className="text-white/40 text-[10px] ml-2 flex-shrink-0">Fête des {fete}</p>
-            )}
+            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+              {fete && !isFeteSpeciale(fete) && (
+                <p className="text-white/40 text-[10px]">Fête des {fete}</p>
+              )}
+              <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-lg"
+                style={{ background:'rgba(255,255,255,0.12)', color: moon.color }}>
+                {moon.icon} {moon.type}
+              </span>
+            </div>
           </div>
 
           {/* Météo principale */}
@@ -420,15 +445,18 @@ export default function App() {
 
       <div className="px-3 pt-1.5 pb-8 max-w-lg mx-auto space-y-2">
 
-        {/* Bisou — bandeau tout en haut, remplace le greeting */}
+        {/* Bisou — premier widget */}
         <BisouWidget profile={profile} hasBadge={bisouBadge} dark={dark}
           onClick={() => openApp('bisou')} />
 
+        {/* Orbite — juste sous la météo */}
+        <OrbiteWidget profile={profile} dark={dark} onClick={() => openApp('orbite')} />
+
+        {/* Agenda — Demandez le Programme */}
+        <AgendaWidget onClick={() => openApp('programme')} dark={dark} />
+
         {/* Ça Traîne */}
         <TraineWidget profile={profile} dark={dark} onClick={() => openApp('traine')} />
-
-        {/* Agenda — multi-événements */}
-        <AgendaWidget onClick={() => openApp('programme')} dark={dark} />
 
         {/* Mémoire + Courses — compact côte à côte */}
         <div className="flex gap-2 items-stretch">
@@ -436,9 +464,6 @@ export default function App() {
           <CoursesWidget profileId={profile?.id} dark={dark}
             onClick={() => openApp('recettes', { initialShoppingList: true })} />
         </div>
-
-        {/* Orbite */}
-        <OrbiteWidget profile={profile} dark={dark} onClick={() => openApp('orbite')} />
 
         {/* Apps */}
         <p className="text-[11px] uppercase tracking-widest pt-2" style={{ color:'#a78bfa' }}>
