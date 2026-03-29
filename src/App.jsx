@@ -280,9 +280,9 @@ function DayHeader({ profile, dark, onMeteoClick, onOpenCityPicker, cityKey }) {
 
             {/* Conseil à droite */}
             {conseil && (
-              <div className="flex-shrink-0 ml-3 flex items-center justify-center gap-1.5" style={{ maxWidth: 110 }}>
-                <p className="text-[10px] text-white/70 leading-snug text-center">{conseil.text}</p>
-                <span className="text-[22px] leading-none flex-shrink-0">{conseil.icon}</span>
+              <div className="flex-shrink-0 ml-3 flex flex-col items-center justify-center gap-1.5" style={{ maxWidth: 100 }}>
+                <span className="text-[32px] leading-none">{conseil.icon}</span>
+                <p className="text-[10px] text-white/60 leading-snug text-center">{conseil.text}</p>
               </div>
             )}
           </div>
