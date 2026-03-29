@@ -63,8 +63,8 @@ flashcard/
 │   ├── apps/                 # flashcards.md, programme.md, grimoire.md…
 │   ├── hub.md                # DayHeader, widgets, badges
 │   ├── database.md           # Schéma complet Supabase
-│   └── apis.md               # APIs externes
-├── SPECS.md                  # Specs produit complètes
+│   ├── apis.md               # APIs externes
+│   └── specs.md              # Specs des apps en préparation
 └── README.md
 ```
 
@@ -178,11 +178,13 @@ Clés localStorage détaillées dans chaque `docs/apps/*.md`.
 | `src/apps/Flashcards/hooks/useStudySession.js` | Algo répétition espacée |
 | `src/apps/Programme/hooks/useProgramme.js` | Utilitaires dates/agenda |
 | `api/proxy.js` | Seul code serveur (proxy Wikipedia) |
-| `SPECS.md` | Specs produit — consulter avant d'ajouter une feature |
+| `docs/hub.md` | DayHeader, widgets, badges détaillés |
 
 ---
 
 ## Apps en préparation
+
+Specs complètes dans `docs/specs.md`.
 
 | App | Concept |
 |-----|---------|
@@ -193,5 +195,3 @@ Clés localStorage détaillées dans chaque `docs/apps/*.md`.
 | 👣 **Nos Empreintes** | Carte des lieux visités ensemble |
 | 💧 **Arrose-moi** | Suivi arrosage des plantes |
 | 🌙 **Parenthèse** | Planification soirées/activités couple |
-
-Specs détaillées dans `SPECS.md`. Tables Supabase prévues dans `docs/database.md`.

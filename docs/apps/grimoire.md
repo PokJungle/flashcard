@@ -4,10 +4,10 @@
 
 ```
 src/apps/Grimoire/
-└── index.jsx   # Recettes, planning semaine, liste de courses
+└── index.jsx   # Tout en un fichier + TabBar (orange #f97316) en bas
 ```
 
-## Onglets (TabBar orange #f97316)
+## Onglets
 
 - **Inspiration 💡** — recherche Spoonacular + recettes manuelles
 - **Grimoire 📖** — bibliothèque des recettes sauvegardées
@@ -30,6 +30,10 @@ Clé `grimoire_cache_*` avec TTL 1h pour les traductions EN→FR (API MyMemory).
 
 - Générée depuis les recettes du meal_plan de la semaine
 - Déduplique contre le placard (`grimoire_settings.pantry`) pour ne lister que ce qui manque
+
+## Améliorations prévues
+
+- Traduction encore perfectible — certaines recettes Spoonacular restent en anglais
 
 ## APIs utilisées
 

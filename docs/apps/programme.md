@@ -37,18 +37,18 @@ Champ `event_end_date date` (nullable). Si renseigné :
 ## Table Supabase
 
 ```sql
-programme_events (
-  id uuid primary key,
+create table programme_events (
+  id uuid default gen_random_uuid() primary key,
   title text not null,
-  emoji text default '📅',
+  emoji text not null default '📅',
   event_date date not null,
   event_end_date date,           -- nullable, événements multi-jours
   event_time time,               -- nullable
   note text,                     -- nullable
   is_annual boolean default false,
   created_by uuid references profiles(id),
-  created_at timestamptz default now()
-)
+  created_at timestamp with time zone default now()
+);
 ```
 
 > ⚠️ Migration à appliquer si pas encore fait : `ALTER TABLE programme_events ADD COLUMN event_end_date date;`
