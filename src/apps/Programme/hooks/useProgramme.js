@@ -29,6 +29,17 @@ export function daysUntil(event) {
   return Math.round(diff / (1000 * 60 * 60 * 24))
 }
 
+// Retourne l'âge (en années) pour les événements annuels avec une année de naissance
+export function getAge(event) {
+  if (!event.is_annual) return null
+  const y = parseInt(event.event_date.split('-')[0])
+  if (y < 1900) return null
+  const today = new Date()
+  if (y >= today.getFullYear()) return null
+  const next = getNextOccurrence(event)
+  return next.getFullYear() - y
+}
+
 // Est-ce que l'événement est actuellement en cours (multi-jours) ?
 export function isOngoing(event) {
   if (!event.event_end_date) return false

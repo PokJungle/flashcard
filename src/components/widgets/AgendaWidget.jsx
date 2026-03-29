@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase'
-import { getNextOccurrence, daysUntil } from '../../apps/Programme/hooks/useProgramme'
+import { getNextOccurrence, daysUntil, getAge } from '../../apps/Programme/hooks/useProgramme'
 
 export default function AgendaWidget({ onClick, dark }) {
   const [events, setEvents] = useState([])
@@ -69,6 +69,7 @@ export default function AgendaWidget({ onClick, dark }) {
         const day        = dateObj.getDate()
         const mon        = dateObj.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')
         const isFirst    = i === 0
+        const age        = getAge(ev)
 
         return (
           <div key={ev.id}
@@ -116,6 +117,11 @@ export default function AgendaWidget({ onClick, dark }) {
               }}>
                 {ev.emoji} {ev.title}
               </p>
+              {age !== null && (
+                <p style={{ fontSize: 10, color: dark ? '#7c6aad' : '#9ca3af', marginTop: 1 }}>
+                  {age} ans
+                </p>
+              )}
             </div>
 
             {/* Countdown */}
