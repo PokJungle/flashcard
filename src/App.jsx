@@ -248,7 +248,7 @@ function DayHeader({ profile, dark, onMeteoClick, onOpenCityPicker, cityKey }) {
           </div>
 
           {/* Météo principale */}
-          <div className="flex items-end justify-between">
+          <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <span className="text-[48px] leading-none">{weather?.icon ?? '…'}</span>
               <div>
@@ -278,27 +278,27 @@ function DayHeader({ profile, dark, onMeteoClick, onOpenCityPicker, cityKey }) {
               </div>
             </div>
 
-            {/* Ville + changer */}
-            <div className="text-right flex-shrink-0 ml-2">
-              <p className="text-[11px] font-medium text-white/60 leading-tight truncate max-w-[100px]">
-                {city?.name?.split(',')[0] ?? '…'}
-              </p>
-              <span onClick={e => { e.stopPropagation(); onOpenCityPicker() }}
-                className="text-[10px] text-white/30 underline underline-offset-2 cursor-pointer leading-none"
-                style={{ WebkitTapHighlightColor:'transparent' }}>
-                Changer ›
-              </span>
-            </div>
+            {/* Conseil à droite */}
+            {conseil && (
+              <div className="flex-shrink-0 ml-3 text-right" style={{ maxWidth: 110 }}>
+                <span className="text-[26px] leading-none">{conseil.icon}</span>
+                <p className="text-[10px] text-white/70 leading-snug mt-0.5">{conseil.text}</p>
+              </div>
+            )}
           </div>
 
-          {/* Conseil */}
-          {conseil && (
-            <div className="mt-2.5 rounded-xl px-2.5 py-1.5 flex items-center gap-2"
-              style={{ background:'rgba(255,255,255,0.12)' }}>
-              <span className="text-[22px] leading-none flex-shrink-0">{conseil.icon}</span>
-              <span className="text-[10px] text-white/80 leading-snug">{conseil.text}</span>
-            </div>
-          )}
+          {/* Ville + changer — en bas, pleine largeur */}
+          <div className="mt-2.5 rounded-xl px-2.5 py-1.5 flex items-center justify-between"
+            style={{ background:'rgba(255,255,255,0.10)' }}>
+            <span className="text-[11px] text-white/60 leading-tight">
+              📍 {city?.name?.split(',')[0] ?? '…'}
+            </span>
+            <span onClick={e => { e.stopPropagation(); onOpenCityPicker() }}
+              className="text-[10px] text-white/40 underline underline-offset-2 cursor-pointer leading-none flex-shrink-0 ml-2"
+              style={{ WebkitTapHighlightColor:'transparent' }}>
+              Changer ›
+            </span>
+          </div>
         </div>
       </button>
 
