@@ -4,6 +4,7 @@ import { getNextOccurrence, daysUntil } from '../../apps/Programme/hooks/useProg
 
 export default function AgendaWidget({ onClick, dark }) {
   const [events, setEvents] = useState([])
+  const [monthCount, setMonthCount] = useState(0)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
@@ -11,12 +12,15 @@ export default function AgendaWidget({ onClick, dark }) {
       .then(({ data }) => {
         if (!data) { setLoaded(true); return }
         const today = new Date(); today.setHours(0, 0, 0, 0)
+        const in30 = new Date(today); in30.setDate(in30.getDate() + 30)
         const future = data.filter(e => {
           if (e.is_annual) return true
           const [y, m, d] = e.event_date.split('-').map(Number)
           return new Date(y, m - 1, d) >= today
         })
         future.sort((a, b) => getNextOccurrence(a) - getNextOccurrence(b))
+        const inMonth = future.filter(e => getNextOccurrence(e) <= in30)
+        setMonthCount(inMonth.length)
         setEvents(future.slice(0, 4))
         setLoaded(true)
       })
@@ -44,10 +48,10 @@ export default function AgendaWidget({ onClick, dark }) {
             Demandez le Programme
           </span>
         </div>
-        {events.length > 1 && (
+        {monthCount > 0 && (
           <span className="text-[10px] px-2 py-0.5 rounded-full"
             style={{ background: dark ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.1)', color: '#8B5CF6' }}>
-            {events.length} à venir
+            {monthCount} ce mois
           </span>
         )}
       </div>
