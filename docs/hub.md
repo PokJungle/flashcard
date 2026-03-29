@@ -23,27 +23,38 @@ En préparation (grid 2 cols)
 ### Fêtes spéciales (`FETES_SPECIALES` dans App.jsx)
 
 ```js
-{ nom:'Marie', icon:'❤️‍🔥' }        // 15 août
-{ nom:'Benoît', icon:'🐵' }          // 11 juillet
-{ nom:'Patrick', icon:'🍀' }         // 17 mars
-{ nom:'Valentin', icon:'💝' }        // 14 février
-{ nom:'Noël', icon:'🎄' }            // 25 décembre
-{ nom:"Jour de l'an", icon:'🥂' }   // 1er janvier
-{ nom:'Fête Nationale', icon:'🎆' } // 14 juillet
-{ nom:'Pâques', icon:'🥚' }         // mobile — ⚠️ à mettre à jour chaque année
+{ nom:'Marie',              icon:'❤️‍🔥' }  // 15 août
+{ nom:'Benoît',             icon:'🐵' }   // 11 juillet
+{ nom:'Patrick',            icon:'🍀' }   // 17 mars
+{ nom:'Joseph',             icon:'🍷' }   // 19 mars
+{ nom:'Valentin',           icon:'💝' }   // 14 février
+{ nom:'Noël',               icon:'🎄' }   // 25 décembre
+{ nom:'Toussaint',          icon:'🕯️' }   // 1er novembre
+{ nom:'Nicolas',            icon:'🎅' }   // 6 décembre
+{ nom:'Lucie',              icon:'🔆' }   // 13 décembre
+{ nom:'Hervé',              icon:'😡' }   // 17 juin
+{ nom:"Jour de l'an",       icon:'🥂' }   // 1er janvier
+{ nom:'Fête de la musique', icon:'🎵' }   // 21 juin
+{ nom:'Fête Nationale',     icon:'🎆' }   // 14 juillet
+{ nom:'Fête du Travail',    icon:'💮' }   // 1er mai
+{ nom:'Victoire 45',        icon:'🕊️' }   // 8 mai
+{ nom:'Armistice',          icon:'🕊️' }   // 11 novembre
+{ nom:'Pâques',             icon:'🥚' }   // mobile — 2026=5/4, 2027=28/3 ⚠️ à maj chaque année
 ```
 
 ## Widgets
 
 ### MeteoWidget (`src/components/widgets/MeteoWidget.jsx`)
 - Taille fixe 170px de largeur
-- Fond `#4f3ea0`, icône WMO, temp moy 34px, min/max, pluie+vent
+- Fond `#4f3ea0`, cercle déco `w-40 h-40 -top-14 -right-14`
+- Icône WMO 48px, temp moy 34px, min/max colorés, pluie+vent
 - Conseil parapluie/claquettes (seuil vent 40 km/h)
-- Ville par profil via `localStorage bbp-meteo-city-{profileId}`
+- `<span>` pour "Changer ›" (pas `<button>` — évite imbrication invalide)
+- Ville par profil : `localStorage bbp-meteo-city-{profileId}` → fallback `meteo-fav2` → `DEFAULT_METEO_CITY`
 
 ### BisouWidget (`src/components/widgets/BisouWidget.jsx`)
 - Dernier message de l'AUTRE profil
-- Emoji seul → 38px centré ; avec texte → emoji 22px + expéditeur + 3 lignes
+- Emoji seul → 38px centré ; avec texte → emoji 22px + nom expéditeur + 3 lignes max
 - Pastille 💗 si message non lu (`hasBadge` prop depuis App.jsx)
 
 ### CoursesWidget (`src/components/widgets/CoursesWidget.jsx`)
@@ -55,7 +66,7 @@ En préparation (grid 2 cols)
 - Affiche jusqu'à 4 prochains événements de `programme_events`
 - Gère `is_annual`, `event_end_date`, âge anniversaires (`getAge()`)
 - Compte à rebours amber si ≤ 3 jours
-- Badge amber sur la tuile hub (point `programmeBadge` dans App.jsx)
+- Badge amber sur la tuile hub (`programmeBadge` dans App.jsx)
 
 ### OrbiteWidget (`src/components/widgets/OrbiteWidget.jsx`)
 - Largeur 64px, toute la hauteur de la colonne droite
@@ -68,6 +79,11 @@ En préparation (grid 2 cols)
 
 ### TraineWidget (`src/components/widgets/TraineWidget.jsx`)
 - Widget pour l'app Ça Traîne (todo partagée)
+
+## CityPicker (modal)
+
+- Favoris sauvegardés sous `meteo-fav2`
+- Ville choisie sauvegardée sous `bbp-meteo-city-{profileId}`
 
 ## Gestion des badges dans App.jsx
 
