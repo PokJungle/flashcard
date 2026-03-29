@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
+import { daysUntil, isPast } from './apps/Programme/hooks/useProgramme'
 import Flashcards from './apps/Flashcards/index.jsx'
 import Meteo from './apps/Meteo/index.jsx'
 import Grimoire from './apps/Grimoire/index.jsx'
@@ -316,6 +317,7 @@ export default function App() {
   const [profile, setProfile]               = useState(null)
   const [screen, setScreen]                 = useState('profiles')
   const [bisouBadge, setBisouBadge]         = useState(false)
+  const [programmeBadge, setProgrammeBadge] = useState(false)
   const [showCityPicker, setShowCityPicker] = useState(false)
   const [meteoKey, setMeteoKey]             = useState(0)
 
@@ -328,6 +330,15 @@ export default function App() {
         if (p) { setProfile(p); setScreen('hub') }
       }
     })
+  }, [])
+
+  useEffect(() => {
+    supabase.from('programme_events').select('event_date, event_end_date, is_annual, event_time')
+      .then(({ data }) => {
+        if (!data?.length) return
+        const hasUrgent = (data || []).some(e => !isPast(e) && daysUntil(e) <= 3)
+        setProgrammeBadge(hasUrgent)
+      })
   }, [])
 
   useEffect(() => {
@@ -475,11 +486,14 @@ export default function App() {
           {HUB_APPS.map(app => (
             <button key={app.id}
               onClick={() => app.id === 'meteo' ? openMeteo() : openApp(app.id)}
-              className="rounded-2xl py-3 px-2 flex flex-col items-center gap-1.5 active:scale-95 transition-all"
+              className="relative rounded-2xl py-3 px-2 flex flex-col items-center gap-1.5 active:scale-95 transition-all"
               style={{
                 background: dark ? '#1a1035' : '#fff',
                 border: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`
               }}>
+              {app.id === 'programme' && programmeBadge && (
+                <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-amber-400" />
+              )}
               <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
                 style={{ background: app.color + '18' }}>
                 {app.emoji}

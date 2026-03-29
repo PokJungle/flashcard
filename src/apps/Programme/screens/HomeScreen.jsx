@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
-import { daysUntil, getNextOccurrence } from '../hooks/useProgramme'
+import { Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight, Edit2 } from 'lucide-react'
+import { daysUntil, getNextOccurrence, isOngoing } from '../hooks/useProgramme'
 import AddEventModal from './AddEventModal'
 import { useThemeColors } from '../../../hooks/useThemeColors'
 
@@ -10,10 +10,28 @@ function getNextOccurrenceLabel(days) {
   return `Dans ~${Math.round(days / 365)} an(s)`
 }
 
+function getAge(event) {
+  if (!event.is_annual) return null
+  const y = parseInt(event.event_date.split('-')[0])
+  if (y < 1900) return null
+  const today = new Date()
+  if (y >= today.getFullYear()) return null
+  const next = getNextOccurrence(event)
+  return next.getFullYear() - y
+}
+
 function formatDate(event) {
   const next = getNextOccurrence(event)
   const opts = { day: 'numeric', month: 'long' }
   if (!event.is_annual) opts.year = 'numeric'
+
+  if (event.event_end_date) {
+    const startLabel = next.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+    const end = new Date(event.event_end_date + 'T00:00:00')
+    const endLabel = end.toLocaleDateString('fr-FR', opts)
+    return `du ${startLabel} au ${endLabel}`
+  }
+
   let label = next.toLocaleDateString('fr-FR', opts)
   if (event.event_time) label += ` à ${event.event_time.slice(0, 5)}`
   return label
@@ -50,21 +68,23 @@ function CountdownBadge({ days, dark }) {
   return <span className="text-xs" style={{ color: dark ? '#7c6aad' : '#9ca3af' }}>Dans {days} jours</span>
 }
 
-function EventCard({ event, onDelete, dark }) {
+function EventCard({ event, onDelete, onEdit, dark }) {
+  const ongoing = isOngoing(event)
   const days = daysUntil(event)
-  const isUrgent = days <= 3
+  const isUrgent = !ongoing && days <= 3
+  const age = getAge(event)
 
   const { card: cardBg, textPri, textSec } = useThemeColors(dark)
   const cardBorder = dark
-    ? (isUrgent ? '#78350f' : '#2d1f5e')
-    : (isUrgent ? '#fde68a' : '#f3f4f6')
+    ? (ongoing ? '#064e3b' : isUrgent ? '#78350f' : '#2d1f5e')
+    : (ongoing ? '#bbf7d0' : isUrgent ? '#fde68a' : '#f3f4f6')
   const iconBg = dark
-    ? (isUrgent ? '#2d250a' : '#2d1f5e')
-    : (isUrgent ? '#fffbeb' : '#f9fafb')
+    ? (ongoing ? '#052e16' : isUrgent ? '#2d250a' : '#2d1f5e')
+    : (ongoing ? '#f0fdf4' : isUrgent ? '#fffbeb' : '#f9fafb')
 
   return (
     <div className="rounded-2xl p-4 transition-all"
-      style={{ background: cardBg, border: `1px solid ${cardBorder}`, boxShadow: isUrgent ? (dark ? '0 0 0 1px #78350f22' : '0 4px 6px -1px #fef3c733') : '0 1px 3px rgba(0,0,0,0.1)' }}>
+      style={{ background: cardBg, border: `1px solid ${cardBorder}`, boxShadow: ongoing ? (dark ? '0 0 0 1px #06503b22' : '0 4px 6px -1px #dcfce733') : isUrgent ? (dark ? '0 0 0 1px #78350f22' : '0 4px 6px -1px #fef3c733') : '0 1px 3px rgba(0,0,0,0.1)' }}>
       <div className="flex items-start gap-3">
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
           style={{ background: iconBg }}>
@@ -76,17 +96,32 @@ function EventCard({ event, onDelete, dark }) {
               <p className="font-bold text-sm leading-tight" style={{ color: textPri }}>{event.title}</p>
               <p className="text-xs mt-0.5" style={{ color: textSec }}>{formatDate(event)}</p>
             </div>
-            <button onClick={() => onDelete(event.id)}
-              className="w-7 h-7 flex items-center justify-center rounded-xl transition-colors flex-shrink-0"
-              style={{ color: textSec }}>
-              <Trash2 size={14} />
-            </button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button onClick={() => onEdit(event)}
+                className="w-7 h-7 flex items-center justify-center rounded-xl transition-colors"
+                style={{ color: textSec }}>
+                <Edit2 size={13} />
+              </button>
+              <button onClick={() => onDelete(event.id)}
+                className="w-7 h-7 flex items-center justify-center rounded-xl transition-colors"
+                style={{ color: textSec }}>
+                <Trash2 size={14} />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2 mt-2">
-            <CountdownBadge days={days} dark={dark} />
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            {ongoing ? (
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                style={{ background: dark ? '#052e16' : '#dcfce7', color: '#16a34a' }}>
+                En cours 🟢
+              </span>
+            ) : (
+              <CountdownBadge days={days} dark={dark} />
+            )}
             {event.is_annual && (
               <span className="text-xs flex items-center gap-1" style={{ color: dark ? '#4338ca' : '#d1d5db' }}>
-                <RefreshCw size={10} /> annuel
+                <RefreshCw size={10} />
+                {age !== null ? `${age} ans` : 'annuel'}
               </span>
             )}
           </div>
@@ -99,9 +134,10 @@ function EventCard({ event, onDelete, dark }) {
   )
 }
 
-function ListView({ events, loading, onDelete, dark }) {
-  const urgent   = events.filter(e => daysUntil(e) <= 3)
-  const upcoming = events.filter(e => daysUntil(e) > 3)
+function ListView({ events, loading, onDelete, onEdit, dark }) {
+  const ongoing  = events.filter(e => isOngoing(e))
+  const urgent   = events.filter(e => !isOngoing(e) && daysUntil(e) <= 3)
+  const upcoming = events.filter(e => !isOngoing(e) && daysUntil(e) > 3)
   const { textSec, textMed } = useThemeColors(dark)
 
   if (loading) return (
@@ -121,11 +157,19 @@ function ListView({ events, loading, onDelete, dark }) {
 
   return (
     <div>
+      {ongoing.length > 0 && (
+        <div className="mb-6">
+          <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: dark ? '#4ade80' : '#16a34a' }}>🟢 En cours</p>
+          <div className="space-y-3">
+            {ongoing.map(e => <EventCard key={e.id} event={e} onDelete={onDelete} onEdit={onEdit} dark={dark} />)}
+          </div>
+        </div>
+      )}
       {urgent.length > 0 && (
         <div className="mb-6">
           <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: dark ? '#fbbf24' : '#d97706' }}>🔥 Très bientôt</p>
           <div className="space-y-3">
-            {urgent.map(e => <EventCard key={e.id} event={e} onDelete={onDelete} dark={dark} />)}
+            {urgent.map(e => <EventCard key={e.id} event={e} onDelete={onDelete} onEdit={onEdit} dark={dark} />)}
           </div>
         </div>
       )}
@@ -133,7 +177,7 @@ function ListView({ events, loading, onDelete, dark }) {
         <div className="mb-6">
           <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: textSec }}>À venir</p>
           <div className="space-y-3">
-            {upcoming.map(e => <EventCard key={e.id} event={e} onDelete={onDelete} dark={dark} />)}
+            {upcoming.map(e => <EventCard key={e.id} event={e} onDelete={onDelete} onEdit={onEdit} dark={dark} />)}
           </div>
         </div>
       )}
@@ -144,23 +188,33 @@ function ListView({ events, loading, onDelete, dark }) {
 const JOURS   = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 const MOIS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
-function MonthView({ events, onDelete, dark }) {
+function MonthView({ events, onDelete, onEdit, dark }) {
   const today = new Date()
-  const [year, setYear]     = useState(today.getFullYear())
-  const [month, setMonth]   = useState(today.getMonth())
+  const [year, setYear]         = useState(today.getFullYear())
+  const [month, setMonth]       = useState(today.getMonth())
   const [selected, setSelected] = useState(null)
 
   const firstDay    = new Date(year, month, 1)
   const startOffset = (firstDay.getDay() + 6) % 7
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
+  const monthStart = new Date(year, month, 1)
+  const monthEnd   = new Date(year, month + 1, 0)
+
   const eventsByDate = {}
   events.forEach(e => {
-    const next = getNextOccurrence(e)
-    if (next.getFullYear() === year && next.getMonth() === month) {
-      const key = next.getDate()
-      if (!eventsByDate[key]) eventsByDate[key] = []
-      eventsByDate[key].push(e)
+    const start = getNextOccurrence(e)
+    const end   = e.event_end_date ? new Date(e.event_end_date + 'T00:00:00') : start
+
+    // Ignorer si l'événement ne touche pas ce mois
+    if (start > monthEnd || end < monthStart) return
+
+    const dayFrom = (start >= monthStart) ? start.getDate() : 1
+    const dayTo   = (end <= monthEnd)     ? end.getDate()   : daysInMonth
+
+    for (let d = dayFrom; d <= dayTo; d++) {
+      if (!eventsByDate[d]) eventsByDate[d] = []
+      eventsByDate[d].push(e)
     }
   })
 
@@ -204,12 +258,13 @@ function MonthView({ events, onDelete, dark }) {
           const hasEvents  = !!eventsByDate[d]
           const isSelected = selected === d
           const evts       = eventsByDate[d] || []
-          const isUrgent   = evts.some(e => daysUntil(e) <= 3)
+          const hasOngoing = evts.some(e => isOngoing(e))
+          const hasUrgent  = !hasOngoing && evts.some(e => daysUntil(e) <= 3)
 
           let bg, color, borderColor
-          if (isSelected) { bg = '#6366f1'; color = '#ffffff'; borderColor = '#6366f1' }
+          if (isSelected)   { bg = '#6366f1'; color = '#ffffff'; borderColor = '#6366f1' }
           else if (isToday) { bg = dark ? '#1e1b4b' : '#eef2ff'; color = '#6366f1'; borderColor = dark ? '#4338ca' : '#c7d2fe' }
-          else { bg = card; color = dark ? '#c4b5fd' : '#374151'; borderColor = border }
+          else              { bg = card; color = dark ? '#c4b5fd' : '#374151'; borderColor = border }
 
           return (
             <button key={d} onClick={() => setSelected(isSelected ? null : d)}
@@ -220,7 +275,7 @@ function MonthView({ events, onDelete, dark }) {
                 <div className="absolute bottom-1 flex gap-0.5 justify-center">
                   {evts.slice(0, 3).map((e, idx) => (
                     <div key={idx} className="w-1 h-1 rounded-full"
-                      style={{ background: isSelected ? 'rgba(255,255,255,0.7)' : isUrgent ? '#f59e0b' : '#6366f1' }} />
+                      style={{ background: isSelected ? 'rgba(255,255,255,0.7)' : hasOngoing ? '#4ade80' : hasUrgent ? '#f59e0b' : '#6366f1' }} />
                   ))}
                 </div>
               )}
@@ -238,7 +293,7 @@ function MonthView({ events, onDelete, dark }) {
             <p className="text-sm text-center py-4" style={{ color: textSec }}>Aucun événement ce jour</p>
           ) : (
             <div className="space-y-3">
-              {selectedEvents.map(e => <EventCard key={e.id} event={e} onDelete={onDelete} dark={dark} />)}
+              {selectedEvents.map(e => <EventCard key={e.id} event={e} onDelete={onDelete} onEdit={onEdit} dark={dark} />)}
             </div>
           )}
         </div>
@@ -251,14 +306,15 @@ function MonthView({ events, onDelete, dark }) {
   )
 }
 
-export default function HomeScreen({ events, loading, onAdd, onDelete, profile, view, dark }) {
-  const [showModal, setShowModal] = useState(false)
+export default function HomeScreen({ events, loading, onAdd, onUpdate, onDelete, profile, view, dark }) {
+  const [showModal, setShowModal]       = useState(false)
+  const [editingEvent, setEditingEvent] = useState(null)
 
   return (
     <div className="px-5 py-6 max-w-lg mx-auto pb-6">
       {view === 'list'
-        ? <ListView events={events} loading={loading} onDelete={onDelete} dark={dark} />
-        : <MonthView events={events} onDelete={onDelete} dark={dark} />
+        ? <ListView events={events} loading={loading} onDelete={onDelete} onEdit={setEditingEvent} dark={dark} />
+        : <MonthView events={events} onDelete={onDelete} onEdit={setEditingEvent} dark={dark} />
       }
 
       <button
@@ -269,8 +325,17 @@ export default function HomeScreen({ events, loading, onAdd, onDelete, profile, 
 
       {showModal && (
         <AddEventModal
-          onAdd={(data) => { onAdd({ ...data, profile_id: profile?.id }); setShowModal(false) }}
+          onSave={(data) => onAdd({ ...data, profile_id: profile?.id })}
           onClose={() => setShowModal(false)}
+          dark={dark}
+        />
+      )}
+
+      {editingEvent && (
+        <AddEventModal
+          initialEvent={editingEvent}
+          onSave={(data) => onUpdate(editingEvent.id, data)}
+          onClose={() => setEditingEvent(null)}
           dark={dark}
         />
       )}

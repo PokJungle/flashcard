@@ -4,22 +4,32 @@ import { useThemeColors } from '../../../hooks/useThemeColors'
 
 const EMOJI_SUGGESTIONS = ['🎂', '🎉', '✈️', '🏥', '🎓', '💍', '🎸', '🍽️', '🎭', '🌿', '📅', '❤️']
 
-export default function AddEventModal({ onAdd, onClose, dark }) {
-  const [title, setTitle]     = useState('')
-  const [emoji, setEmoji]     = useState('📅')
-  const [date, setDate]       = useState('')
-  const [time, setTime]       = useState('')
-  const [note, setNote]       = useState('')
-  const [isAnnual, setIsAnnual] = useState(false)
-  const [saving, setSaving]   = useState(false)
-  const [error, setError]     = useState(null)
+export default function AddEventModal({ onSave, onClose, dark, initialEvent }) {
+  const isEditing = !!initialEvent
+  const [title, setTitle]       = useState(initialEvent?.title || '')
+  const [emoji, setEmoji]       = useState(initialEvent?.emoji || '📅')
+  const [date, setDate]         = useState(initialEvent?.event_date || '')
+  const [endDate, setEndDate]   = useState(initialEvent?.event_end_date || '')
+  const [time, setTime]         = useState(initialEvent?.event_time?.slice(0, 5) || '')
+  const [note, setNote]         = useState(initialEvent?.note || '')
+  const [isAnnual, setIsAnnual] = useState(initialEvent?.is_annual || false)
+  const [saving, setSaving]     = useState(false)
+  const [error, setError]       = useState(null)
 
   const handleSubmit = async () => {
     if (!title.trim() || !date) return
     setSaving(true)
     setError(null)
     try {
-      await onAdd({ title: title.trim(), emoji, event_date: date, event_time: time || null, note: note.trim() || null, is_annual: isAnnual })
+      await onSave({
+        title: title.trim(),
+        emoji,
+        event_date: date,
+        event_end_date: (!isAnnual && endDate && endDate > date) ? endDate : null,
+        event_time: time || null,
+        note: note.trim() || null,
+        is_annual: isAnnual,
+      })
       onClose()
     } catch (e) {
       setError(e.message)
@@ -29,7 +39,7 @@ export default function AddEventModal({ onAdd, onClose, dark }) {
   }
 
   const { card, border, textPri, textSec } = useThemeColors(dark)
-  const inputBg  = dark ? '#0f0a1e' : '#ffffff'
+  const inputBg = dark ? '#0f0a1e' : '#ffffff'
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm"
@@ -39,7 +49,9 @@ export default function AddEventModal({ onAdd, onClose, dark }) {
 
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold" style={{ color: textPri }}>Nouvel événement</h2>
+          <h2 className="text-lg font-bold" style={{ color: textPri }}>
+            {isEditing ? "Modifier l'événement" : 'Nouvel événement'}
+          </h2>
           <button onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full transition-colors"
             style={{ background: dark ? '#2d1f5e' : '#f3f4f6', color: textSec }}>
@@ -77,10 +89,12 @@ export default function AddEventModal({ onAdd, onClose, dark }) {
           />
         </div>
 
-        {/* Date + heure */}
+        {/* Date début + heure */}
         <div className="flex gap-3">
           <div className="flex-1">
-            <p className="text-xs font-medium mb-1" style={{ color: textSec }}>Date *</p>
+            <p className="text-xs font-medium mb-1" style={{ color: textSec }}>
+              {isAnnual ? 'Date *' : 'Début *'}
+            </p>
             <input
               type="date"
               value={date}
@@ -100,6 +114,21 @@ export default function AddEventModal({ onAdd, onClose, dark }) {
             />
           </div>
         </div>
+
+        {/* Date de fin (masquée si annuel) */}
+        {!isAnnual && (
+          <div>
+            <p className="text-xs font-medium mb-1" style={{ color: textSec }}>Fin (optionnelle — pour les événements sur plusieurs jours)</p>
+            <input
+              type="date"
+              value={endDate}
+              min={date || undefined}
+              onChange={e => setEndDate(e.target.value)}
+              className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
+              style={{ background: inputBg, border: `1px solid ${border}`, color: textPri }}
+            />
+          </div>
+        )}
 
         {/* Note */}
         <div>
@@ -134,7 +163,7 @@ export default function AddEventModal({ onAdd, onClose, dark }) {
           onClick={handleSubmit}
           disabled={!title.trim() || !date || saving}
           className="w-full bg-indigo-500 text-white font-semibold py-3 rounded-2xl disabled:opacity-40 active:scale-95 transition-all">
-          {saving ? 'Enregistrement…' : `${emoji} Ajouter`}
+          {saving ? 'Enregistrement…' : isEditing ? `${emoji} Enregistrer` : `${emoji} Ajouter`}
         </button>
       </div>
     </div>
