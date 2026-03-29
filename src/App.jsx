@@ -438,16 +438,18 @@ export default function App() {
         </div>
       </div>
 
+      {/* Bisou — avant la météo */}
+      <div className="max-w-lg mx-auto px-3 pt-2">
+        <BisouWidget profile={profile} hasBadge={bisouBadge} dark={dark}
+          onClick={() => openApp('bisou')} />
+      </div>
+
       <DayHeader profile={profile} dark={dark}
         onMeteoClick={openMeteo}
         onOpenCityPicker={() => { setShowCityPicker(true) }}
         cityKey={meteoKey} />
 
       <div className="px-3 pt-1.5 pb-8 max-w-lg mx-auto space-y-2">
-
-        {/* Bisou — premier widget */}
-        <BisouWidget profile={profile} hasBadge={bisouBadge} dark={dark}
-          onClick={() => openApp('bisou')} />
 
         {/* Orbite — juste sous la météo */}
         <OrbiteWidget profile={profile} dark={dark} onClick={() => openApp('orbite')} />

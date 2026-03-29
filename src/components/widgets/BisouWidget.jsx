@@ -28,7 +28,7 @@ export default function BisouWidget({ profile, hasBadge, onClick, dark }) {
     <button onClick={onClick}
       className="w-full rounded-xl px-3 active:scale-95 transition-all flex items-center gap-2.5 overflow-hidden"
       style={{
-        height: 40,
+        height: 36,
         background: dark ? '#1e1b4b' : '#fdf2f8',
         border: `0.5px solid ${dark ? '#4338ca' : '#fce7f3'}`,
       }}>

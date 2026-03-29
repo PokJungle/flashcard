@@ -121,20 +121,13 @@ export default function AgendaWidget({ onClick, dark }) {
               ) : isTomorrow ? (
                 <span style={{ fontSize: isFirst ? 12 : 11, fontWeight: 700, color: '#f59e0b' }}>Dem.</span>
               ) : (
-                <>
-                  <span style={{
-                    display: 'block',
-                    fontSize: isFirst ? 28 : 16,
-                    fontWeight: 700,
-                    lineHeight: 1,
-                    color: isUrgent ? '#f59e0b' : (dark ? '#e9d5ff' : '#1e0a3c'),
-                  }}>{days}</span>
-                  <span style={{
-                    display: 'block',
-                    fontSize: 9,
-                    color: isUrgent ? '#f59e0b' : (dark ? '#7c6fad' : '#9ca3af'),
-                  }}>j</span>
-                </>
+                <span style={{
+                  display: 'flex', alignItems: 'baseline', gap: 1,
+                  color: isUrgent ? '#f59e0b' : (dark ? '#e9d5ff' : '#1e0a3c'),
+                }}>
+                  <span style={{ fontSize: isFirst ? 28 : 16, fontWeight: 700, lineHeight: 1 }}>{days}</span>
+                  <span style={{ fontSize: 9, color: isUrgent ? '#f59e0b' : (dark ? '#7c6fad' : '#9ca3af') }}>j</span>
+                </span>
               )}
             </div>
           </div>
