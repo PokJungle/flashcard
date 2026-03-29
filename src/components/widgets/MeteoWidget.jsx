@@ -83,8 +83,8 @@ export default function MeteoWidget({ profileId, onOpenCityPicker, onClick }) {
 
   return (
     <button onClick={onClick}
-      className="text-left rounded-2xl px-3 py-2.5 active:scale-95 transition-all relative overflow-hidden flex flex-col justify-between flex-shrink-0"
-      style={{ background:'#4f3ea0', width:170 }}>
+      className="text-left rounded-2xl px-3 py-2.5 active:scale-95 transition-all relative overflow-hidden flex flex-col justify-between flex-1"
+      style={{ background:'#4f3ea0' }}>
       <span className="absolute -top-14 -right-14 w-40 h-40 rounded-full bg-white opacity-[0.07] pointer-events-none" />
       <div className="flex justify-between items-start">
         <div className="min-w-0 flex-1 mr-1">

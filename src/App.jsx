@@ -14,6 +14,8 @@ import BisouWidget from './components/widgets/BisouWidget'
 import CoursesWidget from './components/widgets/CoursesWidget'
 import AgendaWidget from './components/widgets/AgendaWidget'
 import OrbiteWidget from './components/widgets/OrbiteWidget'
+import MemoireWidget from './components/widgets/MemoireWidget'
+import TraineWidget from './components/widgets/TraineWidget'
 import { FETES, isFeteSpeciale, getFeteIcon } from './data/saints'
 
 const APPS = [
@@ -25,8 +27,7 @@ const APPS = [
   { id:'orbite',     name:'Mise en Orbite',            emoji:'💥', color:'#FF7A1E', component:Orbite },
   { id:'traine',     name:'Ça Traîne',                 emoji:'🐌', color:'#10b981', component:Traine },
 ]
-const HUB_APPS   = APPS.filter(a => a.id !== 'bisou')
-const HUB_LABELS = { flashcards:'Mémoire de Singe', meteo:'Parapluie ou Claquettes ?', recettes:'Le Grimoire Gourmand', programme:'Demandez le Programme !', orbite:'Mise en Orbite', traine:'Ça Traîne' }
+const HUB_APPS = APPS.filter(a => a.id !== 'bisou')
 const APPS_EN_PREP = [
   { emoji:'🍵', name:'Tisane & Chauffeuse' },
   { emoji:'🎸', name:'Jukebox' },
@@ -106,9 +107,89 @@ function CityPicker({ profileId, onClose, dark }) {
   )
 }
 
-// ─── Composant entête date + fête ─────────────────────────────────────────────
-function DayHeader({ profile, dark }) {
-  const [fete, setFete] = useState(null)
+// ─── Calendrier lunaire biodynamique ─────────────────────────────────────────
+function getMoonDayType(date) {
+  const J2000 = new Date('2000-01-01T12:00:00Z')
+  const d = (date.getTime() - J2000.getTime()) / 86400000
+  const Lraw = 218.316 + 13.176396 * d
+  const Mrad = ((134.963 + 13.064993 * d) % 360) * Math.PI / 180
+  let lon = Lraw + 6.289 * Math.sin(Mrad)
+  lon = ((lon % 360) + 360) % 360
+  const sign = Math.floor(lon / 30) % 12
+  // Bélier=Fruit Taureau=Racine Gémeaux=Fleur Cancer=Feuille (cycle x3)
+  const TYPES = [
+    { type:'Fruit',  icon:'🍎', color:'#f97316' },
+    { type:'Racine', icon:'🌱', color:'#a3a3a3' },
+    { type:'Fleur',  icon:'🌸', color:'#ec4899' },
+    { type:'Feuille',icon:'🍃', color:'#22c55e' },
+  ]
+  return TYPES[sign % 4]
+}
+
+// ─── Composant entête date + météo ───────────────────────────────────────────
+const WMO_ICONS_HD = {0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',71:'🌨️',73:'🌨️',75:'❄️',80:'🌦️',81:'🌧️',82:'⛈️',95:'⛈️',96:'⛈️',99:'⛈️'}
+
+function getConseilHD(code, wind) {
+  const windy = wind != null && wind >= 40
+  if (code == null) return null
+  if ([95,96,99].includes(code)) return { icon:'☂️', text: windy ? 'Parapluie, mais franchement reste à la maison' : 'Parapluie + cirée + bottes' }
+  if ([65,82].includes(code))    return { icon:'☂️', text: windy ? 'Parapluie retourné garanti' : "Parapluie solide, c'est sérieux" }
+  if ([51,53,55,61,63,80,81].includes(code)) return { icon:'☂️', text: windy ? 'Parapluie… ou pas, il tiendra pas' : 'Petite pluie, petit parapluie' }
+  if ([71,73,75].includes(code)) return { icon:'☂️', text: 'Ni claquettes ni parapluie, les raquettes !' }
+  if ([45,48].includes(code))    return { icon:'🩴', text: 'Claquettes dans le brouillard, pourquoi pas' }
+  if ([3].includes(code))        return { icon:'🩴', text: windy ? 'Claquettes risquées, parapluie de précaution' : 'Claquettes possibles, parapluie en veille' }
+  if ([2].includes(code))        return { icon:'🩴', text: windy ? 'Claquettes, veste et cheveux en bataille' : 'Claquettes-Chausettes au cas où...' }
+  if ([1].includes(code))        return { icon:'🩴', text: windy ? "Claquettes oui, mais attention qu'elles ne s'envolent pas" : 'Claquettes envisageables, belle journée !' }
+  if ([0].includes(code))        return { icon:'🩴', text: windy ? 'Claquettes, soleil et vent dans les oreilles' : 'Claquettes et lunette de soleil, grande journée !' }
+  if (windy)                     return { icon:'🩴', text: 'Claquettes ok mais accroche le parapluie' }
+  return { icon:'🩴', text: 'Claquettes ou parapluie… va savoir' }
+}
+
+const CONFETTI_SPANS = [
+  { t:11,l:18,w:5,h:5,r:'50%',bg:'#fef08a',a:'bbp-float1 1.4s ease-in-out infinite 0.7s' },
+  { t:11,r2:73,w:5,h:5,r:'50%',bg:'#bfdbfe',a:'bbp-float1 1.2s ease-in-out infinite 0.2s' },
+  { t:9,l:81,w:5,h:5,r:2,bg:'#bfdbfe',a:'bbp-float3 1.8s ease-in-out infinite 0.5s' },
+  { t:4,r2:61,w:9,h:9,r:2,bg:'#6ee7b7',a:'bbp-float1 1.9s ease-in-out infinite 0.3s' },
+  { t:3,l:31,w:7,h:7,r:2,bg:'#fff',a:'bbp-float2 1.3s ease-in-out infinite 0.8s' },
+  { t:10,r2:37,w:5,h:5,r:'50%',bg:'#fef08a',a:'bbp-float3 1.3s ease-in-out infinite 0.9s' },
+  { t:2,l:74,w:7,h:7,r:'50%',bg:'#fef08a',a:'bbp-float3 1.4s ease-in-out infinite 0.1s' },
+  { t:11,r2:33,w:7,h:7,r:2,bg:'#fff',a:'bbp-float1 1.6s ease-in-out infinite 0.5s' },
+  { t:6,l:24,w:7,h:7,r:2,bg:'#6ee7b7',a:'bbp-float3 1.5s ease-in-out infinite 0.9s' },
+  { t:11,r2:13,w:9,h:9,r:2,bg:'#fef08a',a:'bbp-float3 1.9s ease-in-out infinite 0.2s' },
+  { t:7,l:38,w:9,h:9,r:'50%',bg:'#fce7f3',a:'bbp-float1 1.4s ease-in-out infinite' },
+  { b:6,l:68,w:6,h:6,r:2,bg:'#bfdbfe',a:'bbp-float3 1.5s ease-in-out infinite 0.6s' },
+  { b:5,r2:23,w:7,h:7,r:2,bg:'#fce7f3',a:'bbp-float3 1.5s ease-in-out infinite' },
+  { b:7,l:43,w:6,h:6,r:2,bg:'#fff',a:'bbp-float3 2.1s ease-in-out infinite 0.1s' },
+  { b:9,r2:12,w:9,h:9,r:2,bg:'#fce7f3',a:'bbp-float3 1.7s ease-in-out infinite 0.5s' },
+  { b:6,l:71,w:9,h:9,r:2,bg:'#c4b5fd',a:'bbp-float3 2.0s ease-in-out infinite 0.7s' },
+  { b:6,r2:55,w:7,h:7,r:'50%',bg:'#c4b5fd',a:'bbp-float1 1.4s ease-in-out infinite 0.1s' },
+  { b:5,r2:12,w:5,h:5,r:2,bg:'#6ee7b7',a:'bbp-float3 1.4s ease-in-out infinite 0.7s' },
+  { b:5,l:73,w:6,h:6,r:'50%',bg:'#fef08a',a:'bbp-float1 2.0s ease-in-out infinite 0.8s' },
+  { b:6,r2:58,w:9,h:9,r:'50%',bg:'#fef08a',a:'bbp-float1 1.4s ease-in-out infinite 0.2s' },
+]
+
+function FeteSpeciale({ fete }) {
+  return (
+    <div style={{ marginTop:6, background:'linear-gradient(135deg,#b45309,#d97706,#f59e0b)', padding:'8px 14px', borderRadius:12, position:'relative', overflow:'hidden' }}>
+      {CONFETTI_SPANS.map((s, i) => (
+        <span key={i} style={{ position:'absolute', top:s.t, bottom:s.b, left:s.l, right:s.r2, width:s.w, height:s.h, borderRadius:s.r, background:s.bg, display:'block', animation:s.a }} />
+      ))}
+      <p style={{ color:'#fff', fontSize:15, fontWeight:600, margin:0, position:'relative', textShadow:'0 1px 3px rgba(0,0,0,0.3)' }}>
+        {getFeteIcon(fete)} Fête de {fete} !
+      </p>
+      <style>{`
+        @keyframes bbp-float1 { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-7px) rotate(12deg)} }
+        @keyframes bbp-float2 { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-10px) rotate(-18deg)} }
+        @keyframes bbp-float3 { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-6px) rotate(25deg)} }
+      `}</style>
+    </div>
+  )
+}
+
+function DayHeader({ profile, dark, onMeteoClick, onOpenCityPicker, cityKey }) {
+  const [fete, setFete]       = useState(null)
+  const [weather, setWeather] = useState(null)
+  const [city, setCity]       = useState(null)
 
   useEffect(() => {
     const now = new Date()
@@ -117,74 +198,111 @@ function DayHeader({ profile, dark }) {
     if (name) setFete(name)
   }, [])
 
+  useEffect(() => {
+    if (!profile?.id) return
+    const c = getPreferredCity(profile.id)
+    setCity(c)
+    fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}` +
+      `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max` +
+      `&timezone=Europe%2FParis&forecast_days=1&models=best_match`
+    )
+      .then(r => r.json())
+      .then(d => {
+        const code = d.daily?.weathercode?.[0] ?? null
+        const tMin = d.daily?.temperature_2m_min?.[0] ?? null
+        const tMax = d.daily?.temperature_2m_max?.[0] ?? null
+        const rain = d.daily?.precipitation_sum?.[0] ?? null
+        const wind = d.daily?.windspeed_10m_max?.[0] ?? null
+        const avg  = tMin != null && tMax != null ? Math.round((tMin+tMax)/2) : null
+        setWeather({ code, icon: WMO_ICONS_HD[code] ?? '🌡️', avg, tMin, tMax, rain, wind })
+      })
+      .catch(() => {})
+  }, [profile?.id, cityKey])
+
   const now       = new Date()
   const dateStr   = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })
   const dateLabel = dateStr.charAt(0).toUpperCase() + dateStr.slice(1)
-  const hour      = now.getHours()
-  const greeting  = hour < 6 ? 'Bonne nuit' : hour < 12 ? 'Bonjour' : hour < 18 ? 'Bonne après-midi' : 'Bonsoir'
+  const conseil   = weather ? getConseilHD(weather.code, weather.wind) : null
+  const moon      = getMoonDayType(now)
 
   return (
-    <div className="max-w-lg mx-auto px-3 pt-2 pb-1 text-center">
-      <p className="text-[16px] font-medium" style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>
-        {greeting} {profile?.avatar}
-      </p>
-      <p className="text-[12px] mt-0.5" style={{ color:'#7c3aed' }}>
-        {dateLabel}
-      </p>
-      {fete && (
-        isFeteSpeciale(fete) ? (
-          <div style={{ margin:'4px 0 0', background:'linear-gradient(135deg,#b45309,#d97706,#f59e0b)', padding:'8px 14px', borderRadius:12, position:'relative', overflow:'hidden' }}>
-            <span style={{ position:'absolute', top:11, left:18, width:5, height:5, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite 0.7s' }} />
-            <span style={{ position:'absolute', top:11, right:73, width:5, height:5, borderRadius:'50%', background:'#bfdbfe', display:'block', animation:'bbp-float1 1.2s ease-in-out infinite 0.2s' }} />
-            <span style={{ position:'absolute', top:9, left:81, width:5, height:5, borderRadius:2, background:'#bfdbfe', display:'block', animation:'bbp-float3 1.8s ease-in-out infinite 0.5s' }} />
-            <span style={{ position:'absolute', top:4, right:61, width:9, height:9, borderRadius:2, background:'#6ee7b7', display:'block', animation:'bbp-float1 1.9s ease-in-out infinite 0.3s' }} />
-            <span style={{ position:'absolute', top:3, left:31, width:7, height:7, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float2 1.3s ease-in-out infinite 0.8s' }} />
-            <span style={{ position:'absolute', top:10, right:37, width:5, height:5, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float3 1.3s ease-in-out infinite 0.9s' }} />
-            <span style={{ position:'absolute', top:2, left:74, width:7, height:7, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float3 1.4s ease-in-out infinite 0.1s' }} />
-            <span style={{ position:'absolute', top:11, right:33, width:7, height:7, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float1 1.6s ease-in-out infinite 0.5s' }} />
-            <span style={{ position:'absolute', top:6, left:24, width:7, height:7, borderRadius:2, background:'#6ee7b7', display:'block', animation:'bbp-float3 1.5s ease-in-out infinite 0.9s' }} />
-            <span style={{ position:'absolute', top:11, right:13, width:9, height:9, borderRadius:2, background:'#fef08a', display:'block', animation:'bbp-float3 1.9s ease-in-out infinite 0.2s' }} />
-            <span style={{ position:'absolute', top:7, left:38, width:9, height:9, borderRadius:'50%', background:'#fce7f3', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite' }} />
-            <span style={{ position:'absolute', top:6, right:55, width:7, height:7, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float3 2.1s ease-in-out infinite 0.3s' }} />
-            <span style={{ position:'absolute', top:11, left:67, width:8, height:8, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float1 1.5s ease-in-out infinite 0.2s' }} />
-            <span style={{ position:'absolute', top:9, right:72, width:7, height:7, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float3 1.6s ease-in-out infinite 0.2s' }} />
-            <span style={{ position:'absolute', top:3, left:69, width:8, height:8, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite 0.2s' }} />
-            <span style={{ position:'absolute', top:11, right:58, width:9, height:9, borderRadius:'50%', background:'#fff', display:'block', animation:'bbp-float2 1.8s ease-in-out infinite 0.5s' }} />
-            <span style={{ position:'absolute', top:5, left:74, width:5, height:5, borderRadius:2, background:'#fef08a', display:'block', animation:'bbp-float3 2.1s ease-in-out infinite 0.8s' }} />
-            <span style={{ position:'absolute', top:11, right:47, width:5, height:5, borderRadius:'50%', background:'#6ee7b7', display:'block', animation:'bbp-float1 1.7s ease-in-out infinite 1.0s' }} />
-            <span style={{ position:'absolute', bottom:6, left:68, width:6, height:6, borderRadius:2, background:'#bfdbfe', display:'block', animation:'bbp-float3 1.5s ease-in-out infinite 0.6s' }} />
-            <span style={{ position:'absolute', bottom:5, right:23, width:7, height:7, borderRadius:2, background:'#fce7f3', display:'block', animation:'bbp-float3 1.5s ease-in-out infinite' }} />
-            <span style={{ position:'absolute', bottom:7, left:43, width:6, height:6, borderRadius:2, background:'#fff', display:'block', animation:'bbp-float3 2.1s ease-in-out infinite 0.1s' }} />
-            <span style={{ position:'absolute', bottom:9, right:12, width:9, height:9, borderRadius:2, background:'#fce7f3', display:'block', animation:'bbp-float3 1.7s ease-in-out infinite 0.5s' }} />
-            <span style={{ position:'absolute', bottom:6, left:71, width:9, height:9, borderRadius:2, background:'#c4b5fd', display:'block', animation:'bbp-float3 2.0s ease-in-out infinite 0.7s' }} />
-            <span style={{ position:'absolute', bottom:6, right:55, width:7, height:7, borderRadius:'50%', background:'#c4b5fd', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite 0.1s' }} />
-            <span style={{ position:'absolute', bottom:2, left:79, width:9, height:9, borderRadius:2, background:'#fce7f3', display:'block', animation:'bbp-float1 1.3s ease-in-out infinite 0.6s' }} />
-            <span style={{ position:'absolute', bottom:5, right:12, width:5, height:5, borderRadius:2, background:'#6ee7b7', display:'block', animation:'bbp-float3 1.4s ease-in-out infinite 0.7s' }} />
-            <span style={{ position:'absolute', bottom:5, left:73, width:6, height:6, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float1 2.0s ease-in-out infinite 0.8s' }} />
-            <span style={{ position:'absolute', bottom:5, right:16, width:5, height:5, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float2 1.6s ease-in-out infinite 0.5s' }} />
-            <span style={{ position:'absolute', bottom:2, left:90, width:5, height:5, borderRadius:'50%', background:'#fff', display:'block', animation:'bbp-float3 1.5s ease-in-out infinite 0.9s' }} />
-            <span style={{ position:'absolute', bottom:5, right:28, width:6, height:6, borderRadius:'50%', background:'#bfdbfe', display:'block', animation:'bbp-float1 1.6s ease-in-out infinite 0.3s' }} />
-            <span style={{ position:'absolute', bottom:5, left:13, width:8, height:8, borderRadius:2, background:'#bfdbfe', display:'block', animation:'bbp-float1 1.9s ease-in-out infinite 0.5s' }} />
-            <span style={{ position:'absolute', bottom:2, right:15, width:6, height:6, borderRadius:'50%', background:'#fce7f3', display:'block', animation:'bbp-float2 1.7s ease-in-out infinite 0.9s' }} />
-            <span style={{ position:'absolute', bottom:2, left:25, width:8, height:8, borderRadius:'50%', background:'#fff', display:'block', animation:'bbp-float2 2.1s ease-in-out infinite 0.8s' }} />
-            <span style={{ position:'absolute', bottom:6, right:58, width:9, height:9, borderRadius:'50%', background:'#fef08a', display:'block', animation:'bbp-float1 1.4s ease-in-out infinite 0.2s' }} />
-            <span style={{ position:'absolute', bottom:2, left:78, width:9, height:9, borderRadius:'50%', background:'#fff', display:'block', animation:'bbp-float1 1.3s ease-in-out infinite 0.5s' }} />
-            <span style={{ position:'absolute', bottom:10, right:24, width:5, height:5, borderRadius:2, background:'#bfdbfe', display:'block', animation:'bbp-float1 1.3s ease-in-out infinite 0.1s' }} />
-            <p style={{ color:'#fff', fontSize:15, fontWeight:600, margin:0, position:'relative', textShadow:'0 1px 3px rgba(0,0,0,0.3)' }}>
-              {getFeteIcon(fete)} Fête de {fete} !
-            </p>
-            <style>{`
-              @keyframes bbp-float1 { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-7px) rotate(12deg)} }
-              @keyframes bbp-float2 { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-10px) rotate(-18deg)} }
-              @keyframes bbp-float3 { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-6px) rotate(25deg)} }
-            `}</style>
+    <div className="max-w-lg mx-auto px-3 pt-2 pb-1">
+      <button onClick={onMeteoClick}
+        className="w-full rounded-2xl text-left active:scale-95 transition-all"
+        style={{ background:'#4f3ea0' }}>
+
+        <div className="px-4 pt-3 pb-3">
+          {/* Date + fête + jour lune */}
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-white font-semibold text-[16px] leading-tight">{dateLabel}</p>
+            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+              {fete && !isFeteSpeciale(fete) && (
+                <p className="text-white/40 text-[10px]">Fête des {fete}</p>
+              )}
+              <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-lg"
+                style={{ background:'rgba(255,255,255,0.12)', color: moon.color }}>
+                {moon.icon} {moon.type}
+              </span>
+            </div>
           </div>
-        ) : (
-          <p className="text-[10px] mt-0.5" style={{ color:'#c4b5fd' }}>
-            Fête des {fete}
-          </p>
-        )
-      )}
+
+          {/* Météo principale */}
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-[48px] leading-none">{weather?.icon ?? '…'}</span>
+              <div>
+                <p className="text-[34px] font-medium text-white leading-none tracking-tight">
+                  {weather?.avg != null ? `${weather.avg}°` : '—'}
+                </p>
+                {weather?.tMin != null && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] text-blue-300">↓ {Math.round(weather.tMin)}°</span>
+                    <span className="text-[10px] text-orange-300">↑ {Math.round(weather.tMax)}°</span>
+                  </div>
+                )}
+                {weather && (weather.rain != null || weather.wind != null) && (
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {weather.rain != null && (
+                      <span className="text-[10px] text-white/60">
+                        💧 {weather.rain === 0 ? '0' : weather.rain < 1 ? '<1' : Math.round(weather.rain)} mm
+                      </span>
+                    )}
+                    {weather.wind != null && (
+                      <span className="text-[10px] text-white/60">
+                        💨 {Math.round(weather.wind)} km/h
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Conseil à droite */}
+            {conseil && (
+              <div className="flex-shrink-0 ml-3 flex flex-col items-center justify-center gap-1.5" style={{ maxWidth: 100 }}>
+                <span className="text-[32px] leading-none">{conseil.icon}</span>
+                <p className="text-[10px] text-white/60 leading-snug text-center">{conseil.text}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Ville + changer — en bas, pleine largeur */}
+          <div className="mt-2.5 rounded-xl px-2.5 py-1.5 flex items-center justify-between"
+            style={{ background:'rgba(255,255,255,0.10)' }}>
+            <span className="text-[11px] text-white/60 leading-tight">
+              📍 {city?.name?.split(',')[0] ?? '…'}
+            </span>
+            <span onClick={e => { e.stopPropagation(); onOpenCityPicker() }}
+              className="text-[10px] text-white/40 underline underline-offset-2 cursor-pointer leading-none flex-shrink-0 ml-2"
+              style={{ WebkitTapHighlightColor:'transparent' }}>
+              Changer ›
+            </span>
+          </div>
+        </div>
+      </button>
+
+      {fete && isFeteSpeciale(fete) && <FeteSpeciale fete={fete} />}
     </div>
   )
 }
@@ -320,46 +438,62 @@ export default function App() {
         </div>
       </div>
 
-      <DayHeader profile={profile} dark={dark} />
+      {/* Bisou — avant la météo */}
+      <div className="max-w-lg mx-auto px-3 pt-2">
+        <BisouWidget profile={profile} hasBadge={bisouBadge} dark={dark}
+          onClick={() => openApp('bisou')} />
+      </div>
 
-      <div className="px-3 pt-1.5 pb-8 max-w-lg mx-auto">
+      <DayHeader profile={profile} dark={dark}
+        onMeteoClick={openMeteo}
+        onOpenCityPicker={() => { setShowCityPicker(true) }}
+        cityKey={meteoKey} />
 
-        <div className="mb-2">
-          <AgendaWidget onClick={() => openApp('programme')} dark={dark} />
+      <div className="px-3 pt-1.5 pb-8 max-w-lg mx-auto space-y-2">
+
+        {/* Orbite — juste sous la météo */}
+        <OrbiteWidget profile={profile} dark={dark} onClick={() => openApp('orbite')} />
+
+        {/* Agenda — Demandez le Programme */}
+        <AgendaWidget onClick={() => openApp('programme')} dark={dark} />
+
+        {/* Ça Traîne */}
+        <TraineWidget profile={profile} dark={dark} onClick={() => openApp('traine')} />
+
+        {/* Mémoire + Courses — compact côte à côte */}
+        <div className="flex gap-2 items-stretch">
+          <MemoireWidget profile={profile} dark={dark} onClick={() => openApp('flashcards')} />
+          <CoursesWidget profileId={profile?.id} dark={dark}
+            onClick={() => openApp('recettes', { initialShoppingList: true })} />
         </div>
 
-        <div className="flex gap-2 items-stretch mb-2">
-          <MeteoWidget key={meteoKey} profileId={profile?.id}
-            onOpenCityPicker={() => setShowCityPicker(true)} onClick={openMeteo} />
-          <BisouWidget profile={profile} hasBadge={bisouBadge} dark={dark}
-            onClick={() => openApp('bisou')} />
-          <OrbiteWidget profile={profile} onClick={() => openApp('orbite')} />
-        </div>
-
-        <p className="text-[11px] uppercase tracking-widest mt-3 mb-2" style={{ color:'#a78bfa' }}>
+        {/* Apps */}
+        <p className="text-[11px] uppercase tracking-widest pt-2" style={{ color:'#a78bfa' }}>
           Applications
         </p>
-        <div className="grid grid-cols-4 gap-2 mb-1">
+        <div className="grid grid-cols-3 gap-2">
           {HUB_APPS.map(app => (
             <button key={app.id}
               onClick={() => app.id === 'meteo' ? openMeteo() : openApp(app.id)}
-              className="rounded-2xl py-2.5 px-1 flex flex-col items-center gap-1.5 active:scale-95 transition-all"
+              className="rounded-2xl py-3 px-2 flex flex-col items-center gap-1.5 active:scale-95 transition-all"
               style={{
                 background: dark ? '#1a1035' : '#fff',
                 border: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`
               }}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg"
-                style={{ background:app.color+'18' }}>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                style={{ background: app.color + '18' }}>
                 {app.emoji}
               </div>
-              <p className="text-[10px] font-medium text-center leading-tight" style={{ color: dark ? '#c4b5fd' : '#1e0a3c' }}>
-                {HUB_LABELS[app.id] ?? app.name}
+              <p className="text-[10px] font-medium text-center leading-tight"
+                style={{ color: dark ? '#e9d5ff' : '#1e0a3c' }}>
+                {app.name}
               </p>
             </button>
           ))}
         </div>
 
-        <p className="text-[11px] uppercase tracking-widest mt-3 mb-2" style={{ color:'#a78bfa' }}>
+        {/* En préparation */}
+        <p className="text-[11px] uppercase tracking-widest pt-2" style={{ color:'#a78bfa' }}>
           En préparation
         </p>
         <div className="grid grid-cols-2 gap-1.5">

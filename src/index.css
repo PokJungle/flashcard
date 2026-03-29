@@ -3,3 +3,13 @@
 @tailwind utilities;
 
 * { -webkit-tap-highlight-color: transparent; }
+
+@keyframes bisou-ticker {
+  0%   { transform: translateX(0) }
+  100% { transform: translateX(-50%) }
+}
+.bisou-ticker {
+  animation: bisou-ticker 18s linear infinite;
+  white-space: nowrap;
+  display: inline-block;
+}

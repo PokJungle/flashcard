@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase'
 
-export default function OrbiteWidget({ profile, onClick }) {
+export default function OrbiteWidget({ profile, onClick, dark }) {
   const [data, setData] = useState(null)
 
   useEffect(() => {
@@ -24,54 +24,61 @@ export default function OrbiteWidget({ profile, onClick }) {
       const target = settingsRes.data?.weekly_rocket_target || 10000
       const byProfile = {}
       acts.forEach(a => { byProfile[a.profile_id] = (byProfile[a.profile_id]||0) + a.props })
-      const total   = Object.values(byProfile).reduce((s,v) => s+v, 0)
-      const myProps = byProfile[profile.id] || 0
-      const other   = profiles.find(p => p.id !== profile.id)
-      setData({ myProps, total, other, target, launched: total >= target,
-        otherProps: other ? (byProfile[other.id]||0) : 0 })
+      const myProps    = byProfile[profile.id] || 0
+      const other      = profiles.find(p => p.id !== profile.id)
+      const otherProps = other ? (byProfile[other.id]||0) : 0
+      const total      = myProps + otherProps
+      setData({ myProps, otherProps, total, other, target, launched: total >= target })
     })
   }, [profile])
 
   if (!data || (data.myProps === 0 && data.otherProps === 0)) return null
 
-  const totalPct = Math.min(data.total / data.target, 1)
-  const myShare  = data.total > 0 ? data.myProps / data.total : 0.5
+  const totalPct   = Math.min(data.total / data.target, 1)
+  const myShare    = data.total > 0 ? data.myProps / data.total : 0.5
+  const otherShare = 1 - myShare
 
   return (
     <button onClick={onClick}
-      className="active:scale-95 transition-all self-stretch flex-shrink-0"
-      style={{ width:64, borderRadius:18,
-        background:'linear-gradient(180deg,#0d1320,#0a0e18)',
-        border:'1px solid rgba(255,122,30,0.25)',
-        display:'flex', flexDirection:'column', alignItems:'center',
-        padding:'10px 0 8px', gap:5,
-        boxShadow:'0 2px 12px rgba(0,0,0,0.25)' }}>
-      <span style={{ fontSize:17 }}>💥</span>
-      <div style={{ flex:1, width:22, borderRadius:99,
-        background:'rgba(255,255,255,0.07)', overflow:'hidden',
-        display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
-        {totalPct > 0 && (
-          <div style={{ width:'100%', height:`${totalPct*100}%`, display:'flex', flexDirection:'column' }}>
-            <div style={{ flex:myShare,   background:'linear-gradient(180deg,#ffb34d,#ff7a1e)' }} />
-            {data.other && <div style={{ flex:1-myShare, background:'linear-gradient(180deg,#6aa8ff,#4a8cff)' }} />}
-          </div>
-        )}
-      </div>
-      <span style={{ fontFamily:'monospace', fontSize:10, fontWeight:700,
-        color: data.launched ? '#ff7a1e' : 'rgba(255,255,255,0.35)' }}>
-        {Math.round(totalPct*100)}%
-      </span>
-      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:3 }}>
-          <span style={{ width:6, height:6, borderRadius:'50%', background:'#ff7a1e', flexShrink:0 }} />
-          <span style={{ fontSize:12 }}>{profile.avatar}</span>
+      className="w-full rounded-2xl px-3.5 py-3 text-left active:scale-95 transition-all"
+      style={{
+        background: dark ? '#0d1117' : '#0f172a',
+        border: '1px solid rgba(255,122,30,0.2)',
+      }}>
+      <div className="flex items-center gap-3">
+        {/* Légende gauche */}
+        <div className="flex items-center gap-2 flex-shrink-0 text-[10px] text-white/40">
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background:'#ff7a1e' }} />
+            {profile.avatar}
+          </span>
+          {data.other && (
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background:'#4a8cff' }} />
+              {data.other.avatar}
+            </span>
+          )}
         </div>
-        {data.other && (
-          <div style={{ display:'flex', alignItems:'center', gap:3 }}>
-            <span style={{ width:6, height:6, borderRadius:'50%', background:'#4a8cff', flexShrink:0 }} />
-            <span style={{ fontSize:12 }}>{data.other.avatar}</span>
-          </div>
-        )}
+
+        {/* Barre */}
+        <div className="flex-1 relative h-3">
+          <div className="absolute inset-0 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }} />
+          {totalPct > 0 && (
+            <div className="absolute left-0 top-0 h-full rounded-full overflow-hidden"
+              style={{ width: `${totalPct * 100}%`, display: 'flex' }}>
+              <div style={{ flex: myShare, background: 'linear-gradient(90deg,#ffb34d,#ff7a1e)' }} />
+              {data.other && (
+                <div style={{ flex: otherShare, background: 'linear-gradient(90deg,#6aa8ff,#4a8cff)' }} />
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 💥 + % à droite */}
+        <span className="text-[11px] font-mono font-bold flex-shrink-0 flex items-center gap-1"
+          style={{ color: data.launched ? '#ff7a1e' : 'rgba(255,255,255,0.35)' }}>
+          {Math.round(totalPct * 100)}% 💥
+        </span>
       </div>
     </button>
   )
