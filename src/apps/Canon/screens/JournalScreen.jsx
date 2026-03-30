@@ -83,8 +83,10 @@ function Palmares({ tastings, profiles, profile, dark }) {
     .map(([r,d]) => ({ region:r, avg:d.total/d.count, count:d.count }))
     .sort((a,b) => b.avg - a.avg).slice(0,5)
 
-  const favorites = filtered.filter(t => t.is_favorite)
-    .sort((a,b) => new Date(b.tasted_at)-new Date(a.tasted_at)).slice(0,5)
+  const favorites = filtered.filter(t =>
+    t.is_favorite ||
+    (Array.isArray(t.reactions) && t.reactions.some(r => r.is_favorite))
+  ).sort((a,b) => new Date(b.tasted_at)-new Date(a.tasted_at)).slice(0,5)
 
   return (
     <div>
@@ -272,7 +274,8 @@ export default function JournalScreen({ hook, dark, profile }) {
                 const myReaction = reactions.find(r => r.profile_id === profile.id)
                 // L'auteur a son avis dans les champs directs.
                 // Le second profil peut avoir son avis dans reactions.
-                const otherReactions = reactions.filter(r => r.profile_id !== tasting.profile_id)
+                const otherReactions = reactions.filter(r => r.profile_id !== tasting.profile_id && r.profile_id !== profile.id)
+                const heartCount = (tasting.is_favorite ? 1 : 0) + reactions.filter(r => r.is_favorite).length
                 const canReact = tasting.profile_id !== profile.id && !myReaction
 
                 return (
@@ -289,7 +292,7 @@ export default function JournalScreen({ hook, dark, profile }) {
                           <p className="text-sm font-bold truncate" style={{ color: textPri }}>
                             {tasting.domain || tasting.name}
                           </p>
-                          {tasting.is_favorite && <span className="text-sm flex-shrink-0">❤️</span>}
+                          {heartCount > 0 && <span className="text-sm flex-shrink-0">{'❤️'.repeat(heartCount)}</span>}
                         </div>
                         {tasting.domain && <p className="text-xs truncate" style={{ color: textSec }}>{tasting.name}</p>}
                         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">

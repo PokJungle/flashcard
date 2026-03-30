@@ -45,6 +45,8 @@ export default function CaveScreen({ hook, dark, profile }) {
   const [search, setSearch]         = useState('')
   const [filterColor, setFilterColor] = useState(null)
   const [showEmpty, setShowEmpty]   = useState(false)
+  const [filterZone, setFilterZone]     = useState(null)
+  const [filterRegion, setFilterRegion] = useState(null)
 
   // Modals
   const [addModal, setAddModal]     = useState(false)
@@ -67,14 +69,21 @@ export default function CaveScreen({ hook, dark, profile }) {
   const [tfQty, setTfQty]             = useState(1)
   const [transferring, setTransferring] = useState(false)
 
+  const [minusZoneModal, setMinusZoneModal] = useState(null) // bottle
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [zoneSettings, setZoneSettings] = useState(false)
   const [newZoneName, setNewZoneName]   = useState('')
   const [newZoneEmoji, setNewZoneEmoji] = useState('📦')
 
+  const activeBottles = bottles.filter(b => getTotalQty(b) > 0)
+  const availableZones = [...new Set(activeBottles.flatMap(b => getLocations(b).map(l => l.zone)))]
+  const availableRegions = [...new Set(activeBottles.filter(b => b.region).map(b => b.region))].sort()
+
   const filtered = bottles
     .filter(b => showEmpty ? true : getTotalQty(b) > 0)
     .filter(b => !filterColor || b.color === filterColor)
+    .filter(b => !filterZone || getLocations(b).some(l => l.zone === filterZone))
+    .filter(b => !filterRegion || b.region === filterRegion)
     .filter(b => !search || [b.name, b.domain, b.appellation, b.region]
       .some(v => v?.toLowerCase().includes(search.toLowerCase())))
 
@@ -132,6 +141,16 @@ export default function CaveScreen({ hook, dark, profile }) {
     setAddZoneModal(null)
   }
 
+  // ── Minus quick ──
+  const handleQuickMinus = async (bottle) => {
+    const locs = getLocations(bottle)
+    if (locs.length === 1) {
+      if (locs[0].qty > 0) await hook.addToZone(bottle.id, locs[0].zone, -1)
+    } else {
+      setMinusZoneModal(bottle)
+    }
+  }
+
   // ── Transfer ──
   const openTransfer = (bottle) => {
     const locs = getLocations(bottle)
@@ -182,7 +201,7 @@ export default function CaveScreen({ hook, dark, profile }) {
           style={inp} />
 
         {/* Filtres couleur */}
-        <div className="flex gap-1 mb-3">
+        <div className="flex gap-1 mb-2">
           <button onClick={() => setFilterColor(null)}
             className="flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium"
             style={{ background: !filterColor ? COLOR : (dark?'#1a1035':'#f3f4f6'), color: !filterColor?'#fff':textSec, border:`1px solid ${!filterColor?COLOR:border2}` }}>
@@ -201,6 +220,35 @@ export default function CaveScreen({ hook, dark, profile }) {
             {showEmpty?'−∅':'∅'}
           </button>
         </div>
+
+        {/* Filtres zone */}
+        {availableZones.length > 0 && (
+          <div className="flex gap-1 flex-wrap mb-2">
+            {availableZones.map(zId => {
+              const zi = getZoneInfo(zones, zId)
+              return (
+                <button key={zId} onClick={() => setFilterZone(filterZone===zId?null:zId)}
+                  className="px-2.5 py-1 rounded-full text-[11px] font-medium"
+                  style={{ background:filterZone===zId?`${COLOR}22`:(dark?'#1a1035':'#f3f4f6'), color:filterZone===zId?COLOR:textSec, border:`1px solid ${filterZone===zId?COLOR:border2}` }}>
+                  {zi.emoji} {zi.name}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Filtres région */}
+        {availableRegions.length > 0 && (
+          <div className="flex gap-1 flex-wrap mb-3">
+            {availableRegions.map(r => (
+              <button key={r} onClick={() => setFilterRegion(filterRegion===r?null:r)}
+                className="px-2.5 py-1 rounded-full text-[11px] font-medium"
+                style={{ background:filterRegion===r?`${COLOR}22`:(dark?'#1a1035':'#f3f4f6'), color:filterRegion===r?COLOR:textSec, border:`1px solid ${filterRegion===r?COLOR:border2}` }}>
+                {r}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Liste */}
         {filtered.length === 0 && (
@@ -232,7 +280,7 @@ export default function CaveScreen({ hook, dark, profile }) {
                       <p className="text-sm font-bold truncate" style={{ color: textPri }}>{primary}</p>
                       {isLast && <span className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background:'#fef3c7',color:'#92400e' }}>Dernière !</span>}
                     </div>
-                    {secondary && <p className="text-xs mb-0.5 truncate" style={{ color: textSec }}>{secondary}</p>}
+                    {secondary && <p className="text-sm font-medium mb-0.5 truncate" style={{ color: textPri }}>{secondary}</p>}
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {bottle.vintage && <span className="text-[11px]" style={{ color: textSec }}>{bottle.vintage}</span>}
                       {bottle.appellation && <span className="text-[11px]" style={{ color: textSec }}>· {bottle.appellation}</span>}
@@ -255,12 +303,17 @@ export default function CaveScreen({ hook, dark, profile }) {
                   {/* Droite */}
                   <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                     <div className="flex items-center gap-1">
+                      {total > 0 && (
+                        <button onClick={() => handleQuickMinus(bottle)}
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold active:scale-90 transition-transform"
+                          style={{ background:dark?'#1f2937':'#f3f4f6', color:textSec }}>−</button>
+                      )}
                       <span className="text-base font-bold" style={{ color: COLOR }}>×{total}</span>
                       <button onClick={() => openAddZone(bottle.id)}
                         className="w-6 h-6 rounded-full flex items-center justify-center text-white text-sm font-bold active:scale-90 transition-transform"
                         style={{ background: COLOR }}>+</button>
                     </div>
-                    {locs.length > 1 && (
+                    {total > 0 && (
                       <button onClick={() => openTransfer(bottle)}
                         className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg active:scale-95"
                         style={{ background: dark?'#1f2937':'#f3f4f6', color: textSec }}>
@@ -445,6 +498,11 @@ export default function CaveScreen({ hook, dark, profile }) {
               style={{ background: COLOR }}>
               {drinking ? 'Enregistrement…' : 'Confirmer → Journal'}
             </button>
+            <button onClick={confirmDrink} disabled={drinking || (!drinkZone && getLocations(drinkBottle).length > 1)}
+              className="w-full mt-2 py-2 text-xs text-center active:scale-95 disabled:opacity-30"
+              style={{ color: textSec }}>
+              Boire sans noter
+            </button>
           </div>
         )}
       </BottomModal>
@@ -527,7 +585,7 @@ export default function CaveScreen({ hook, dark, profile }) {
                 className="w-10 h-10 rounded-full text-xl font-bold flex items-center justify-center active:scale-90"
                 style={{ background:dark?'#1f2937':'#f3f4f6', color:textPri }}>−</button>
               <span className="text-2xl font-bold w-12 text-center" style={{ color: textPri }}>{tfQty}</span>
-              <button onClick={() => setTfQty(q=>q+1)}
+              <button onClick={() => setTfQty(q => Math.min(q + 1, getLocations(transferModal||{}).find(l=>l.zone===tfFrom)?.qty || 1))}
                 className="w-10 h-10 rounded-full text-xl font-bold flex items-center justify-center active:scale-90"
                 style={{ background: COLOR, color:'#fff' }}>+</button>
             </div>
@@ -573,6 +631,32 @@ export default function CaveScreen({ hook, dark, profile }) {
             Ajouter
           </button>
         </div>
+      </BottomModal>
+
+      {/* ── Modal Moins stock (multi-zones) ── */}
+      <BottomModal open={!!minusZoneModal} onClose={() => setMinusZoneModal(null)} cardBg={dark?'#1a1035':'#fff'}>
+        {minusZoneModal && (
+          <div className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="font-bold" style={{ color: textPri }}>− Retirer une bouteille</p>
+              <button onClick={() => setMinusZoneModal(null)}><X size={20} style={{ color: textSec }}/></button>
+            </div>
+            <p className="text-xs mb-3" style={{ color: textSec }}>De quelle zone ?</p>
+            <div className="flex gap-2 flex-wrap mb-2">
+              {getLocations(minusZoneModal).map(l => {
+                const zi = getZoneInfo(zones, l.zone)
+                return (
+                  <button key={l.zone} disabled={l.qty < 1}
+                    onClick={async () => { await hook.addToZone(minusZoneModal.id, l.zone, -1); setMinusZoneModal(null) }}
+                    className="px-3 py-2 rounded-xl text-xs font-medium active:scale-95 disabled:opacity-30"
+                    style={{ background:`${COLOR}22`, border:`1.5px solid ${COLOR}`, color: COLOR }}>
+                    {zi.emoji} {zi.name} ×{l.qty}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </BottomModal>
 
       {/* ── Modal Suppression ── */}
