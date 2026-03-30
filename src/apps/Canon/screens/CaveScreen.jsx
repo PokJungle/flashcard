@@ -420,7 +420,6 @@ export default function CaveScreen({ hook, dark }) {
             {/* Zone */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs" style={{ color: textSec }}>Zone initiale</p>
                 <button onClick={() => setZoneSettings(true)} className="text-[11px]" style={{ color: textSec }}>⚙️ Gérer</button>
               </div>
               <div className="flex gap-1.5 flex-wrap">
