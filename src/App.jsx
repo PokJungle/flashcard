@@ -120,7 +120,7 @@ function CityPicker({ profileId, onClose, dark }) {
   )
 }
 
-// ─── Calendrier lunaire biodynamique ─────────────────────────────────────────
+// ─── Calendrier lunaire ─────────────────────────────────────────
 function getMoonDayType(date) {
   const J2000 = new Date('2000-01-01T12:00:00Z')
   const d = (date.getTime() - J2000.getTime()) / 86400000
@@ -139,24 +139,27 @@ function getMoonDayType(date) {
   return TYPES[sign % 4]
 }
 
+function getMoonPhase(date) {
+  // Calcul de la phase lunaire (0 à 1, où 0 = nouvelle lune, 0.5 = pleine lune)
+  const J2000 = new Date('2000-01-01T12:00:00Z')
+  const days = (date.getTime() - J2000.getTime()) / 86400000
+  
+  // Age de la lune en jours depuis la nouvelle lune
+  const moonAge = (days % 29.53058867) / 29.53058867
+  
+  // Déterminer la phase et l'emoji
+  if (moonAge < 0.03 || moonAge > 0.97) return { phase: 'Nouvelle lune', emoji: '🌑' }
+  if (moonAge < 0.22) return { phase: 'Premier croissant', emoji: '🌒' }
+  if (moonAge < 0.28) return { phase: 'Premier quartier', emoji: '🌓' }
+  if (moonAge < 0.47) return { phase: 'Gibbeuse croissante', emoji: '🌔' }
+  if (moonAge < 0.53) return { phase: 'Pleine lune', emoji: '🌕' }
+  if (moonAge < 0.72) return { phase: 'Gibbeuse décroissante', emoji: '🌖' }
+  if (moonAge < 0.78) return { phase: 'Dernier quartier', emoji: '🌗' }
+  return { phase: 'Dernier croissant', emoji: '🌘' }
+}
+
 // ─── Composant entête date + météo ───────────────────────────────────────────
 const WMO_ICONS_HD = {0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',71:'🌨️',73:'🌨️',75:'❄️',80:'🌦️',81:'🌧️',82:'⛈️',95:'⛈️',96:'⛈️',99:'⛈️'}
-
-function getConseilHD(code, wind) {
-  const windy = wind != null && wind >= 40
-  if (code == null) return null
-  if ([95,96,99].includes(code)) return { icon:'☂️', text: windy ? 'Parapluie, mais franchement reste à la maison' : 'Parapluie + cirée + bottes' }
-  if ([65,82].includes(code))    return { icon:'☂️', text: windy ? 'Parapluie retourné garanti' : "Parapluie solide, c'est sérieux" }
-  if ([51,53,55,61,63,80,81].includes(code)) return { icon:'☂️', text: windy ? 'Parapluie… ou pas, il tiendra pas' : 'Petite pluie, petit parapluie' }
-  if ([71,73,75].includes(code)) return { icon:'☂️', text: 'Ni claquettes ni parapluie, les raquettes !' }
-  if ([45,48].includes(code))    return { icon:'🩴', text: 'Claquettes dans le brouillard, pourquoi pas' }
-  if ([3].includes(code))        return { icon:'🩴', text: windy ? 'Claquettes risquées, parapluie de précaution' : 'Claquettes possibles, parapluie en veille' }
-  if ([2].includes(code))        return { icon:'🩴', text: windy ? 'Claquettes, veste et cheveux en bataille' : 'Claquettes-Chausettes au cas où...' }
-  if ([1].includes(code))        return { icon:'🩴', text: windy ? "Claquettes oui, mais attention qu'elles ne s'envolent pas" : 'Claquettes envisageables, belle journée !' }
-  if ([0].includes(code))        return { icon:'🩴', text: windy ? 'Claquettes, soleil et vent dans les oreilles' : 'Claquettes et lunette de soleil, grande journée !' }
-  if (windy)                     return { icon:'🩴', text: 'Claquettes ok mais accroche le parapluie' }
-  return { icon:'🩴', text: 'Claquettes ou parapluie… va savoir' }
-}
 
 const CONFETTI_SPANS = [
   { t:11,l:18,w:5,h:5,r:'50%',bg:'#fef08a',a:'bbp-float1 1.4s ease-in-out infinite 0.7s' },
@@ -248,8 +251,8 @@ function DayHeader({ profile, onMeteoClick, onOpenCityPicker, cityKey }) {
   const now       = new Date()
   const dateStr   = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })
   const dateLabel = dateStr.charAt(0).toUpperCase() + dateStr.slice(1)
-  const conseil   = weather ? getConseilHD(weather.code, weather.wind) : null
   const moon      = getMoonDayType(now)
+  const moonPhase = getMoonPhase(now)
 
   return (
     <div className="max-w-lg mx-auto px-3 pt-2 pb-1">
@@ -303,13 +306,17 @@ function DayHeader({ profile, onMeteoClick, onOpenCityPicker, cityKey }) {
               </div>
             </div>
 
-            {/* Conseil à droite */}
-            {conseil && (
-              <div className="flex-shrink-0 ml-3 flex flex-col items-center justify-center gap-1.5" style={{ maxWidth: 100 }}>
-                <span className="text-[32px] leading-none">{conseil.icon}</span>
-                <p className="text-[10px] text-white/60 leading-snug text-center">{conseil.text}</p>
+            {/* Lune à droite */}
+            <div className="flex-shrink-0 ml-3 flex items-center justify-center" style={{ maxWidth: 100 }}>
+              <div className="relative group cursor-pointer active:scale-95 transition-transform">
+                <span className="text-5xl">{moonPhase.emoji}</span>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 text-white text-[10px] rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                  {moonPhase.phase}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-black/80"></div>
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Ville + changer — en bas, pleine largeur */}

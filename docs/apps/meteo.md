@@ -59,6 +59,12 @@ Le widget météo est dans le composant `DayHeader` dans `src/App.jsx` (lignes 2
 - **Icône** : Code WMO médian des modèles
 - **Pluie** : Moyenne des précipitations (mm, 1 décimale)
 - **Vent** : Moyenne des vitesses de vent (km/h, arrondi)
+- **Lune** : Phase lunaire biodynamique (Fruit/Racine/Fleur/Feuille)
+
+### 🌙 **Affichage spécial**
+
+- **Widget header** : Affiche la biodynamie (🍎Fruit/🌱Racine/🌸Fleur/🍃Feuille) à côté de la fête + phase lunaire (🌑🌒🌓🌔🌕🌖🌗🌘) à droite
+- **App complète** : Affiche le conseil "Parapluie ou Claquettes" dans l'en-tête, à droite de la ville
 
 ### 🔄 **Différences avec l'app complète**
 
@@ -92,6 +98,11 @@ Si les données météo semblent incohérentes :
 
 ## 📝 **Historique des modifications**
 
+- **v2.6** : Widget affiche la biodynamie à côté de la fête + phase lunaire à droite (plus de redondance)
+- **v2.5** : Widget affiche uniquement la phase lunaire (🌑🌒🌓🌔🌕🌖🌗🌘), plus de redondance
+- **v2.4** : Widget affiche la phase lunaire (🌑🌒🌓🌔🌕🌖🌗🌘) + type biodynamique
+- **v2.3** : Conseil déplacé dans l'en-tête de l'app météo (à droite de la ville)
+- **v2.2** : Widget affiche la lune, app complète affiche le conseil parapluie/claquettes
 - **v2.1** : Widget utilise min/max de la journée + température actuelle de l'heure
 - **v2** : Widget utilise `fetchCurrentHourWeather()` avec moyenne des modèles pour l'heure actuelle
 - **v1** : Widget utilisait `fetchWeatherForCity()` avec `best_match` seul (daily)
