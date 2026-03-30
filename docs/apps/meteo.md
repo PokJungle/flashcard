@@ -4,7 +4,8 @@
 
 ```
 src/apps/Meteo/
-└── index.jsx   # Écran unique, pas de TabBar
+├── index.jsx          # Écran unique, pas de TabBar
+└── meteo.utils.js     # Utilitaires météo (nouveau)
 ```
 
 ## Fonctionnalités
@@ -15,16 +16,28 @@ src/apps/Meteo/
 - Favoris multi-villes
 - Filtre des heures passées sur le jour courant
 
+## Fichier utilitaire (`meteo.utils.js`)
+
+Nouveau fichier créé pour séparer la logique météo du composant widget :
+
+```javascript
+export const DEFAULT_METEO_CITY        # Ville par défaut
+export function getPreferredCity()     # Récupération ville du profil
+export const WMO_ICONS               # Icônes météo WMO
+export function getConseil()          # Logique parapluie/claquettes
+export async function fetchWeatherForCity() # Appel API Open-Meteo
+```
+
 ## Modèles météo agrégés (Open-Meteo, sans auth)
 
-| Modèle | Code |
-|--------|------|
-| AROME (Météo France) | `arome` |
-| ICON-D2 (DWD) | `icon_d2` |
-| ICON-EU (DWD) | `icon_eu` |
-| Météo France | `meteofrance` |
-| ECMWF | `ecmwf` |
-| GFS (NOAA) | `gfs` |
+| Modèle               | Code          |
+| -------------------- | ------------- |
+| AROME (Météo France) | `arome`       |
+| ICON-D2 (DWD)        | `icon_d2`     |
+| ICON-EU (DWD)        | `icon_eu`     |
+| Météo France         | `meteofrance` |
+| ECMWF                | `ecmwf`       |
+| GFS (NOAA)           | `gfs`         |
 
 Les 6 modèles sont interrogés et leurs prévisions agrégées pour afficher une synthèse.
 

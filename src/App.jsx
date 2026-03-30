@@ -11,7 +11,8 @@ import Traine from './apps/Traine/index.jsx'
 import Canon from './apps/Canon/index.jsx'
 
 import { useDarkMode } from './hooks/useDarkMode'
-import MeteoWidget, { getPreferredCity } from './components/widgets/MeteoWidget'
+import MeteoWidget from './components/widgets/MeteoWidget'
+import { getPreferredCity as getPreferredCityFromUtils } from './apps/Meteo/meteo.utils'
 import BisouWidget from './components/widgets/BisouWidget'
 import CoursesWidget from './components/widgets/CoursesWidget'
 import AgendaWidget from './components/widgets/AgendaWidget'
@@ -59,13 +60,23 @@ function CityPicker({ profileId, onClose, dark }) {
   const [selectedLat, setSelectedLat] = useState(null)
 
   useEffect(() => {
-    let favs = [{ name:'Saint-Antonin-sur-Bayon', lat:43.5308, lon:5.6078, country:'FR' }]
-    try {
-      const stored = JSON.parse(localStorage.getItem('meteo-fav2') || 'null')
-      if (stored?.length) favs = stored
-    } catch { /* ignore */ }
-    setFavorites(favs)
-    setSelectedLat(getPreferredCity(profileId).lat)
+    const loadFavorites = () => {
+      let favs = [{ name:'Saint-Antonin-sur-Bayon', lat:43.5308, lon:5.6078, country:'FR' }]
+      try {
+        const stored = JSON.parse(localStorage.getItem('meteo-fav2') || 'null')
+        if (stored?.length) favs = stored
+      } catch { /* ignore */ }
+      return favs
+    }
+    
+    const favs = loadFavorites()
+    const preferredCity = getPreferredCityFromUtils(profileId)
+    
+    // Utiliser setTimeout pour éviter les appels synchrones
+    setTimeout(() => {
+      setFavorites(favs)
+      setSelectedLat(preferredCity.lat)
+    }, 0)
   }, [profileId])
 
   const save = (city) => {
@@ -189,22 +200,33 @@ function FeteSpeciale({ fete }) {
   )
 }
 
-function DayHeader({ profile, dark, onMeteoClick, onOpenCityPicker, cityKey }) {
+function DayHeader({ profile, onMeteoClick, onOpenCityPicker, cityKey }) {
   const [fete, setFete]       = useState(null)
   const [weather, setWeather] = useState(null)
   const [city, setCity]       = useState(null)
 
   useEffect(() => {
-    const now = new Date()
-    const key = `${now.getDate()}/${now.getMonth()+1}`
-    const name = FETES[key]
-    if (name) setFete(name)
+    const checkFete = () => {
+      const now = new Date()
+      const key = `${now.getDate()}/${now.getMonth()+1}`
+      return FETES[key]
+    }
+    
+    const name = checkFete()
+    if (name) {
+      setTimeout(() => setFete(name), 0)
+    }
   }, [])
 
   useEffect(() => {
     if (!profile?.id) return
-    const c = getPreferredCity(profile.id)
-    setCity(c)
+    
+    const c = getPreferredCityFromUtils(profile.id)
+    
+    // Définir la ville immédiatement
+    setTimeout(() => setCity(c), 0)
+    
+    // Récupérer les données météo
     fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}` +
       `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max` +
@@ -360,7 +382,7 @@ export default function App() {
   }
 
   const openApp = (id, props = {}) => { setActiveAppProps(props); setActiveApp(id) }
-  const openMeteo = () => openApp('meteo', { initialCity: getPreferredCity(profile?.id) })
+  const openMeteo = () => openApp('meteo', { initialCity: getPreferredCityFromUtils(profile?.id) })
 
   // ─── App active ───────────────────────────────────────────────────────────
   if (activeApp) {
@@ -457,7 +479,7 @@ export default function App() {
           onClick={() => openApp('bisou')} />
       </div>
 
-      <DayHeader profile={profile} dark={dark}
+      <DayHeader profile={profile}
         onMeteoClick={openMeteo}
         onOpenCityPicker={() => { setShowCityPicker(true) }}
         cityKey={meteoKey} />

@@ -45,6 +45,7 @@ En préparation (grid 2 cols)
 ## Widgets
 
 ### MeteoWidget (`src/components/widgets/MeteoWidget.jsx`)
+
 - Taille fixe 170px de largeur
 - Fond `#4f3ea0`, cercle déco `w-40 h-40 -top-14 -right-14`
 - Icône WMO 48px, temp moy 34px, min/max colorés, pluie+vent
@@ -53,31 +54,38 @@ En préparation (grid 2 cols)
 - Ville par profil : `localStorage bbp-meteo-city-{profileId}` → fallback `meteo-fav2` → `DEFAULT_METEO_CITY`
 
 ### BisouWidget (`src/components/widgets/BisouWidget.jsx`)
+
 - Dernier message de l'AUTRE profil
 - Emoji seul → 38px centré ; avec texte → emoji 22px + nom expéditeur + 3 lignes max
 - Pastille 💗 si message non lu (`hasBadge` prop depuis App.jsx)
 
 ### CoursesWidget (`src/components/widgets/CoursesWidget.jsx`)
-- Fond post-it `#fef9c3`, hauteur 48px
-- Clic → `openApp('recettes', { initialShoppingList: true })`
-- Point orange si des items sont dans le meal_plan de la semaine courante
+
+- Fond post-it adaptatif : `#fef9c3` (clair) / `#1a1035` (sombre)
+- Hauteur 48px, clic → `openApp('recettes', { initialShoppingList: true })`
+- Point orange/bleu selon mode si des items sont dans le meal_plan de la semaine courante
+- **Mode dark** : utilise les couleurs du thème (violet/bleu)
 
 ### AgendaWidget (`src/components/widgets/AgendaWidget.jsx`)
+
 - Affiche jusqu'à 4 prochains événements de `programme_events`
 - Gère `is_annual`, `event_end_date`, âge anniversaires (`getAge()`)
 - Compte à rebours amber si ≤ 3 jours
 - Badge amber sur la tuile hub (`programmeBadge` dans App.jsx)
 
 ### OrbiteWidget (`src/components/widgets/OrbiteWidget.jsx`)
+
 - Largeur 64px, toute la hauteur de la colonne droite
 - Jauge verticale bicolore : orange🐒 / bleu🚀
 - Affiché uniquement si des données existent pour la semaine en cours
 
 ### MemoireWidget (`src/components/widgets/MemoireWidget.jsx`)
+
 - Compact, dans la rangée basse avec CoursesWidget
 - Affiche les cartes dues aujourd'hui
 
 ### TraineWidget (`src/components/widgets/TraineWidget.jsx`)
+
 - Widget pour l'app Ça Traîne (todo partagée)
 
 ## CityPicker (modal)
@@ -89,10 +97,29 @@ En préparation (grid 2 cols)
 
 ```js
 // Bisou : message non lu de l'autre profil
-const [bisouBadge, setBisouBadge] = useState(false)
+const [bisouBadge, setBisouBadge] = useState(false);
 
 // Programme : événement dans ≤ 3 jours
-const [programmeBadge, setProgrammeBadge] = useState(false)
+const [programmeBadge, setProgrammeBadge] = useState(false);
 ```
 
 Les deux sont vérifiés au montage via des requêtes Supabase dans `useEffect`.
+
+## Bonnes pratiques React implémentées
+
+### useEffect asynchrones
+
+- **MeteoWidget** : `loadWeather()` dans wrapper async pour éviter les setState synchrones
+- **useProgramme** : `fetchEvents()` dans wrapper async pour les mêmes raisons
+- **Traine** : Déclaration des fonctions avant leur utilisation dans les effets
+
+### Architecture modulaire
+
+- **Séparation des utilitaires** : `meteo.utils.js` pour la logique météo
+- **Fast Refresh** : Les widgets n'exportent que des composants React
+- **Mode dark unifié** : Tous les widgets s'adaptent au thème
+
+### Performance
+
+- **useCallback** : Fonctions stables dans les dépendances d'effets
+- **Déclarations ordonnées** : Variables/fonctions déclarées avant utilisation

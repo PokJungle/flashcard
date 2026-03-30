@@ -30,7 +30,9 @@ export default function TraineWidget({ profile, onClick, dark }) {
       className="w-full rounded-2xl p-4 text-left active:scale-95 transition-all"
       style={{
         background: dark ? '#1a1035' : '#fff',
-        border: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`,
+        borderTop: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`,
+        borderRight: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`,
+        borderBottom: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`,
         borderLeft: '3px solid #10b981',
       }}>
       <div className="flex items-center justify-between mb-3">

@@ -24,3 +24,7 @@
 ## Reset de session
 
 - Considère chaque nouvelle session de chat comme un nouveau bug ou une nouvelle feature à traiter, tout en gardant ces règles en mémoire.
+
+## Mise à jour de la documentation
+
+- Lorsque des changements structurels ou de logique importants sont effectués (ex: création de nouveaux fichiers de logique, changement de variables d'environnement), rappelle-moi de mettre à jour les fichiers correspondants dans le dossier
