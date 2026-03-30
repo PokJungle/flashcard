@@ -30,8 +30,8 @@ export function getZoneInfo(zones, zoneId) {
 export function getLocations(bottle) {
   const locs = bottle.locations
   if (Array.isArray(locs) && locs.length > 0) return locs
-  // Rétrocompat : lire les anciens champs zone + quantity
-  if (bottle.quantity > 0 || bottle.zone) {
+  // Rétrocompat : lire les anciens champs zone + quantity SEULEMENT si locations n'existe pas
+  if (!locs && (bottle.quantity > 0 || bottle.zone)) {
     return [{ zone: bottle.zone || 'cave', qty: bottle.quantity || 1 }]
   }
   return []
@@ -43,7 +43,7 @@ export function getTotalQty(bottle) {
 
 // ─── Location computation (pure) ─────────────────────────────────────────────
 
-function computeLocations(locations, zone, delta) {
+export function computeLocations(locations, zone, delta) {
   const updated = (locations || []).map(l =>
     l.zone === zone ? { ...l, qty: Math.max(0, l.qty + delta) } : l
   ).filter(l => l.qty > 0)
@@ -60,20 +60,31 @@ export function useCanon(profile) {
   const [profiles, setProfiles] = useState([])
   const [loading, setLoading]   = useState(true)
 
-  useEffect(() => { loadAll() }, [])
-
   const loadAll = async () => {
     setLoading(true)
-    const [{ data: b }, { data: t }, { data: p }] = await Promise.all([
-      supabase.from('canon_bottles').select('*').order('created_at', { ascending: false }),
-      supabase.from('canon_tastings').select('*').order('tasted_at', { ascending: false }),
-      supabase.from('profiles').select('*'),
-    ])
-    setBottles(b || [])
-    setTastings(t || [])
-    setProfiles(p || [])
-    setLoading(false)
+    try {
+      const [{ data: b }, { data: t }, { data: p }] = await Promise.all([
+        supabase.from('canon_bottles').select('*').order('created_at', { ascending: false }),
+        supabase.from('canon_tastings').select('*').order('tasted_at', { ascending: false }),
+        supabase.from('profiles').select('*'),
+      ])
+      
+      // S'assurer que les données sont valides avant de les mettre dans le state
+      if (Array.isArray(b) && Array.isArray(t) && Array.isArray(p)) {
+        setBottles(b)
+        setTastings(t)
+        setProfiles(p)
+      } else {
+        console.error("❌ Erreur de chargement: données invalides", { b, t, p })
+      }
+    } catch (error) {
+      console.error("❌ Erreur lors du chargement:", error)
+    } finally {
+      setLoading(false)
+    }
   }
+
+  useEffect(() => { loadAll() }, [])
 
   // ─── Bottle CRUD ─────────────────────────────────────────────────────────
 
@@ -84,8 +95,16 @@ export function useCanon(profile) {
   }
 
   const updateBottle = async (id, data) => {
-    await supabase.from('canon_bottles').update(data).eq('id', id)
-    setBottles(prev => prev.map(b => b.id === id ? { ...b, ...data } : b))
+    try {
+      const { data: updated } = await supabase.from('canon_bottles').update(data).eq('id', id).select().single()
+      if (updated) {
+        setBottles(prev => prev.map(b => b.id === id ? { ...b, ...data } : b))
+      } else {
+        console.error("❌ Erreur mise à jour bouteille:", { id, data })
+      }
+    } catch (error) {
+      console.error("❌ Erreur lors de la mise à jour:", error)
+    }
   }
 
   const deleteBottle = async (id) => {
@@ -113,6 +132,26 @@ export function useCanon(profile) {
     let locs = computeLocations(getLocations(b), fromZone, -qty)
     locs = computeLocations(locs, toZone, qty)
     await _setLocations(id, locs)
+  }
+
+  const removeFromZone = async (bottle, zone, qty = 1) => {
+    const newLocs = computeLocations(getLocations(bottle), zone, -qty)
+    await _setLocations(bottle.id, newLocs)
+    // S'assurer que le state est synchronisé après modification
+    setTimeout(() => refreshBottles(), 50)
+  }
+
+  const refreshBottles = async () => {
+    try {
+      const { data: b } = await supabase.from('canon_bottles').select('*').order('created_at', { ascending: false })
+      if (Array.isArray(b)) {
+        setBottles(b)
+      } else {
+        console.error("❌ Erreur lors du rechargement des bouteilles")
+      }
+    } catch (error) {
+      console.error("❌ Erreur lors du rechargement des bouteilles:", error)
+    }
   }
 
   // ─── Tasting operations ───────────────────────────────────────────────────
@@ -163,9 +202,9 @@ export function useCanon(profile) {
 
   return {
     bottles, tastings, profiles, loading,
-    loadAll,
+    loadAll, refreshBottles,
     addBottle, updateBottle, deleteBottle,
-    addToZone, transferZone,
+    addToZone, transferZone, removeFromZone,
     addTasting, deleteTasting, drinkBottle,
     addReaction,
   }

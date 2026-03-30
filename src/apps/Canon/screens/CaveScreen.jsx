@@ -36,7 +36,7 @@ function StarRating({ value, onChange, dark }) {
   )
 }
 
-export default function CaveScreen({ hook, dark, profile }) {
+export default function CaveScreen({ hook, dark }) {
   const { bottles, loading } = hook
   const { bg, card, border, border2, textPri, textSec, textMed } = useThemeColors(dark)
   const inp = { background: dark ? '#0f0a1e' : '#fff', border: `1px solid ${border2}`, color: textPri }
@@ -131,6 +131,14 @@ export default function CaveScreen({ hook, dark, profile }) {
       rating: drinkForm.rating||null, is_favorite: drinkForm.is_favorite,
       note: drinkForm.note.trim()||null, tasted_at: drinkForm.tasted_at,
     })
+    setDrinking(false); setDrinkBottle(null)
+  }
+
+  const drinkWithoutNote = async () => {
+    if (!drinkBottle || !drinkZone) return
+    setDrinking(true)
+    // Mettre à jour uniquement les quantités sans ajouter de dégustation
+    await hook.removeFromZone(drinkBottle, drinkZone, 1)
     setDrinking(false); setDrinkBottle(null)
   }
 
@@ -264,12 +272,13 @@ export default function CaveScreen({ hook, dark, profile }) {
             const locs = getLocations(bottle)
             const total = getTotalQty(bottle)
             const isLast = total === 1
+            const isEmpty = total === 0
             const primary = bottle.domain || bottle.name
             const secondary = bottle.domain ? bottle.name : null
 
             return (
               <div key={bottle.id} className="rounded-2xl p-3.5"
-                style={{ background: card, border: `0.5px solid ${isLast?'#f59e0b':border}`, opacity: total===0?0.5:1 }}>
+                style={{ background: card, border: `0.5px solid ${isEmpty?'#dc2626':isLast?'#f59e0b':border}`, opacity: total===0?0.5:1 }}>
                 <div className="flex items-start gap-3">
 
                   {/* Gauche */}
@@ -278,7 +287,8 @@ export default function CaveScreen({ hook, dark, profile }) {
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5 block"
                         style={{ background: COLOR_MAP[bottle.color]||'#9ca3af' }} />
                       <p className="text-sm font-bold truncate" style={{ color: textPri }}>{primary}</p>
-                      {isLast && <span className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background:'#fef3c7',color:'#92400e' }}>Dernière !</span>}
+                      {isEmpty && <span className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background:'#fee2e2',color:'#991b1b' }}>Terminé !</span>}
+                      {isLast && !isEmpty && <span className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background:'#fef3c7',color:'#92400e' }}>Dernière !</span>}
                     </div>
                     {secondary && <p className="text-sm font-medium mb-0.5 truncate" style={{ color: textPri }}>{secondary}</p>}
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -498,7 +508,7 @@ export default function CaveScreen({ hook, dark, profile }) {
               style={{ background: COLOR }}>
               {drinking ? 'Enregistrement…' : 'Confirmer → Journal'}
             </button>
-            <button onClick={confirmDrink} disabled={drinking || (!drinkZone && getLocations(drinkBottle).length > 1)}
+            <button onClick={drinkWithoutNote} disabled={drinking || (!drinkZone && getLocations(drinkBottle).length > 1)}
               className="w-full mt-2 py-2 text-xs text-center active:scale-95 disabled:opacity-30"
               style={{ color: textSec }}>
               Boire sans noter

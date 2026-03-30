@@ -19,7 +19,7 @@ export default function Canon({ profile, dark }) {
     <div className="h-full flex flex-col" style={{ background: dark ? '#0f0a1e' : '#f9fafb' }}>
       <div className="flex-1 overflow-y-auto">
         {tab === 'cave' && (
-          <CaveScreen hook={hook} dark={dark} profile={profile} />
+          <CaveScreen hook={hook} dark={dark} />
         )}
         {tab === 'journal' && (
           <JournalScreen hook={hook} dark={dark} profile={profile} />
