@@ -1,6 +1,59 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../supabase'
 
+// ─── Zone config helpers ──────────────────────────────────────────────────────
+
+export const DEFAULT_ZONES = [
+  { id: 'cave',    name: 'Cave',    emoji: '🏠' },
+  { id: 'frigo',   name: 'Frigo',   emoji: '❄️' },
+  { id: 'service', name: 'Service', emoji: '🍽️' },
+]
+
+export function loadZones() {
+  try {
+    const s = JSON.parse(localStorage.getItem('canon-zones') || 'null')
+    if (Array.isArray(s) && s.length) return s
+  } catch { /* ignore */ }
+  return DEFAULT_ZONES
+}
+
+export function saveZones(zones) {
+  localStorage.setItem('canon-zones', JSON.stringify(zones))
+}
+
+export function getZoneInfo(zones, zoneId) {
+  return zones.find(z => z.id === zoneId) || { id: zoneId, name: zoneId, emoji: '📦' }
+}
+
+// ─── Location helpers (exported for use in screens) ──────────────────────────
+
+export function getLocations(bottle) {
+  const locs = bottle.locations
+  if (Array.isArray(locs) && locs.length > 0) return locs
+  // Rétrocompat : lire les anciens champs zone + quantity
+  if (bottle.quantity > 0 || bottle.zone) {
+    return [{ zone: bottle.zone || 'cave', qty: bottle.quantity || 1 }]
+  }
+  return []
+}
+
+export function getTotalQty(bottle) {
+  return getLocations(bottle).reduce((s, l) => s + (l.qty || 0), 0)
+}
+
+// ─── Location computation (pure) ─────────────────────────────────────────────
+
+function computeLocations(locations, zone, delta) {
+  const updated = (locations || []).map(l =>
+    l.zone === zone ? { ...l, qty: Math.max(0, l.qty + delta) } : l
+  ).filter(l => l.qty > 0)
+  if (delta > 0 && !updated.find(l => l.zone === zone))
+    updated.push({ zone, qty: delta })
+  return updated
+}
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
 export function useCanon(profile) {
   const [bottles, setBottles]   = useState([])
   const [tastings, setTastings] = useState([])
@@ -22,6 +75,8 @@ export function useCanon(profile) {
     setLoading(false)
   }
 
+  // ─── Bottle CRUD ─────────────────────────────────────────────────────────
+
   const addBottle = async (data) => {
     const { data: row } = await supabase.from('canon_bottles').insert(data).select().single()
     if (row) setBottles(prev => [row, ...prev])
@@ -38,6 +93,30 @@ export function useCanon(profile) {
     setBottles(prev => prev.filter(b => b.id !== id))
   }
 
+  // ─── Location operations ──────────────────────────────────────────────────
+
+  const _setLocations = async (id, newLocs) => {
+    const qty = newLocs.reduce((s, l) => s + l.qty, 0)
+    await updateBottle(id, { locations: newLocs, quantity: qty })
+  }
+
+  const addToZone = async (id, zone, qty = 1) => {
+    const b = bottles.find(b => b.id === id)
+    if (!b) return
+    const newLocs = computeLocations(getLocations(b), zone, qty)
+    await _setLocations(id, newLocs)
+  }
+
+  const transferZone = async (id, fromZone, toZone, qty) => {
+    const b = bottles.find(b => b.id === id)
+    if (!b) return
+    let locs = computeLocations(getLocations(b), fromZone, -qty)
+    locs = computeLocations(locs, toZone, qty)
+    await _setLocations(id, locs)
+  }
+
+  // ─── Tasting operations ───────────────────────────────────────────────────
+
   const addTasting = async (data) => {
     const { data: row } = await supabase
       .from('canon_tastings')
@@ -53,7 +132,9 @@ export function useCanon(profile) {
     setTastings(prev => prev.filter(t => t.id !== id))
   }
 
-  const drinkBottle = async (bottle, tastingData) => {
+  const drinkBottle = async (bottle, zone, tastingData) => {
+    const newLocs = computeLocations(getLocations(bottle), zone, -1)
+    await _setLocations(bottle.id, newLocs)
     await addTasting({
       bottle_id:   bottle.id,
       name:        bottle.name,
@@ -65,15 +146,27 @@ export function useCanon(profile) {
       grape:       bottle.grape,
       ...tastingData,
     })
-    const newQty = Math.max(0, (bottle.quantity || 1) - 1)
-    await updateBottle(bottle.id, { quantity: newQty })
   }
 
-  const zones = [...new Set(bottles.filter(b => b.zone).map(b => b.zone))].sort()
+  const addReaction = async (tastingId, { rating, is_favorite, note }) => {
+    const tasting = tastings.find(t => t.id === tastingId)
+    if (!tasting) return
+    const existing = Array.isArray(tasting.reactions) ? tasting.reactions : []
+    const others = existing.filter(r => r.profile_id !== profile.id)
+    const newReactions = [
+      ...others,
+      { profile_id: profile.id, rating: rating || null, is_favorite: !!is_favorite, note: note || null },
+    ]
+    await supabase.from('canon_tastings').update({ reactions: newReactions }).eq('id', tastingId)
+    setTastings(prev => prev.map(t => t.id === tastingId ? { ...t, reactions: newReactions } : t))
+  }
 
   return {
-    bottles, tastings, profiles, loading, zones,
-    loadAll, addBottle, updateBottle, deleteBottle,
+    bottles, tastings, profiles, loading,
+    loadAll,
+    addBottle, updateBottle, deleteBottle,
+    addToZone, transferZone,
     addTasting, deleteTasting, drinkBottle,
+    addReaction,
   }
 }
