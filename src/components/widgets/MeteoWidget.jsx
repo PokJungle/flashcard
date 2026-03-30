@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getPreferredCity, fetchWeatherForCity, WMO_ICONS, getConseil } from '../../apps/Meteo/meteo.utils'
+import { getPreferredCity, fetchCurrentHourWeather, WMO_ICONS, getConseil } from '../../apps/Meteo/meteo.utils'
 
 export default function MeteoWidget({ profileId, onOpenCityPicker, onClick }) {
   const [weather, setWeather] = useState(null)
@@ -12,7 +12,7 @@ export default function MeteoWidget({ profileId, onOpenCityPicker, onClick }) {
       setLoading(true)
       const c = getPreferredCity(profileId)
       setCity(c)
-      const w = await fetchWeatherForCity(c)
+      const w = await fetchCurrentHourWeather(c)
       setWeather(w)
       setLoading(false)
     }

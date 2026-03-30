@@ -62,3 +62,94 @@ export async function fetchWeatherForCity(city) {
     }
   } catch { return null }
 }
+
+export async function fetchCurrentHourWeather(city) {
+  const ALL_MODELS = [
+    { id: 'arome_france', countries: ['FR'] },
+    { id: 'icon_d2', countries: null },
+    { id: 'icon_eu', countries: null },
+    { id: 'meteofrance_seamless', countries: ['FR'] },
+    { id: 'best_match', countries: null },
+    { id: 'gfs_seamless', countries: null },
+  ]
+
+  try {
+    const cc = (city.country || 'FR').toUpperCase()
+    const applicable = ALL_MODELS.filter(m => !m.countries || m.countries.includes(cc))
+    
+    const modelPromises = applicable.map(async (model) => {
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}` +
+          `&hourly=temperature_2m,weathercode,precipitation,windspeed_10m` +
+          `&daily=temperature_2m_max,temperature_2m_min` +
+          `&timezone=Europe%2FParis&forecast_days=1&models=${model.id}`
+        
+        const r = await fetch(url)
+        const d = await r.json()
+        if (d.error || !d.hourly || !d.daily) return null
+        
+        const now = new Date()
+        const today = new Date().toISOString().split('T')[0]
+        
+        // Utiliser la même logique que l'app météo pour trouver l'heure actuelle
+        const currentHourData = d.hourly.time
+          .map((timeString, index) => ({ timeString, index }))
+          .filter(({ timeString }) => {
+            // Garder uniquement les heures d'aujourd'hui
+            return timeString.startsWith(today)
+          })
+          .map(({ index }) => ({
+            temp: d.hourly.temperature_2m[index],
+            code: d.hourly.weathercode[index] ?? 0,
+            rain: d.hourly.precipitation[index],
+            wind: d.hourly.windspeed_10m[index],
+            hour: new Date(d.hourly.time[index]).getHours(),
+            hasData: d.hourly.temperature_2m[index] != null,
+          }))
+        
+        // Trouver l'heure exacte ou la plus proche
+        const currentHour = currentHourData.find(h => h.hour === now.getHours()) || 
+                           currentHourData[0] // fallback: première heure disponible
+        
+        if (!currentHour) return null
+        
+        return {
+          ...currentHour,
+          tMin: d.daily.temperature_2m_min?.[0] ?? null,
+          tMax: d.daily.temperature_2m_max?.[0] ?? null,
+        }
+      } catch { return null }
+    })
+    
+    const results = await Promise.all(modelPromises)
+    const validResults = results.filter(r => r != null)
+    
+    if (validResults.length === 0) return null
+    
+    const avg = arr => {
+      const valid = arr.filter(v => v != null && !isNaN(v))
+      return valid.length ? Math.round(valid.reduce((a, b) => a + b, 0) / valid.length) : null
+    }
+    
+    const avgF = arr => {
+      const valid = arr.filter(v => v != null && !isNaN(v))
+      return valid.length ? (valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(1) : null
+    }
+    
+    const temps = validResults.map(r => r.temp)
+    const codes = validResults.map(r => r.code)
+    const rains = validResults.map(r => r.rain)
+    const winds = validResults.map(r => r.wind)
+    const tMins = validResults.map(r => r.tMin)
+    const tMaxs = validResults.map(r => r.tMax)
+    
+    return {
+      code: codes[Math.floor(codes.length / 2)] ?? null,
+      avg: avg(temps), // Température actuelle (moyenne des modèles)
+      tMin: avg(tMins), // Température min de la journée (moyenne des modèles)
+      tMax: avg(tMaxs), // Température max de la journée (moyenne des modèles)
+      rain: avgF(rains),
+      wind: avg(winds),
+    }
+  } catch { return null }
+}

@@ -11,8 +11,7 @@ import Traine from './apps/Traine/index.jsx'
 import Canon from './apps/Canon/index.jsx'
 
 import { useDarkMode } from './hooks/useDarkMode'
-import MeteoWidget from './components/widgets/MeteoWidget'
-import { getPreferredCity as getPreferredCityFromUtils } from './apps/Meteo/meteo.utils'
+import { getPreferredCity as getPreferredCityFromUtils, fetchCurrentHourWeather } from './apps/Meteo/meteo.utils'
 import BisouWidget from './components/widgets/BisouWidget'
 import CoursesWidget from './components/widgets/CoursesWidget'
 import AgendaWidget from './components/widgets/AgendaWidget'
@@ -221,28 +220,29 @@ function DayHeader({ profile, onMeteoClick, onOpenCityPicker, cityKey }) {
   useEffect(() => {
     if (!profile?.id) return
     
-    const c = getPreferredCityFromUtils(profile.id)
+    const loadWeather = async () => {
+      const c = getPreferredCityFromUtils(profile.id)
+      
+      // Définir la ville immédiatement
+      setTimeout(() => setCity(c), 0)
+      
+      // Utiliser la nouvelle fonction avec moyenne des modèles pour l'heure actuelle
+      const w = await fetchCurrentHourWeather(c)
+      
+      if (w) {
+        setWeather({ 
+          code: w.code, 
+          icon: WMO_ICONS_HD[w.code] ?? '🌡️', 
+          avg: w.avg, 
+          tMin: w.tMin, 
+          tMax: w.tMax, 
+          rain: w.rain, 
+          wind: w.wind 
+        })
+      }
+    }
     
-    // Définir la ville immédiatement
-    setTimeout(() => setCity(c), 0)
-    
-    // Récupérer les données météo
-    fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}` +
-      `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max` +
-      `&timezone=Europe%2FParis&forecast_days=1&models=best_match`
-    )
-      .then(r => r.json())
-      .then(d => {
-        const code = d.daily?.weathercode?.[0] ?? null
-        const tMin = d.daily?.temperature_2m_min?.[0] ?? null
-        const tMax = d.daily?.temperature_2m_max?.[0] ?? null
-        const rain = d.daily?.precipitation_sum?.[0] ?? null
-        const wind = d.daily?.windspeed_10m_max?.[0] ?? null
-        const avg  = tMin != null && tMax != null ? Math.round((tMin+tMax)/2) : null
-        setWeather({ code, icon: WMO_ICONS_HD[code] ?? '🌡️', avg, tMin, tMax, rain, wind })
-      })
-      .catch(() => {})
+    loadWeather()
   }, [profile?.id, cityKey])
 
   const now       = new Date()
