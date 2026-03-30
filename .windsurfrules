@@ -1,0 +1,26 @@
+# Règles de développement pour mon projet React
+
+## Contexte du Projet
+
+- Framework: React (vérifier package.json pour la version exacte)
+- Styling: Tailwind CSS
+- Gestion d'état: Utiliser les Hooks natifs (useState, useEffect, useContext)
+- Gestion Git: Le projet est sous Git. Ne fais jamais de commit automatique. Propose toujours un "Diff" avant d'appliquer.
+
+## Style de Code et Préférences
+
+- Toujours utiliser des composants fonctionnels (Functional Components).
+- Prioriser la lisibilité : préférer des fonctions nommées plutôt que des fléchées anonymes pour les composants.
+- Imports : Organiser les imports (React en premier, puis librairies tierces, puis composants locaux, puis styles).
+- Performance : Attention aux dépendances dans les useEffect et aux rendus inutiles.
+
+## Méthode de travail de l'IA (Cascade)
+
+- Avant chaque modification majeure, explique brièvement ton plan d'action.
+- Si une modification touche plusieurs fichiers, explique la logique de propagation.
+- Après une correction, suggère si une commande (comme npm run lint) doit être lancée pour vérifier la conformité.
+- Si tu détectes une variable non utilisée ou un import mort, propose de le nettoyer systématiquement.
+
+## Reset de session
+
+- Considère chaque nouvelle session de chat comme un nouveau bug ou une nouvelle feature à traiter, tout en gardant ces règles en mémoire.
