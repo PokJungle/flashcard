@@ -87,6 +87,15 @@ En préparation (grid 2 cols)
 ### TraineWidget (`src/components/widgets/TraineWidget.jsx`)
 
 - Widget pour l'app Ça Traîne (todo partagée)
+- **Tri intelligent** : Tâches avec 2 flammes 🔥🔥 d'abord, puis 1 flamme 🔥, puis 0 flamme
+- **Limitation à 3 tâches** maximum avec complétion par les plus anciennes si nécessaire
+- **Fonds colorés selon priorité** :
+  - 🔥🔥 (2 flammes) : `#fef5e6` (orange avec touche de rouge)
+  - 🔥 (1 flamme) : `#fffbf4` (orange très doux)
+  - (0 flamme) : `#fff` (blanc standard)
+- **Mise en page optimisée** : Texte calé à gauche, flammes alignées à droite
+- **Affichage des flammes** : 🔥🔥 pour 2 flammes, 🔥 pour 1 flamme, vide pour 0 flamme
+- **Tri par date** : Plus anciennes en premier en cas d'égalité de flammes
 
 ## CityPicker (modal)
 
