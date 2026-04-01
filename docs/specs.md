@@ -7,25 +7,66 @@
 
 ## 🍵 Tisane et Chauffeuse
 
-### Résumé
-Construire une app duo pour décider vite quoi regarder ensemble, avec une dynamique ludique et une friction minimale.
+### 📄 Spécifications Fonctionnelles : 
 
-### Fonctionnalités clés (MVP)
-1. **Watchlist partagée** (à voir / vu / abandonné)
-2. **Recherche multi-critères** (genre, durée, plateforme, année)
-3. **Swipe duo** (❤️ / 😬 / ⏭️) pour matcher un film/série
-4. **Mode “Ce soir”**: filtre ultra-court pour trancher en 60 secondes
-5. **Post-visionnage**: note rapide + emoji humeur
-6. Deux parties distinctes Film et Série (s'inspirer de l'application JustWatch, suivi des séries épisodes par épisodes...)
+#### 1. Vision du Produit
+**Concept :** App Duo Ciné/Série. Une application pour couples permettant de décider rapidement quoi regarder, en transformant la recherche en un jeu de "swipe" et en centralisant le suivi des séries.
+**Objectif :** Zéro friction, aide à la décision rapide, interface moderne "Ciné Cosy".
 
-### API gratuite
-- **TMDB API** (gratuit avec clé)
-- Option “où regarder” via provider TMDB (selon région)
+---
 
-### UI moderne & ergonomique
-- Cartes verticales type swipe
-- Couleurs “ciné cosy” (violet nuit + ambre)
-- CTA principal unique: **“On lance un match”**
+#### 2. Structure de l'Interface (Arborescence)
+
+##### A. Onglet Principal : La Watchlist (Home)
+Pivot central de l'app, divisé en deux sections via un toggle permanent.
+
+* **Section FILMS :**
+    * **Groupe "Matchs" :** Films validés par les deux (❤️+❤️). Priorité haute.
+    * **Groupe "À voir" :** Films ajoutés via "Découvrir" ou suggérés par un seul partenaire.
+* **Section SÉRIES :**
+    * **Groupe "En cours" :** Séries entamées avec suivi à l'épisode. Alerte visuelle si un nouvel épisode est sorti sur TMDB.
+    * **Groupe "Matchs" :** Nouvelles séries validées en duo, prêtes à être lancées.
+    * **Groupe "À voir" :** Idées de séries stockées en attente de validation.
+
+##### B. Onglet : Match (Le Jeu)
+Interface de décision dynamique pour le couple.
+* **Sources du Match :** Option de piocher dans "Notre Watchlist" (pour trancher) ou dans le "Catalogue Global" (pour découvrir).
+* **UI de la Carte (Swipe) :**
+    * **Face A (Visuel) :** Affiche plein écran, Titre, Note TMDB, Année.
+    * **Face B (Détails) :** S'affiche via un "Tap" court sur la carte. Présente le résumé (max 300 caractères), le casting principal, la durée (ou nb de saisons) et les logos des plateformes (Netflix, Prime, etc.).
+* **Actions :** ❤️ (Match), 😬 (Plus tard), ⏭️ (Passer sans juger).
+* **Mode “Ce soir” :** Filtre restrictif pour une session de match ultra-courte (ex: "un film de moins d'1h40").
+
+##### C. Onglet : Découvrir
+* Barre de recherche textuelle via API TMDB.
+* Exploration par genres, tendances et plateformes de streaming.
+* Bouton d'ajout rapide vers la Watchlist "À voir".
+
+---
+
+#### 3. Logique Métier & Fonctionnalités Clés
+
+##### Le Système de "Veto"
+* **Concept :** Un droit de retrait définitif pour éviter les propositions répétées d'un contenu non désiré.
+* **Fonctionnement :** Système de 3 jetons Veto par utilisateur.
+* **Recharge :** Chaque jeton utilisé met 7 jours à se régénérer.
+* **Effet :** Supprime immédiatement le média de la session de match et de la Watchlist commune.
+
+##### Suivi des Séries (Inspiration JustWatch)
+* Gestion par saison et par épisode.
+* Bouton "+" rapide pour marquer l'épisode en cours comme "vu".
+* Mise à jour automatique du statut de la série dès le premier épisode visionné (passe de "Match" à "En cours").
+
+##### Données & API
+* **Source :** API TMDB pour les métadonnées et les fournisseurs de streaming (Watch Providers).
+* **Backend recommandé :** Solution temps réel (Supabase/Firebase) pour synchroniser instantanément les actions des deux utilisateurs sur leurs écrans respectifs.
+
+---
+
+#### 4. Design & UI
+* **Couleurs :** Violet nuit (fond), Ambre (call-to-action), Blanc cassé (lecture).
+* **CTA Principal unique :** Un bouton central "On lance un match" pour inciter à l'action.
+* **Ergonomie :** Navigation par onglets en bas, gestuelles de swipe fluides.
 
 ---
 
