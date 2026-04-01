@@ -8,9 +8,10 @@ import Bisou from './apps/Bisou/index.jsx'
 import Programme from './apps/Programme/index.jsx'
 import Orbite from './apps/Orbite/index.jsx'
 import Traine from './apps/Traine/index.jsx'
+import Canon from './apps/Canon/index.jsx'
 
 import { useDarkMode } from './hooks/useDarkMode'
-import MeteoWidget, { getPreferredCity } from './components/widgets/MeteoWidget'
+import { getPreferredCity as getPreferredCityFromUtils, fetchCurrentHourWeather } from './apps/Meteo/meteo.utils'
 import BisouWidget from './components/widgets/BisouWidget'
 import CoursesWidget from './components/widgets/CoursesWidget'
 import AgendaWidget from './components/widgets/AgendaWidget'
@@ -27,6 +28,7 @@ const APPS = [
   { id:'programme',  name:'Demandez le Programme !',   emoji:'🗞️', color:'#8B5CF6', component:Programme },
   { id:'orbite',     name:'Mise en Orbite',            emoji:'💥', color:'#FF7A1E', component:Orbite },
   { id:'traine',     name:'Ça Traîne',                 emoji:'🐌', color:'#10b981', component:Traine },
+  { id:'canon',      name:'Canon',                     emoji:'🍷', color:'#9b1c1c', component:Canon },
 ]
 const HUB_APPS = APPS.filter(a => a.id !== 'bisou')
 const APPS_EN_PREP = [
@@ -57,13 +59,23 @@ function CityPicker({ profileId, onClose, dark }) {
   const [selectedLat, setSelectedLat] = useState(null)
 
   useEffect(() => {
-    let favs = [{ name:'Saint-Antonin-sur-Bayon', lat:43.5308, lon:5.6078, country:'FR' }]
-    try {
-      const stored = JSON.parse(localStorage.getItem('meteo-fav2') || 'null')
-      if (stored?.length) favs = stored
-    } catch { /* ignore */ }
-    setFavorites(favs)
-    setSelectedLat(getPreferredCity(profileId).lat)
+    const loadFavorites = () => {
+      let favs = [{ name:'Saint-Antonin-sur-Bayon', lat:43.5308, lon:5.6078, country:'FR' }]
+      try {
+        const stored = JSON.parse(localStorage.getItem('meteo-fav2') || 'null')
+        if (stored?.length) favs = stored
+      } catch { /* ignore */ }
+      return favs
+    }
+    
+    const favs = loadFavorites()
+    const preferredCity = getPreferredCityFromUtils(profileId)
+    
+    // Utiliser setTimeout pour éviter les appels synchrones
+    setTimeout(() => {
+      setFavorites(favs)
+      setSelectedLat(preferredCity.lat)
+    }, 0)
   }, [profileId])
 
   const save = (city) => {
@@ -108,7 +120,7 @@ function CityPicker({ profileId, onClose, dark }) {
   )
 }
 
-// ─── Calendrier lunaire biodynamique ─────────────────────────────────────────
+// ─── Calendrier lunaire ─────────────────────────────────────────
 function getMoonDayType(date) {
   const J2000 = new Date('2000-01-01T12:00:00Z')
   const d = (date.getTime() - J2000.getTime()) / 86400000
@@ -127,24 +139,27 @@ function getMoonDayType(date) {
   return TYPES[sign % 4]
 }
 
+function getMoonPhase(date) {
+  // Calcul de la phase lunaire (0 à 1, où 0 = nouvelle lune, 0.5 = pleine lune)
+  const J2000 = new Date('2000-01-01T12:00:00Z')
+  const days = (date.getTime() - J2000.getTime()) / 86400000
+  
+  // Age de la lune en jours depuis la nouvelle lune
+  const moonAge = (days % 29.53058867) / 29.53058867
+  
+  // Déterminer la phase et l'emoji
+  if (moonAge < 0.03 || moonAge > 0.97) return { phase: 'Nouvelle lune', emoji: '🌑' }
+  if (moonAge < 0.22) return { phase: 'Premier croissant', emoji: '🌒' }
+  if (moonAge < 0.28) return { phase: 'Premier quartier', emoji: '🌓' }
+  if (moonAge < 0.47) return { phase: 'Gibbeuse croissante', emoji: '🌔' }
+  if (moonAge < 0.53) return { phase: 'Pleine lune', emoji: '🌕' }
+  if (moonAge < 0.72) return { phase: 'Gibbeuse décroissante', emoji: '🌖' }
+  if (moonAge < 0.78) return { phase: 'Dernier quartier', emoji: '🌗' }
+  return { phase: 'Dernier croissant', emoji: '🌘' }
+}
+
 // ─── Composant entête date + météo ───────────────────────────────────────────
 const WMO_ICONS_HD = {0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',71:'🌨️',73:'🌨️',75:'❄️',80:'🌦️',81:'🌧️',82:'⛈️',95:'⛈️',96:'⛈️',99:'⛈️'}
-
-function getConseilHD(code, wind) {
-  const windy = wind != null && wind >= 40
-  if (code == null) return null
-  if ([95,96,99].includes(code)) return { icon:'☂️', text: windy ? 'Parapluie, mais franchement reste à la maison' : 'Parapluie + cirée + bottes' }
-  if ([65,82].includes(code))    return { icon:'☂️', text: windy ? 'Parapluie retourné garanti' : "Parapluie solide, c'est sérieux" }
-  if ([51,53,55,61,63,80,81].includes(code)) return { icon:'☂️', text: windy ? 'Parapluie… ou pas, il tiendra pas' : 'Petite pluie, petit parapluie' }
-  if ([71,73,75].includes(code)) return { icon:'☂️', text: 'Ni claquettes ni parapluie, les raquettes !' }
-  if ([45,48].includes(code))    return { icon:'🩴', text: 'Claquettes dans le brouillard, pourquoi pas' }
-  if ([3].includes(code))        return { icon:'🩴', text: windy ? 'Claquettes risquées, parapluie de précaution' : 'Claquettes possibles, parapluie en veille' }
-  if ([2].includes(code))        return { icon:'🩴', text: windy ? 'Claquettes, veste et cheveux en bataille' : 'Claquettes-Chausettes au cas où...' }
-  if ([1].includes(code))        return { icon:'🩴', text: windy ? "Claquettes oui, mais attention qu'elles ne s'envolent pas" : 'Claquettes envisageables, belle journée !' }
-  if ([0].includes(code))        return { icon:'🩴', text: windy ? 'Claquettes, soleil et vent dans les oreilles' : 'Claquettes et lunette de soleil, grande journée !' }
-  if (windy)                     return { icon:'🩴', text: 'Claquettes ok mais accroche le parapluie' }
-  return { icon:'🩴', text: 'Claquettes ou parapluie… va savoir' }
-}
 
 const CONFETTI_SPANS = [
   { t:11,l:18,w:5,h:5,r:'50%',bg:'#fef08a',a:'bbp-float1 1.4s ease-in-out infinite 0.7s' },
@@ -187,45 +202,57 @@ function FeteSpeciale({ fete }) {
   )
 }
 
-function DayHeader({ profile, dark, onMeteoClick, onOpenCityPicker, cityKey }) {
+function DayHeader({ profile, onMeteoClick, onOpenCityPicker, cityKey }) {
   const [fete, setFete]       = useState(null)
   const [weather, setWeather] = useState(null)
   const [city, setCity]       = useState(null)
 
   useEffect(() => {
-    const now = new Date()
-    const key = `${now.getDate()}/${now.getMonth()+1}`
-    const name = FETES[key]
-    if (name) setFete(name)
+    const checkFete = () => {
+      const now = new Date()
+      const key = `${now.getDate()}/${now.getMonth()+1}`
+      return FETES[key]
+    }
+    
+    const name = checkFete()
+    if (name) {
+      setTimeout(() => setFete(name), 0)
+    }
   }, [])
 
   useEffect(() => {
     if (!profile?.id) return
-    const c = getPreferredCity(profile.id)
-    setCity(c)
-    fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}` +
-      `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max` +
-      `&timezone=Europe%2FParis&forecast_days=1&models=best_match`
-    )
-      .then(r => r.json())
-      .then(d => {
-        const code = d.daily?.weathercode?.[0] ?? null
-        const tMin = d.daily?.temperature_2m_min?.[0] ?? null
-        const tMax = d.daily?.temperature_2m_max?.[0] ?? null
-        const rain = d.daily?.precipitation_sum?.[0] ?? null
-        const wind = d.daily?.windspeed_10m_max?.[0] ?? null
-        const avg  = tMin != null && tMax != null ? Math.round((tMin+tMax)/2) : null
-        setWeather({ code, icon: WMO_ICONS_HD[code] ?? '🌡️', avg, tMin, tMax, rain, wind })
-      })
-      .catch(() => {})
+    
+    const loadWeather = async () => {
+      const c = getPreferredCityFromUtils(profile.id)
+      
+      // Définir la ville immédiatement
+      setTimeout(() => setCity(c), 0)
+      
+      // Utiliser la nouvelle fonction avec moyenne des modèles pour l'heure actuelle
+      const w = await fetchCurrentHourWeather(c)
+      
+      if (w) {
+        setWeather({ 
+          code: w.code, 
+          icon: WMO_ICONS_HD[w.code] ?? '🌡️', 
+          avg: w.avg, 
+          tMin: w.tMin, 
+          tMax: w.tMax, 
+          rain: w.rain, 
+          wind: w.wind 
+        })
+      }
+    }
+    
+    loadWeather()
   }, [profile?.id, cityKey])
 
   const now       = new Date()
   const dateStr   = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })
   const dateLabel = dateStr.charAt(0).toUpperCase() + dateStr.slice(1)
-  const conseil   = weather ? getConseilHD(weather.code, weather.wind) : null
   const moon      = getMoonDayType(now)
+  const moonPhase = getMoonPhase(now)
 
   return (
     <div className="max-w-lg mx-auto px-3 pt-2 pb-1">
@@ -279,13 +306,17 @@ function DayHeader({ profile, dark, onMeteoClick, onOpenCityPicker, cityKey }) {
               </div>
             </div>
 
-            {/* Conseil à droite */}
-            {conseil && (
-              <div className="flex-shrink-0 ml-3 flex flex-col items-center justify-center gap-1.5" style={{ maxWidth: 100 }}>
-                <span className="text-[32px] leading-none">{conseil.icon}</span>
-                <p className="text-[10px] text-white/60 leading-snug text-center">{conseil.text}</p>
+            {/* Lune à droite */}
+            <div className="flex-shrink-0 ml-3 flex items-center justify-center" style={{ maxWidth: 100 }}>
+              <div className="relative group cursor-pointer active:scale-95 transition-transform">
+                <span className="text-5xl">{moonPhase.emoji}</span>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 text-white text-[10px] rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                  {moonPhase.phase}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-black/80"></div>
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Ville + changer — en bas, pleine largeur */}
@@ -358,7 +389,7 @@ export default function App() {
   }
 
   const openApp = (id, props = {}) => { setActiveAppProps(props); setActiveApp(id) }
-  const openMeteo = () => openApp('meteo', { initialCity: getPreferredCity(profile?.id) })
+  const openMeteo = () => openApp('meteo', { initialCity: getPreferredCityFromUtils(profile?.id) })
 
   // ─── App active ───────────────────────────────────────────────────────────
   if (activeApp) {
@@ -455,7 +486,7 @@ export default function App() {
           onClick={() => openApp('bisou')} />
       </div>
 
-      <DayHeader profile={profile} dark={dark}
+      <DayHeader profile={profile}
         onMeteoClick={openMeteo}
         onOpenCityPicker={() => { setShowCityPicker(true) }}
         cityKey={meteoKey} />

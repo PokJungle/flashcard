@@ -88,7 +88,10 @@ export default function useProgramme() {
   }, [])
 
   useEffect(() => {
-    fetchEvents()
+    const loadEvents = async () => {
+      await fetchEvents()
+    }
+    loadEvents()
   }, [fetchEvents])
 
   const addEvent = async ({ title, emoji, event_date, event_end_date, event_time, note, is_annual, profile_id }) => {

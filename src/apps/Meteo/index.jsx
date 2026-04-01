@@ -3,6 +3,7 @@ import { Search, StarOff, Wind, Droplets, ChevronRight, ArrowLeft, X } from 'luc
 import { useThemeColors } from '../../hooks/useThemeColors'
 import { ls } from '../../utils/localStorage'
 import Spinner from '../../components/Spinner'
+import { getConseil } from './meteo.utils'
 
 // URLs préconfigurées pour certaines villes
 const CITY_URLS = {
@@ -250,11 +251,38 @@ export default function Meteo({ initialCity, dark }) {
               <h2 className="text-lg font-bold" style={{ color: textPri }}>{activeCity.name.split(',')[0]}</h2>
               <p className="text-xs" style={{ color: textSec }}>Modèles adaptés à l'horizon · 7 jours</p>
             </div>
-            {!activeCity.isDefault && favorites.length > 1 && (
-              <button onClick={() => removeFavorite(activeCity)} className="p-2" style={{ color: textSec }}>
-                <StarOff size={18} />
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {/* Conseil parapluie/claquettes */}
+              {(() => {
+                const currentHour = new Date().getHours()
+                const todayIdx = 0
+                const todayModels = getModelsForDay(todayIdx, cc).filter(m => modelData[m.id])
+                const todayHours = todayModels.length > 0 ? getHours(todayModels[0].id, todayIdx) : []
+                const currentHourData = todayHours.find(h => h.hasData && parseInt(h.hour) === currentHour) || todayHours.find(h => h.hasData)
+                
+                if (currentHourData) {
+                  const conseil = getConseil(currentHourData.code, currentHourData.wind)
+                  if (conseil) {
+                    return (
+                      <div className="px-2 py-1.5 rounded-lg" style={{ background: card, border: `1px solid ${border}` }}>
+                        <p className="text-xs font-semibold" style={{ color: textPri }}>
+                          Parapluie ou Claquettes ? <span className="text-base">{conseil.icon}</span>
+                        </p>
+                        <p className="text-[9px] mt-0.5" style={{ color: textSec, lineHeight: '1.2' }}>
+                          {conseil.text}
+                        </p>
+                      </div>
+                    )
+                  }
+                }
+                return null
+              })()}
+              {!activeCity.isDefault && favorites.length > 1 && (
+                <button onClick={() => removeFavorite(activeCity)} className="p-2" style={{ color: textSec }}>
+                  <StarOff size={18} />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Légende */}

@@ -17,8 +17,10 @@ export default function Spinner({ color, size = 32, fullPage = false, dark = fal
       style={{
         width: size,
         height: size,
-        border: `3px solid ${spinnerColor}33`,
-        borderTopColor: spinnerColor,
+        borderTop: `3px solid ${spinnerColor}33`,
+        borderRight: `3px solid ${spinnerColor}33`,
+        borderBottom: `3px solid ${spinnerColor}33`,
+        borderLeft: `3px solid ${spinnerColor}`,
       }}
     />
   )

@@ -5,147 +5,177 @@
 
 ---
 
-## 🍷 Canon
-> Cave à vin partagée — stock & journal de dégustation
-
-**Une app, deux onglets : Cave 🏚️ / Journal 📓**
-
-### Onglet Cave 🏚️
-
-**Ajouter une bouteille**
-- Barre de recherche texte → autocomplete via Wine-Searcher API (100 calls/jour gratuits)
-- Sélection en 1 tap → fiche pré-remplie (appellation, domaine, millésime, couleur)
-- Champs éditables avant validation : quantité, emplacement, note d'achat
-
-**Schéma de la cave**
-- Représentation visuelle de la cave avec zones cliquables
-- Zones configurables par l'utilisateur (nom libre : "Étagère A", "Casier rouge"…)
-- Chaque bouteille est assignée à une zone, visible sur le schéma
-- Vue d'ensemble : densité / occupation par zone
-
-**Liste du stock**
-- Filtres : couleur, appellation, millésime, zone
-- Quantité restante visible directement en liste
-- Bouton **"Bu 🍷"** depuis la fiche → modal rapide :
-  - Date (auto = aujourd'hui, modifiable)
-  - Note de dégustation optionnelle (texte libre)
-  - Note ⭐ (sur 5) + coup de cœur ❤️ optionnel
-  - → Quantité −1, entrée basculée automatiquement dans le Journal
-
-### Onglet Journal 📓
-
-**Toutes les bouteilles bues** (depuis la cave + ajout direct hors cave)
-
-**Ajouter une dégustation hors cave**
-- Même recherche texte que la cave
-- Fiche pré-remplie + note ⭐ + ❤️ + commentaire libre + date
-
-**Palmarès**
-- Top vins par : couleur (Rouge / Blanc / Rosé / Effervescent), région, cépage
-- Coups de cœur ❤️ mis en avant visuellement
-- Vue "ensemble" (les deux profils) ou "par profil"
-
-### Multi-profils
-- Cave partagée via Supabase (stock commun, visible par les deux profils)
-- Notes de dégustation individuelles (chacun ses ⭐, chacun ses ❤️)
-- Auteur affiché sur chaque note
-
-### Tables Supabase (à créer)
-
-```sql
-create table canon_bottles (
-  id uuid default gen_random_uuid() primary key,
-  name text not null,
-  domain text,
-  appellation text,
-  vintage integer,
-  color text check (color in ('rouge', 'blanc', 'rosé', 'effervescent')),
-  region text,
-  grape text,
-  quantity integer default 1,
-  zone text,
-  purchase_note text,
-  created_at timestamp with time zone default now()
-);
-
-create table canon_tastings (
-  id uuid default gen_random_uuid() primary key,
-  bottle_id uuid references canon_bottles(id) on delete set null,
-  profile_id uuid references profiles(id),
-  name text not null,
-  domain text,
-  appellation text,
-  vintage integer,
-  color text,
-  region text,
-  grape text,
-  rating numeric(2,1) check (rating between 0 and 5),
-  is_favorite boolean default false,
-  note text,
-  tasted_at date default current_date,
-  created_at timestamp with time zone default now()
-);
-```
-
-### Améliorations prévues
-- Scan d'étiquette via IA (photo → champs pré-remplis)
-- Alerte "dernière bouteille" quand quantité = 1
-- Suggestions "à ouvrir bientôt" selon millésime
-
----
-
 ## 🍵 Tisane et Chauffeuse
-> Films & séries à regarder ensemble
 
-- Liste commune "à voir" + "déjà vu"
-- Recherche via API TMDB (gratuite)
-- Like / dislike par profil pour trouver un film en commun
-- Notes après visionnage
+### 📄 Spécifications Fonctionnelles : 
 
----
-
-## 🐌 Ça Traîne
-> Todo partagée avec priorités croisées
-
-- Liste de tâches commune
-- Chaque profil définit son top 3 de priorité
-- Liste triée selon les priorités combinées
-- Tâche en top 3 des deux profils → remonte encore plus haut
+#### 1. Vision du Produit
+**Concept :** App Duo Ciné/Série. Une application pour couples permettant de décider rapidement quoi regarder, en transformant la recherche en un jeu de "swipe" et en centralisant le suivi des séries.
+**Objectif :** Zéro friction, aide à la décision rapide, interface moderne "Ciné Cosy".
 
 ---
 
-## 🎸 Jukebox
-> Morceaux partagés et humeur musicale
+#### 2. Structure de l'Interface (Arborescence)
 
-- Ajouter des morceaux à une liste commune
-- Humeur musicale du moment (tag / emoji)
-- *(specs à affiner)*
+##### A. Onglet Principal : La Watchlist (Home)
+Pivot central de l'app, divisé en deux sections via un toggle permanent.
+
+* **Section FILMS :**
+    * **Groupe "Matchs" :** Films validés par les deux (❤️+❤️). Priorité haute.
+    * **Groupe "À voir" :** Films ajoutés via "Découvrir" ou suggérés par un seul partenaire.
+* **Section SÉRIES :**
+    * **Groupe "En cours" :** Séries entamées avec suivi à l'épisode. Alerte visuelle si un nouvel épisode est sorti sur TMDB.
+    * **Groupe "Matchs" :** Nouvelles séries validées en duo, prêtes à être lancées.
+    * **Groupe "À voir" :** Idées de séries stockées en attente de validation.
+
+##### B. Onglet : Match (Le Jeu)
+Interface de décision dynamique pour le couple.
+* **Sources du Match :** Option de piocher dans "Notre Watchlist" (pour trancher) ou dans le "Catalogue Global" (pour découvrir).
+* **UI de la Carte (Swipe) :**
+    * **Face A (Visuel) :** Affiche plein écran, Titre, Note TMDB, Année.
+    * **Face B (Détails) :** S'affiche via un "Tap" court sur la carte. Présente le résumé (max 300 caractères), le casting principal, la durée (ou nb de saisons) et les logos des plateformes (Netflix, Prime, etc.).
+* **Actions :** ❤️ (Match), 😬 (Plus tard), ⏭️ (Passer sans juger).
+* **Mode “Ce soir” :** Filtre restrictif pour une session de match ultra-courte (ex: "un film de moins d'1h40").
+
+##### C. Onglet : Découvrir
+* Barre de recherche textuelle via API TMDB.
+* Exploration par genres, tendances et plateformes de streaming.
+* Bouton d'ajout rapide vers la Watchlist "À voir".
+
+---
+
+#### 3. Logique Métier & Fonctionnalités Clés
+
+##### Le Système de "Veto"
+* **Concept :** Un droit de retrait définitif pour éviter les propositions répétées d'un contenu non désiré.
+* **Fonctionnement :** Système de 3 jetons Veto par utilisateur.
+* **Recharge :** Chaque jeton utilisé met 7 jours à se régénérer.
+* **Effet :** Supprime immédiatement le média de la session de match et de la Watchlist commune.
+
+##### Suivi des Séries (Inspiration JustWatch)
+* Gestion par saison et par épisode.
+* Bouton "+" rapide pour marquer l'épisode en cours comme "vu".
+* Mise à jour automatique du statut de la série dès le premier épisode visionné (passe de "Match" à "En cours").
+
+##### Données & API
+* **Source :** API TMDB pour les métadonnées et les fournisseurs de streaming (Watch Providers).
+* **Backend recommandé :** Solution temps réel (Supabase/Firebase) pour synchroniser instantanément les actions des deux utilisateurs sur leurs écrans respectifs.
+
+---
+
+#### 4. Design & UI
+* **Couleurs :** Violet nuit (fond), Ambre (call-to-action), Blanc cassé (lecture).
+* **CTA Principal unique :** Un bouton central "On lance un match" pour inciter à l'action.
+* **Ergonomie :** Navigation par onglets en bas, gestuelles de swipe fluides.
+
+---
+
+## 🎧 MoodBoombox
+
+### Résumé
+Partager des sons selon l’humeur, sans refaire Spotify, et garder une mémoire musicale du couple.
+
+### Fonctionnalités clés (MVP)
+1. **Ajouter un morceau** via lien (YouTube/Spotify/Deezer)
+2. **Tag humeur** avec emoji (😎 chill, 💃 énergie, 🌧️ mélancolie)
+3. **Playlist du moment** automatique selon humeur commune
+4. **Timeline “nos sons”** (souvenirs musicaux datés)
+5. **Mini jeu “devine qui a ajouté ce son”**
+
+### API gratuite
+- **iTunes Search API** (sans auth) pour métadonnées basiques
+- Option: **Deezer API** (usage gratuit, à vérifier selon quota)
+
+### UI moderne & ergonomique
+- Chips d’humeur colorées
+- Cover art en mosaïque
+- Player léger (preview quand disponible)
 
 ---
 
 ## 👣 Nos Empreintes
-> Carte des lieux visités ensemble
 
-- Carte interactive des endroits visités en couple
-- Ajouter un lieu avec nom, date, note
-- *(specs à affiner)*
+### Résumé
+Créer une mémoire géographique du couple: lieux visités, moments, anecdotes.
+
+### Fonctionnalités clés (MVP)
+1. **Carte des lieux visités** (pins + clustering)
+2. **Ajout rapide d’un lieu** (nom, date, note, photo optionnelle)
+3. **Filtres** (ville, type de sortie, période)
+4. **Stats fun** (km cumulés, pays, top souvenirs)
+5. **Mode “souvenir aléatoire”**
+
+### API gratuite
+- **Nominatim (OpenStreetMap)** pour géocodage
+- **Leaflet + OpenStreetMap tiles** côté front
+
+### UI moderne & ergonomique
+- Carte plein écran + drawer bottom sheet
+- Timeline des visites
+- Marqueurs custom emoji
+
 
 ---
 
 ## 💧 Arrose-moi
-> Suivi arrosage des plantes intérieur
 
-- Liste des plantes de la maison
-- Date du dernier arrosage + fréquence
-- Indicateur "à arroser bientôt"
-- *(specs à affiner)*
+### Résumé
+Aider à entretenir les plantes sans charge mentale, avec des rappels simples et visuels.
+
+### Fonctionnalités clés (MVP)
+1. **Fiches plantes** (nom, pièce, fréquence)
+2. **Planning d’arrosage** (aujourd’hui / bientôt / en retard)
+3. **Bouton “Arrosé !”** en 1 tap
+4. **Historique minimal** (derniers arrosages)
+5. **Astuce du jour** (lumière, humidité, erreurs courantes)
+
+### API gratuite
+- MVP sans API obligatoire
+- Option: **Perenual API** (free tier) pour fiches plantes
+
+### UI moderne & ergonomique
+- Codes couleur lisibles (vert/ambre/rouge)
+- Cartes “urgence” en tête
+- Animation goutte d’eau au check
 
 ---
 
 ## 🌙 Parenthèse
-> Planifier une soirée ou activité spéciale
 
-- Proposer et planifier une soirée / activité couple à l'avance
-- Adapté aux casaniers : week-end cosy, soirée canapé
-- Notion d'anticipation (pas "ce soir" mais "ce week-end")
-- *(specs à affiner)*
+### Résumé
+Planifier des moments spéciaux à l’avance, surtout des activités cocooning.
+
+### Fonctionnalités clés (MVP)
+1. **Boîte à idées d’activités** (maison / extérieur / petit budget)
+2. **Planification future** (ce week-end, semaine prochaine)
+3. **Vote duo** pour choisir l’activité
+4. **Checklist préparation** (snacks, ambiance, musique)
+5. **Souvenir post-activité** (photo + note + emoji)
+
+### API gratuite
+- MVP sans API
+- Option inspiration météo via **Open-Meteo** (déjà cohérent avec stack)
+
+### UI moderne & ergonomique
+- Cartes ambiance (cosy, aventure, créatif)
+- Frise “prochaines parenthèses”
+- Ton visuel doux (indigo nuit + rose chaud)
+
+---
+
+## La quête
+- Défis courts quotidiens (ex: “faire 10 min sans écran ensemble”)
+- Système de streak duo + récompenses cosmétiques
+- Sans API (ou citations motivantes via API gratuite)
+
+## Dodo 😴
+- Rituel sommeil à deux (heure de coucher cible, routine)
+- Suivi de régularité hebdo
+- Ambiances sonores via liens externes
+- Sans API
+
+## Photo Capsule 📸🧡
+- 1 photo/jour max, capsule mensu “souvenirs”
+- Reveal du fin du mois
+- Sans API (stockage Supabase), trouver un système de gestion des photos pour ne pas faire trop grossir la BDD. Un fois le mois passé et le récap vu on supprime les photos.
+

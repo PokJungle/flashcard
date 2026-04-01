@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, startTransition } from 'react'
 import { supabase } from '../../supabase'
 import { useThemeColors } from '../../hooks/useThemeColors'
 import BottomModal from '../../components/BottomModal'
@@ -21,33 +21,43 @@ const EMOJIS = [
 const EMPTY_FORM = { title: '', note: '', emoji: '' }
 
 export default function Traine({ profile, dark }) {
-  const [tasks, setTasks]           = useState([])
-  const [allProfiles, setAllProfiles] = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [tab, setTab]               = useState('todo')
-  const [modal, setModal]           = useState(null) // null | 'add' | task (pour edit)
-  const [form, setForm]             = useState(EMPTY_FORM)
-  const [saving, setSaving]         = useState(false)
+  const [state, setState] = useState({
+    tasks: [],
+    allProfiles: [],
+    loading: true
+  })
+  const [tab, setTab] = useState('todo')
+  const [modal, setModal] = useState(null) // null | 'add' | task (pour edit)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
+
+  const { tasks, allProfiles, loading } = state
 
   const { bg, card, border, border2, textPri, textSec, textMed } = useThemeColors(dark)
   const inputBg = dark ? '#0f0a1e' : '#ffffff'
-
-  useEffect(() => { loadAll() }, [])
-
-  const loadAll = async () => {
-    const [{ data: tasksData }, { data: profilesData }] = await Promise.all([
-      supabase.from('traine_tasks').select('*').order('created_at', { ascending: true }),
-      supabase.from('profiles').select('*'),
-    ])
-    setTasks((tasksData || []).map(parsePriorityBy))
-    setAllProfiles(profilesData || [])
-    setLoading(false)
-  }
 
   const parsePriorityBy = (t) => ({
     ...t,
     priority_by: typeof t.priority_by === 'string' ? JSON.parse(t.priority_by) : (t.priority_by || [])
   })
+
+  const loadAll = useCallback(async () => {
+    const [{ data: tasksData }, { data: profilesData }] = await Promise.all([
+      supabase.from('traine_tasks').select('*').order('created_at', { ascending: true }),
+      supabase.from('profiles').select('*'),
+    ])
+    
+    // Use startTransition to prevent cascading renders warning
+    startTransition(() => {
+      setState({
+        tasks: (tasksData || []).map(parsePriorityBy),
+        allProfiles: profilesData || [],
+        loading: false
+      })
+    })
+  }, [])
+
+  useEffect(() => { loadAll() }, [loadAll])
 
   const otherProfile    = allProfiles.find(p => p.id !== profile.id)
   const myPriorityCount = tasks.filter(t => !t.done && (t.priority_by || []).includes(profile.id)).length
@@ -76,10 +86,10 @@ export default function Traine({ profile, dark }) {
       const { data } = await supabase.from('traine_tasks').insert({
         ...payload, created_by: profile.id, priority_by: '[]',
       }).select().single()
-      if (data) setTasks(prev => [...prev, parsePriorityBy(data)])
+      if (data) setState(prev => ({ ...prev, tasks: [...prev.tasks, parsePriorityBy(data)] }))
     } else {
       await supabase.from('traine_tasks').update(payload).eq('id', modal.id)
-      setTasks(prev => prev.map(t => t.id === modal.id ? { ...t, ...payload } : t))
+      setState(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === modal.id ? { ...t, ...payload } : t) }))
     }
     setSaving(false)
     closeModal()
@@ -88,7 +98,7 @@ export default function Traine({ profile, dark }) {
   const toggleDone = async (task) => {
     const done = !task.done
     await supabase.from('traine_tasks').update({ done }).eq('id', task.id)
-    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, done } : t))
+    setState(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === task.id ? { ...t, done } : t) }))
   }
 
   const togglePriority = async (task) => {
@@ -98,12 +108,12 @@ export default function Traine({ profile, dark }) {
       ? task.priority_by.filter(id => id !== profile.id)
       : [...(task.priority_by || []), profile.id]
     await supabase.from('traine_tasks').update({ priority_by: JSON.stringify(newPriorityBy) }).eq('id', task.id)
-    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, priority_by: newPriorityBy } : t))
+    setState(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === task.id ? { ...t, priority_by: newPriorityBy } : t) }))
   }
 
   const deleteTask = async (id) => {
     await supabase.from('traine_tasks').delete().eq('id', id)
-    setTasks(prev => prev.filter(t => t.id !== id))
+    setState(prev => ({ ...prev, tasks: prev.tasks.filter(t => t.id !== id) }))
   }
 
   const getProfile = (id) => allProfiles.find(p => p.id === id)

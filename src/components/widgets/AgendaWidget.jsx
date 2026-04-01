@@ -36,7 +36,9 @@ export default function AgendaWidget({ onClick, dark }) {
       className="w-full rounded-2xl text-left active:scale-95 transition-all overflow-hidden"
       style={{
         background: dark ? '#1a1035' : '#fff',
-        border: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`,
+        borderTop: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`,
+        borderRight: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`,
+        borderBottom: `0.5px solid ${dark ? '#2d1f5e' : '#ede9fe'}`,
         borderLeft: '3px solid #8B5CF6',
       }}>
 
