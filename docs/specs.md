@@ -16,17 +16,6 @@
 
 ---
 
-## 🐌 Ça Traîne
-
-> Todo partagée avec priorités croisées
-
-- Liste de tâches commune
-- Chaque profil définit son top 3 de priorité
-- Liste triée selon les priorités combinées
-- Tâche en top 3 des deux profils → remonte encore plus haut
-
----
-
 ## 🎸 Jukebox
 
 > Morceaux partagés et humeur musicale
