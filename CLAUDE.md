@@ -9,12 +9,14 @@
 **Vision** : Plateforme multi-apps personnelle pour 2 utilisateurs (Be🐒 / Princesse chat🚀) autour d'un Hub central. 6 apps en production, apps en préparation dans `docs/specs.md`.
 
 **Tech Stack** :
+
 - UI : React 19 (JSX uniquement, PAS de TypeScript)
 - Build : Vite 8 + Tailwind CSS 3
 - BDD : Supabase (PostgreSQL + RLS)
 - Déploiement : Vercel (serverless dans `/api/`)
 
 **Structure clé** :
+
 ```
 src/
 ├── App.jsx              # Hub principal — routing apps
@@ -42,42 +44,47 @@ npm run preview    # Prévisualiser build local
 
 ---
 
-## @Conventions
+## @Guidelines
 
-**React** : 
-- Utiliser des composants fonctionnels (PascalCase)
-- Navigation via état `screen` (PAS de React Router)
-- Hooks dans sous-dossier `hooks/` propre à chaque app
+**React** : Composants fonctionnels (PascalCase), navigation via état `screen` (PAS React Router), hooks dans dossier `hooks/`.
 
-**Code** :
-- Fichiers : `.jsx` pour composants, `.js` pour utilitaires
-- Nommage : PascalCase composants/screens, camelCase hooks/utils
-- CSS : Tailwind uniquement (PAS de CSS modules, PAS de styled-components)
-- Langue UI : tout le texte affiché en français
-- Commits : messages en français
+**Code** : Fichiers `.jsx`/.`js`, nommage PascalCase/camelCase, Tailwind uniquement, UI en français, commits en français.
 
-**État** :
-- React `useState` → état UI transient
-- Hooks custom → logique métier + fetch
-- `localStorage` → préférences persistantes
-- Supabase → données serveur
+**État** : `useState` pour UI, hooks custom pour logique, `localStorage` pour préférences, Supabase pour données.
 
-**Navigation** :
-```jsx
-<TabBar tabs={TABS} active={tab} onChange={setTab} color="#6366f1" dark={dark} />
-```
+**Navigation** : Pattern TabBar partagée sauf Orbite.
+
+---
+
+## How I Work (Communication)
+
+Direct, no fluff. Skip preambles.
+NO em dashes (—). Use colons (:) or split sentences.
+Lead with recommendations, not option lists.
+Code must be production-ready, not a 'starting point'.
+
+---
+
+## Workflow Rules
+
+Plan first for anything non-trivial. Think before coding.
+One sub-agent per focused task. Keep main chat clean.
+After ANY correction, save it to memory immediately. Never repeat same mistake.
+Verify before calling it done: Run tests and check diff.
 
 ---
 
 ## @Rules
 
 **Obligations absolues** :
+
 - Toujours lire `docs/apps/<app>.md` avant modifier une app
 - Utiliser uniquement les variables d'env `VITE_*` (dashboard Vercel)
 - Profil sélectionné via `localStorage` (`flashcard-profile`), PAS Supabase Auth
 - Toute modification BDD doit respecter le schéma dans `docs/database.md`
 
 **Interdictions absolues** :
+
 - NE PAS utiliser TypeScript
 - NE PAS utiliser React Router
 - NE PAS committer de clés d'API ou variables d'env
@@ -85,10 +92,12 @@ npm run preview    # Prévisualiser build local
 - NE PAS ajouter de dépendances sans justification
 
 **RLS Supabase** :
+
 - Seule table `card_progress` a RLS actif (filtrée par `profile_id`)
 - Toutes autres tables sont partagées entre les 2 profils
 
 **Déploiement** :
+
 - Branche `main` → Vercel auto-déploie
 - Features IA : `claude/<description>-<hash>`
 - Serverless uniquement dans `/api/`
