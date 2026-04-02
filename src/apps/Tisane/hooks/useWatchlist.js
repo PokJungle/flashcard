@@ -165,7 +165,7 @@ export function useWatchlist(profile) {
     const newEp = (item.current_episode ?? 0) + 1
     const updates = {
       current_episode: newEp,
-      ...(item.status === 'matched' ? { status: 'watching' } : {}),
+      ...(['matched', 'to_watch'].includes(item.status) ? { status: 'watching' } : {}),
     }
     await supabase.from('tisane_watchlist').update(updates).eq('id', itemId)
     await load()

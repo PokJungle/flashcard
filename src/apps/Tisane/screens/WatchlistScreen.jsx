@@ -73,8 +73,8 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onMarkWatched,
             <StatusBadge status={item.status} />
           </div>
 
-          {/* Suivi épisode */}
-          {isSeries && (isWatching || item.status === 'matched') && (
+          {/* Suivi épisode — visible pour toutes les séries */}
+          {isSeries && (
             <div className="flex items-center gap-2 mt-1.5">
               <span className="text-[11px] font-mono px-2 py-0.5 rounded-md"
                 style={{ background: '#0d0620', color: C.amber }}>
