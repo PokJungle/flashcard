@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, Plus, Check, Zap, Bell } from 'lucide-react'
+import { ChevronDown, ChevronUp, Plus, Check, Zap, Bell, Pencil, X } from 'lucide-react'
 import { getPosterUrl } from '../services/tmdb'
 import { useSeriesSync } from '../hooks/useSeriesSync'
 
@@ -34,16 +34,18 @@ function StatusBadge({ status }) {
 }
 
 // ─── Carte d'un item watchlist ────────────────────────────────────────────────
-function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onMarkWatched, onVeto, vetoAvailable, sync }) {
+function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onSetEpisode, onMarkWatched, onVeto, vetoAvailable, sync, lastVisitMs }) {
   const [showActions, setShowActions] = useState(false)
   const [confirmVeto, setConfirmVeto] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editS, setEditS] = useState(item.current_season ?? 1)
+  const [editE, setEditE] = useState(item.current_episode ?? 0)
 
   const poster = getPosterUrl(item.poster_path, 'w92')
   const isSeries = item.media_type === 'tv'
 
-  // Données de sync TMDB
   const episodesInSeason = isSeries ? sync.getEpisodesInSeason(item) : null
-  const newEp = isSeries ? sync.hasNewEpisode(item) : false
+  const newEp = isSeries ? sync.hasNewEpisode(item, lastVisitMs) : false
   const nextAir = isSeries ? sync.getNextAirDate(item) : null
   const seriesStatus = isSeries ? sync.getSeriesStatus(item) : null
   const atSeasonEnd = isSeries ? sync.isAtSeasonEnd(item) : false
@@ -51,9 +53,20 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onMarkWatched,
   const curSeason = item.current_season ?? 1
   const curEp = item.current_episode ?? 0
   const seasonLabel = `S${String(curSeason).padStart(2, '0')}E${String(curEp).padStart(2, '0')}`
-  const episodeLabel = episodesInSeason
-    ? `${seasonLabel} · Ep ${curEp}/${episodesInSeason}`
-    : seasonLabel
+  const episodeLabel = episodesInSeason ? `${seasonLabel} · ${curEp}/${episodesInSeason}` : seasonLabel
+
+  const openEdit = () => {
+    setEditS(item.current_season ?? 1)
+    setEditE(item.current_episode ?? 0)
+    setEditing(true)
+  }
+
+  const saveEdit = async () => {
+    const s = Math.max(1, parseInt(editS) || 1)
+    const e = Math.max(0, parseInt(editE) || 0)
+    await onSetEpisode(item.id, s, e)
+    setEditing(false)
+  }
 
   const handleVeto = async () => {
     if (!confirmVeto) { setConfirmVeto(true); return }
@@ -62,7 +75,8 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onMarkWatched,
   }
 
   return (
-    <div className="rounded-xl overflow-hidden" style={{ background: C.card, border: `0.5px solid ${newEp ? '#ef444460' : C.border}` }}>
+    <div className="rounded-xl overflow-hidden"
+      style={{ background: C.card, border: `0.5px solid ${newEp ? '#ef444460' : C.border}` }}>
       <div className="flex gap-3 p-3">
         {/* Poster */}
         <div className="flex-shrink-0 w-12 rounded-lg overflow-hidden relative"
@@ -71,9 +85,8 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onMarkWatched,
             ? <img src={poster} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
             : <div className="w-full h-full flex items-center justify-center text-xl">{isSeries ? '📺' : '🎬'}</div>
           }
-          {/* Badge rouge si nouvel épisode */}
           {newEp && (
-            <div className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full"
+            <div className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full animate-pulse"
               style={{ background: C.red }} />
           )}
         </div>
@@ -84,7 +97,6 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onMarkWatched,
             <p className="text-sm font-semibold leading-snug flex-1" style={{ color: C.textPri }}>
               {item.title}
             </p>
-            {/* Badge "Nouvel épisode" */}
             {newEp && (
               <span className="flex-shrink-0 flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-md"
                 style={{ background: '#ef444420', color: C.red, border: `0.5px solid #ef444450` }}>
@@ -101,7 +113,6 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onMarkWatched,
               <span className="text-[11px]" style={{ color: C.amber }}>★ {Number(item.vote_average).toFixed(1)}</span>
             )}
             <StatusBadge status={item.status} />
-            {/* Statut série TMDB */}
             {seriesStatus === 'Ended' && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-md"
                 style={{ background: '#2d1059', color: C.textMuted }}>Terminée</span>
@@ -112,52 +123,86 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onMarkWatched,
             )}
           </div>
 
-          {/* Suivi épisode — visible pour toutes les séries */}
+          {/* Suivi épisode */}
           {isSeries && (
             <div className="mt-1.5 space-y-1">
-              {/* Ligne tracker */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded-md"
-                  style={{ background: '#0d0620', color: C.amber }}>
-                  {episodeLabel}
-                </span>
-
-                {/* Bouton + avec indicateur fin de saison */}
-                <button
-                  onClick={() => onAdvanceEpisode(item.id, episodesInSeason)}
-                  className="flex items-center gap-1 h-6 px-2 rounded-full active:scale-90 transition-all"
-                  style={{ background: atSeasonEnd ? '#7c3aed' : C.amber }}>
-                  <Plus size={11} color="#0d0620" strokeWidth={3} />
-                  {atSeasonEnd && (
-                    <span className="text-[9px] font-bold" style={{ color: '#0d0620' }}>S+</span>
-                  )}
-                </button>
-
-                {/* Bouton S+ manuel (si pas auto-avancement) */}
-                {!atSeasonEnd && (
-                  <button
-                    onClick={() => onAdvanceSeason(item.id)}
-                    className="text-[10px] px-2 py-0.5 rounded-md active:scale-95 transition-all"
-                    style={{ background: '#2d1059', color: C.textSec }}>
-                    S+
+              {editing ? (
+                /* ── Mode édition ── */
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[11px]" style={{ color: C.textMuted }}>S</span>
+                  <input
+                    type="number" min="1" value={editS}
+                    onChange={e => setEditS(e.target.value)}
+                    onBlur={e => setEditS(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-10 text-center text-xs rounded-md px-1 py-1 outline-none"
+                    style={{ background: '#0d0620', color: C.amber, border: `1px solid ${C.violet}` }}
+                  />
+                  <span className="text-[11px]" style={{ color: C.textMuted }}>E</span>
+                  <input
+                    type="number" min="0" value={editE}
+                    onChange={e => setEditE(e.target.value)}
+                    onBlur={e => setEditE(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-10 text-center text-xs rounded-md px-1 py-1 outline-none"
+                    style={{ background: '#0d0620', color: C.amber, border: `1px solid ${C.violet}` }}
+                  />
+                  <button onClick={saveEdit}
+                    className="w-6 h-6 rounded-full flex items-center justify-center active:scale-90"
+                    style={{ background: C.green }}>
+                    <Check size={11} color="#fff" strokeWidth={3} />
                   </button>
-                )}
-              </div>
+                  <button onClick={() => setEditing(false)}
+                    className="w-6 h-6 rounded-full flex items-center justify-center active:scale-90"
+                    style={{ background: '#2d1059' }}>
+                    <X size={11} color={C.textMuted} />
+                  </button>
+                </div>
+              ) : (
+                /* ── Mode lecture ── */
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Label → tap pour éditer */}
+                  <button onClick={openEdit}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-md active:scale-95 transition-all"
+                    style={{ background: '#0d0620' }}
+                    title="Modifier la position">
+                    <span className="text-[11px] font-mono" style={{ color: C.amber }}>{episodeLabel}</span>
+                    <Pencil size={9} color={C.textMuted} />
+                  </button>
+
+                  {/* + avance d'un épisode (violet = fin de saison) */}
+                  <button
+                    onClick={() => onAdvanceEpisode(item.id, episodesInSeason)}
+                    className="flex items-center gap-1 h-6 px-2 rounded-full active:scale-90 transition-all"
+                    style={{ background: atSeasonEnd ? C.violet : C.amber }}>
+                    <Plus size={11} color="#0d0620" strokeWidth={3} />
+                    {atSeasonEnd && (
+                      <span className="text-[9px] font-bold" style={{ color: '#0d0620' }}>S+</span>
+                    )}
+                  </button>
+
+                  {!atSeasonEnd && (
+                    <button onClick={() => onAdvanceSeason(item.id)}
+                      className="text-[10px] px-2 py-0.5 rounded-md active:scale-95 transition-all"
+                      style={{ background: '#2d1059', color: C.textSec }}>
+                      S+
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Infos TMDB sous le tracker */}
-              {newEp && (
+              {!editing && newEp && (
                 <p className="text-[10px] font-medium" style={{ color: C.red }}>
                   🔴 Nouvel épisode disponible !
                 </p>
               )}
-              {nextAir && !newEp && (
+              {!editing && nextAir && !newEp && (
                 <p className="text-[10px]" style={{ color: C.textMuted }}>
                   📅 Prochain S{String(nextAir.season).padStart(2,'0')}E{String(nextAir.episode).padStart(2,'0')} · {nextAir.label}
-                  {nextAir.name && ` · "${nextAir.name}"`}
+                  {nextAir.name ? ` · "${nextAir.name}"` : ''}
                 </p>
               )}
-              {seriesStatus === 'Ended' && curEp > 0 && !newEp && (
-                <p className="text-[10px]" style={{ color: C.textMuted }}>Série terminée · plus d'épisodes à venir</p>
+              {!editing && seriesStatus === 'Ended' && !newEp && (
+                <p className="text-[10px]" style={{ color: C.textMuted }}>Plus d'épisodes à venir</p>
               )}
             </div>
           )}
@@ -200,12 +245,11 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onMarkWatched,
 }
 
 // ─── Groupe collapsible ───────────────────────────────────────────────────────
-function Group({ title, emoji, items, onAdvanceEpisode, onAdvanceSeason, onMarkWatched, onVeto, vetoAvailable, sync }) {
+function Group({ title, emoji, items, onAdvanceEpisode, onAdvanceSeason, onSetEpisode, onMarkWatched, onVeto, vetoAvailable, sync, lastVisitMs }) {
   const [open, setOpen] = useState(true)
   if (items.length === 0) return null
 
-  // Compter les nouveaux épisodes dans ce groupe pour le badge
-  const newEpCount = items.filter(i => i.media_type === 'tv' && sync.hasNewEpisode(i)).length
+  const newEpCount = items.filter(i => i.media_type === 'tv' && sync.hasNewEpisode(i, lastVisitMs)).length
 
   return (
     <div>
@@ -236,10 +280,12 @@ function Group({ title, emoji, items, onAdvanceEpisode, onAdvanceSeason, onMarkW
               item={item}
               onAdvanceEpisode={onAdvanceEpisode}
               onAdvanceSeason={onAdvanceSeason}
+              onSetEpisode={onSetEpisode}
               onMarkWatched={onMarkWatched}
               onVeto={onVeto}
               vetoAvailable={vetoAvailable}
               sync={sync}
+              lastVisitMs={lastVisitMs}
             />
           ))}
         </div>
@@ -255,12 +301,21 @@ export default function WatchlistScreen({
   profile,
   onAdvanceEpisode,
   onAdvanceSeason,
+  onSetEpisode,
   onMarkWatched,
   vetos,
 }) {
-  const [tab, setTab] = useState('movies') // 'movies' | 'series'
+  const [tab, setTab] = useState('movies')
 
-  // Sync TMDB pour les séries
+  // Timestamp de la DERNIÈRE visite (session précédente) — mis à jour à l'ouverture
+  const [lastVisitMs] = useState(() => {
+    const key = `tisane-visit-${profile?.id}`
+    const stored = localStorage.getItem(key)
+    localStorage.setItem(key, String(Date.now()))
+    // Première visite : rien n'est "nouveau" (on retourne le timestamp actuel)
+    return stored ? parseInt(stored) : Date.now()
+  })
+
   const tvItems = items.filter(i => i.media_type === 'tv')
   const sync = useSeriesSync(tvItems)
 
@@ -282,9 +337,7 @@ export default function WatchlistScreen({
 
   const activeGroups = tab === 'movies' ? movieGroups : seriesGroups
   const totalActive = tab === 'movies' ? movies.length : series.length
-
-  // Nombre total de nouveaux épisodes (badge sur l'onglet Séries)
-  const totalNewEp = series.filter(s => sync.hasNewEpisode(s)).length
+  const totalNewEp = series.filter(s => sync.hasNewEpisode(s, lastVisitMs)).length
 
   return (
     <div className="min-h-full" style={{ background: C.bg }}>
@@ -315,10 +368,7 @@ export default function WatchlistScreen({
                 color: tab === t.id ? '#fff' : C.textMuted,
               }}>
               {t.label}
-              {t.count > 0 && (
-                <span className="ml-1 text-[10px] opacity-70">({t.count})</span>
-              )}
-              {/* Badge nouveaux épisodes */}
+              {t.count > 0 && <span className="ml-1 text-[10px] opacity-70">({t.count})</span>}
               {t.badge > 0 && (
                 <span className="absolute top-1 right-2 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center"
                   style={{ background: C.red, color: '#fff' }}>
@@ -361,10 +411,12 @@ export default function WatchlistScreen({
                 items={g.items}
                 onAdvanceEpisode={onAdvanceEpisode}
                 onAdvanceSeason={onAdvanceSeason}
+                onSetEpisode={onSetEpisode}
                 onMarkWatched={onMarkWatched}
                 onVeto={vetos.useVeto}
                 vetoAvailable={vetos.availableTokens > 0}
                 sync={sync}
+                lastVisitMs={lastVisitMs}
               />
             ))}
           </div>

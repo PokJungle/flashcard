@@ -39,6 +39,7 @@ export default function Tisane({ profile }) {
             profile={profile}
             onAdvanceEpisode={watchlist.advanceEpisode}
             onAdvanceSeason={watchlist.advanceSeason}
+            onSetEpisode={watchlist.setEpisode}
             onMarkWatched={watchlist.markWatched}
             vetos={vetos}
           />

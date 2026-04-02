@@ -90,14 +90,25 @@ export function useSeriesSync(series) {
     return syncData[`${tmdbId}:${currentSeason ?? 1}`] ?? null
   }
 
-  // Vrai si un épisode est sorti après la position courante
-  function hasNewEpisode(item) {
+  // Vrai si un épisode est sorti après la position courante ET après la dernière visite du profil
+  // lastVisitMs : timestamp de la dernière visite (depuis localStorage)
+  function hasNewEpisode(item, lastVisitMs) {
     const info = getInfo(item.tmdb_id, item.current_season)
     if (!info?.lastEpisode) return false
-    const { season_number: lSeason, episode_number: lEp } = info.lastEpisode
+    const { season_number: lSeason, episode_number: lEp, air_date } = info.lastEpisode
     const curSeason = item.current_season ?? 1
     const curEp = item.current_episode ?? 0
-    return lSeason > curSeason || (lSeason === curSeason && lEp > curEp)
+
+    // L'épisode doit être en avance sur la position courante
+    const isAhead = lSeason > curSeason || (lSeason === curSeason && lEp > curEp)
+    if (!isAhead) return false
+
+    // S'il y a une date de diffusion, vérifier qu'elle est postérieure à la dernière visite
+    if (air_date && lastVisitMs != null) {
+      return new Date(air_date).getTime() > lastVisitMs
+    }
+
+    return true
   }
 
   // Date du prochain épisode formatée en FR
