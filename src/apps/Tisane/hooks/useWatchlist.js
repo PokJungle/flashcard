@@ -158,16 +158,27 @@ export function useWatchlist(profile) {
   }, [profile, load])
 
   // Avancer d'un épisode (passe en "watching" si c'était "matched")
-  const advanceEpisode = useCallback(async (itemId) => {
+  // episodesInSeason : si fourni, déclenche l'auto-avancement de saison au dernier épisode
+  const advanceEpisode = useCallback(async (itemId, episodesInSeason = null) => {
     const item = items.find(i => i.id === itemId)
     if (!item) return
 
-    const newEp = (item.current_episode ?? 0) + 1
-    const updates = {
-      current_episode: newEp,
-      ...(['matched', 'to_watch'].includes(item.status) ? { status: 'watching' } : {}),
+    const curEp = item.current_episode ?? 0
+
+    // Si on connaît le total d'épisodes de la saison et qu'on est au dernier → passer à la saison suivante
+    if (episodesInSeason && curEp >= episodesInSeason) {
+      await supabase.from('tisane_watchlist').update({
+        current_season: (item.current_season ?? 1) + 1,
+        current_episode: 1,
+        status: 'watching',
+      }).eq('id', itemId)
+    } else {
+      const updates = {
+        current_episode: curEp + 1,
+        ...(['matched', 'to_watch'].includes(item.status) ? { status: 'watching' } : {}),
+      }
+      await supabase.from('tisane_watchlist').update(updates).eq('id', itemId)
     }
-    await supabase.from('tisane_watchlist').update(updates).eq('id', itemId)
     await load()
   }, [items, load])
 
