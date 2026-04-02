@@ -19,23 +19,25 @@ async function fetchSeriesInfo(tmdbId, currentSeason) {
   const lang = 'language=fr-FR'
   const auth = `api_key=${KEY}`
 
-  const [tvRes, seasonRes] = await Promise.all([
-    fetch(`${base}/tv/${tmdbId}?${auth}&${lang}`).then(r => r.ok ? r.json() : null),
-    fetch(`${base}/tv/${tmdbId}/season/${currentSeason}?${auth}&${lang}`).then(r => r.ok ? r.json() : null),
-  ])
+  // Fetch la série d'abord pour connaître le nombre réel de saisons
+  const tvRes = await fetch(`${base}/tv/${tmdbId}?${auth}&${lang}`)
+    .then(r => r.ok ? r.json() : null)
 
   if (!tvRes) return null
 
+  // Clamp la saison demandée pour éviter un 404
+  const totalSeasons = tvRes.number_of_seasons ?? 1
+  const validSeason = Math.min(currentSeason, totalSeasons)
+
+  const seasonRes = await fetch(`${base}/tv/${tmdbId}/season/${validSeason}?${auth}&${lang}`)
+    .then(r => r.ok ? r.json() : null)
+
   return {
     fetchedAt: Date.now(),
-    // Statut de la série (Returning Series, Ended, Canceled…)
     seriesStatus: tvRes.status ?? null,
-    totalSeasons: tvRes.number_of_seasons ?? null,
-    // Dernier épisode diffusé (peut être en avance sur la position de l'utilisateur)
+    totalSeasons,
     lastEpisode: tvRes.last_episode_to_air ?? null,
-    // Prochain épisode (date de diffusion future)
     nextEpisode: tvRes.next_episode_to_air ?? null,
-    // Nombre d'épisodes dans la saison actuelle
     episodesInSeason: seasonRes?.episodes?.length ?? null,
   }
 }
@@ -136,12 +138,27 @@ export function useSeriesSync(series) {
     return getInfo(item.tmdb_id, item.current_season)?.seriesStatus ?? null
   }
 
-  // true si l'utilisateur est au dernier épisode de sa saison
+  // true si l'utilisateur est au dernier épisode de sa saison courante
   function isAtSeasonEnd(item) {
     const total = getEpisodesInSeason(item)
     if (!total) return false
     return (item.current_episode ?? 0) >= total
   }
 
-  return { getInfo, hasNewEpisode, getNextAirDate, getEpisodesInSeason, getSeriesStatus, isAtSeasonEnd }
+  // true si le prochain épisode est disponible (a déjà été diffusé)
+  // Bloque le bouton + si l'utilisateur est à jour ou en avance sur les diffusions
+  function canAdvance(item) {
+    const info = getInfo(item.tmdb_id, item.current_season)
+    // Pas de données TMDB → on laisse avancer (pas de blocage par défaut)
+    if (!info?.lastEpisode) return true
+
+    const { season_number: lSeason, episode_number: lEp } = info.lastEpisode
+    const curSeason = item.current_season ?? 1
+    const curEp = item.current_episode ?? 0
+
+    // Peut avancer si le dernier épisode diffusé est en avance sur la position courante
+    return lSeason > curSeason || (lSeason === curSeason && lEp > curEp)
+  }
+
+  return { getInfo, hasNewEpisode, getNextAirDate, getEpisodesInSeason, getSeriesStatus, isAtSeasonEnd, canAdvance }
 }

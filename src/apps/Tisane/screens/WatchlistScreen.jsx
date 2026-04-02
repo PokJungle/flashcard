@@ -49,6 +49,7 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onSetEpisode, 
   const nextAir = isSeries ? sync.getNextAirDate(item) : null
   const seriesStatus = isSeries ? sync.getSeriesStatus(item) : null
   const atSeasonEnd = isSeries ? sync.isAtSeasonEnd(item) : false
+  const advanceOk = isSeries ? sync.canAdvance(item) : true
 
   const curSeason = item.current_season ?? 1
   const curEp = item.current_episode ?? 0
@@ -168,13 +169,19 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onSetEpisode, 
                     <Pencil size={9} color={C.textMuted} />
                   </button>
 
-                  {/* + avance d'un épisode (violet = fin de saison) */}
+                  {/* + avance d'un épisode — bloqué si prochain ep pas encore diffusé */}
                   <button
-                    onClick={() => onAdvanceEpisode(item.id, episodesInSeason)}
-                    className="flex items-center gap-1 h-6 px-2 rounded-full active:scale-90 transition-all"
-                    style={{ background: atSeasonEnd ? C.violet : C.amber }}>
-                    <Plus size={11} color="#0d0620" strokeWidth={3} />
-                    {atSeasonEnd && (
+                    onClick={() => advanceOk && onAdvanceEpisode(item.id, episodesInSeason)}
+                    disabled={!advanceOk}
+                    title={!advanceOk ? 'Prochain épisode pas encore diffusé' : undefined}
+                    className="flex items-center gap-1 h-6 px-2 rounded-full transition-all"
+                    style={{
+                      background: !advanceOk ? '#2d1059' : atSeasonEnd ? C.violet : C.amber,
+                      opacity: !advanceOk ? 0.45 : 1,
+                      cursor: !advanceOk ? 'not-allowed' : 'pointer',
+                    }}>
+                    <Plus size={11} color={!advanceOk ? C.textMuted : '#0d0620'} strokeWidth={3} />
+                    {atSeasonEnd && advanceOk && (
                       <span className="text-[9px] font-bold" style={{ color: '#0d0620' }}>S+</span>
                     )}
                   </button>
@@ -190,6 +197,11 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onSetEpisode, 
               )}
 
               {/* Infos TMDB sous le tracker */}
+              {!editing && !advanceOk && !nextAir && (
+                <p className="text-[10px]" style={{ color: C.textMuted }}>
+                  ⏳ Tu es à jour — prochain épisode non diffusé
+                </p>
+              )}
               {!editing && newEp && (
                 <p className="text-[10px] font-medium" style={{ color: C.red }}>
                   🔴 Nouvel épisode disponible !
