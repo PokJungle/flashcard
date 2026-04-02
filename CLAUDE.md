@@ -1,197 +1,94 @@
-# CLAUDE.md — Guide du projet Flashcard
+# CLAUDE.md — Guide Claude Code
 
-Contexte essentiel pour les sessions IA. **Avant de travailler sur une app spécifique, lis le fichier `docs/apps/<app>.md` correspondant** (voir table ci-dessous).
-
----
-
-## Vue d'ensemble
-
-Plateforme multi-apps personnelle pour deux utilisateurs (Be🐒 / Princesse chat🚀), organisée autour d'un Hub central.
-
-| App | Description | Doc |
-|-----|-------------|-----|
-| 🐒 **Mémoire de Singe** | Flashcards avec répétition espacée multi-critères | `docs/apps/flashcards.md` |
-| 🌦️ **Parapluie ou Claquettes** | Météo agrégée multi-modèles | `docs/apps/meteo.md` |
-| 📖 **Le Grimoire Gourmand** | Recettes saisonnières + planning repas | `docs/apps/grimoire.md` |
-| 💌 **Bisou** | Messages emoji entre les deux profils | `docs/apps/bisou.md` |
-| 🗞️ **Demandez le Programme** | Agenda partagé | `docs/apps/programme.md` |
-| 💥 **Mise en Orbite** | Suivi sportif et défis entre profils | `docs/apps/orbite.md` |
-
-Déployé : https://flashcard-ten-virid.vercel.app
-GitHub : `pokjungle/flashcard`
+**Lis `docs/apps/<app>.md` avant toute modification d'app.**
 
 ---
 
-## Stack technique
+## @Architecture
 
-| Couche | Technologie |
-|--------|------------|
-| UI | React 19 (JSX, pas de TypeScript) |
-| Build | Vite 8 |
-| CSS | Tailwind CSS 3 |
-| Icônes | Lucide React |
-| Base de données | Supabase (PostgreSQL + RLS) |
-| Déploiement | Vercel (fonctions serverless dans `/api/`) |
-| Package manager | npm |
+**Vision** : Plateforme multi-apps personnelle pour 2 utilisateurs (Be🐒 / Princesse chat🚀) autour d'un Hub central. 6 apps en production, apps en préparation dans `docs/specs.md`.
 
-**Pas de TypeScript** — tous les fichiers source sont en `.jsx` ou `.js`.
-**Pas de React Router** — navigation manuelle via état `screen`.
-**Pas de tests** — uniquement ESLint.
+**Tech Stack** :
+- UI : React 19 (JSX uniquement, PAS de TypeScript)
+- Build : Vite 8 + Tailwind CSS 3
+- BDD : Supabase (PostgreSQL + RLS)
+- Déploiement : Vercel (serverless dans `/api/`)
 
----
-
-## Structure des fichiers
-
+**Structure clé** :
 ```
-flashcard/
-├── api/proxy.js              # Vercel serverless : proxy CORS pour images Wikipedia
-├── src/
-│   ├── App.jsx               # Hub — routing entre apps, DayHeader, widgets
-│   ├── supabase.js           # Client Supabase (instance unique)
-│   ├── components/
-│   │   ├── TabBar.jsx        # Barre de navigation partagée (bas d'écran)
-│   │   └── widgets/          # MeteoWidget, BisouWidget, AgendaWidget…
-│   ├── hooks/useDarkMode.js
-│   └── apps/
-│       ├── Flashcards/       # hooks/ + screens/ + components/
-│       ├── Meteo/
-│       ├── Grimoire/
-│       ├── Bisou/
-│       ├── Programme/        # hooks/useProgramme.js + screens/
-│       └── Orbite/           # hooks/useOrbite.js + screens/
-├── docs/                     # Documentation détaillée par domaine
-│   ├── apps/                 # flashcards.md, programme.md, grimoire.md…
-│   ├── hub.md                # DayHeader, widgets, badges
-│   ├── database.md           # Schéma complet Supabase
-│   ├── apis.md               # APIs externes
-│   └── specs.md              # Specs des apps en préparation
-└── README.md
+src/
+├── App.jsx              # Hub principal — routing apps
+├── supabase.js          # Client Supabase unique
+├── components/
+│   ├── TabBar.jsx       # Navigation partagée
+│   └── widgets/         # Widgets hub
+└── apps/               # Apps (hooks/ + screens/)
+docs/                   # Documentation détaillée
+api/proxy.js            # Proxy CORS Wikipedia
 ```
 
 ---
 
-## Commandes de développement
+## @Commands
 
 ```bash
-npm run dev       # Serveur de dev (Vite HMR)
-npm run build     # Build de production → dist/
-npm run preview   # Prévisualiser le build en local
-npm run lint      # Vérification ESLint
+npm run dev        # Serveur de dev (Vite HMR)
+npm run build      # Build production → dist/
+npm run lint       # ESLint vérification
+npm run preview    # Prévisualiser build local
 ```
+
+**Pas de tests unitaires** — uniquement ESLint.
 
 ---
 
-## Variables d'environnement
+## @Conventions
 
-```
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...    # sûre à exposer (RLS protège les données)
-VITE_SPOONACULAR_KEY=...
-```
+**React** : 
+- Utiliser des composants fonctionnels (PascalCase)
+- Navigation via état `screen` (PAS de React Router)
+- Hooks dans sous-dossier `hooks/` propre à chaque app
 
----
+**Code** :
+- Fichiers : `.jsx` pour composants, `.js` pour utilitaires
+- Nommage : PascalCase composants/screens, camelCase hooks/utils
+- CSS : Tailwind uniquement (PAS de CSS modules, PAS de styled-components)
+- Langue UI : tout le texte affiché en français
+- Commits : messages en français
 
-## Schéma BDD (résumé)
+**État** :
+- React `useState` → état UI transient
+- Hooks custom → logique métier + fetch
+- `localStorage` → préférences persistantes
+- Supabase → données serveur
 
-Voir `docs/database.md` pour le schéma complet. Tables principales :
-
-| Table | App | RLS |
-|-------|-----|-----|
-| `profiles` | Hub | — |
-| `decks`, `cards`, `deck_criteria`, `card_values` | Flashcards | non |
-| `card_progress` | Flashcards | **oui** (par `profile_id`) |
-| `quiz_questions` | Flashcards | non |
-| `bisou_messages` | Bisou | non |
-| `programme_events` | Programme | non |
-| `orbite_activities`, `orbite_settings` | Orbite | non |
-| `grimoire_recipes`, `grimoire_meal_plan`, `grimoire_settings` | Grimoire | non |
-
-Profil sélectionné via `localStorage` (`flashcard-profile`), pas via Supabase Auth.
-
----
-
-## Navigation — conventions
-
-**Pattern TabBar en bas :**
-
+**Navigation** :
 ```jsx
 <TabBar tabs={TABS} active={tab} onChange={setTab} color="#6366f1" dark={dark} />
 ```
 
-| App | Couleur | Notes |
-|-----|---------|-------|
-| 🐒 Mémoire | `#4f46e5` indigo | badge dues |
-| 📖 Grimoire | `#f97316` orange | 3 onglets |
-| 🗞️ Programme | `#6366f1` indigo | |
-| 💥 Orbite | dark custom | nav custom intentionnelle |
-| 💌 Bisou / 🌦️ Météo | — | écran unique |
-
-**Pas de React Router.** Navigation via état `screen` :
-
-```jsx
-const [screen, setScreen] = useState('home')
-if (screen === 'study') return <StudyScreen onBack={() => setScreen('home')} />
-```
-
 ---
 
-## Gestion d'état
+## @Rules
 
-| Stockage | Utilisé pour |
-|----------|-------------|
-| React `useState` | État UI transient |
-| Hooks custom | Fetch + logique métier par app |
-| `localStorage` | Préférences persistantes |
-| `sessionStorage` | Cache traductions Grimoire (TTL 1h) |
-| Supabase | Données serveur persistantes |
+**Obligations absolues** :
+- Toujours lire `docs/apps/<app>.md` avant modifier une app
+- Utiliser uniquement les variables d'env `VITE_*` (dashboard Vercel)
+- Profil sélectionné via `localStorage` (`flashcard-profile`), PAS Supabase Auth
+- Toute modification BDD doit respecter le schéma dans `docs/database.md`
 
-Clés localStorage détaillées dans chaque `docs/apps/*.md`.
+**Interdictions absolues** :
+- NE PAS utiliser TypeScript
+- NE PAS utiliser React Router
+- NE PAS committer de clés d'API ou variables d'env
+- NE PAS modifier le dossier `/dist` (généré automatiquement)
+- NE PAS ajouter de dépendances sans justification
 
----
+**RLS Supabase** :
+- Seule table `card_progress` a RLS actif (filtrée par `profile_id`)
+- Toutes autres tables sont partagées entre les 2 profils
 
-## Conventions de code
-
-- **Nommage** : PascalCase composants/screens, camelCase hooks/utils
-- **Hooks** : sous-dossier `hooks/` propre à chaque app
-- **Screens** : sous-dossier `screens/` pour les apps multi-écrans
-- **CSS** : Tailwind uniquement
-- **Langue UI** : tout le texte affiché en français
-- **Commits** : messages en français
-
----
-
-## Git & Déploiement
-
-- Branche principale : `main` → Vercel auto-déploie
-- Branches features IA : `claude/<description>-<hash>`
-- Variables d'env : dashboard Vercel uniquement (ne pas committer)
-
----
-
-## Fichiers clés
-
-| Fichier | Rôle |
-|---------|------|
-| `src/App.jsx` | Hub — sélection profil, widgets, routing apps |
-| `src/supabase.js` | Instance Supabase unique |
-| `src/components/TabBar.jsx` | Nav partagée |
-| `src/apps/Flashcards/hooks/useStudySession.js` | Algo répétition espacée |
-| `src/apps/Programme/hooks/useProgramme.js` | Utilitaires dates/agenda |
-| `api/proxy.js` | Seul code serveur (proxy Wikipedia) |
-| `docs/hub.md` | DayHeader, widgets, badges détaillés |
-
----
-
-## Apps en préparation
-
-Specs complètes dans `docs/specs.md`.
-
-| App | Concept |
-|-----|---------|
-| 🍷 **Canon** | Cave à vin + journal de dégustation |
-| 🍵 **Tisane et Chauffeuse** | Films/séries à regarder ensemble |
-| 🐌 **Ça Traîne** | Todo partagée avec priorités croisées |
-| 🎸 **Jukebox** | Morceaux partagés + humeur musicale |
-| 👣 **Nos Empreintes** | Carte des lieux visités ensemble |
-| 💧 **Arrose-moi** | Suivi arrosage des plantes |
-| 🌙 **Parenthèse** | Planification soirées/activités couple |
+**Déploiement** :
+- Branche `main` → Vercel auto-déploie
+- Features IA : `claude/<description>-<hash>`
+- Serverless uniquement dans `/api/`
