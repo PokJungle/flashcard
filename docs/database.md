@@ -73,3 +73,17 @@ Questions QCM libres.
 canon_bottles (id, name, appellation, vintage, quantity, rating, notes, created_at)
 canon_tastings (id, bottle_id, profile_id, date, nose, palate, finish, score, created_at)
 ```
+
+### `tisane_watchlist`
+Watchlist couple partagée (films et séries). **RLS désactivé.**
+- `id`, `tmdb_id`, `media_type` (`movie`|`tv`), `title`, `poster_path`, `backdrop_path`, `overview`
+- `vote_average` numeric(3,1), `release_year`, `runtime` (minutes), `seasons_count`
+- `added_by` (profile_id), `status` (`to_watch`|`matched`|`watching`|`watched`|`vetoed`)
+- `liked_by text[]`, `passed_by text[]` — votes par profil (match quand liked_by a 2 IDs)
+- `current_season`, `current_episode` — suivi progression séries
+- Contrainte unique : `(tmdb_id, media_type)`
+
+### `tisane_vetos`
+Jetons veto utilisés. **RLS désactivé.**
+- `id`, `profile_id`, `watchlist_id` (FK → tisane_watchlist), `used_at`
+- Règle : 3 jetons max, régénération après 7 jours
