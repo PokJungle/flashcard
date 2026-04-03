@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Search, X, Plus, Check, Settings, Zap, Play, Trash2 } from 'lucide-react'
+import { Search, X, Plus, Check, Settings, Zap, Play, Trash2, RefreshCw } from 'lucide-react'
 import { searchMulti, getTrending, discoverByGenre, getPosterUrl, normalizeTmdbItem, getReleaseYear, getTitle } from '../services/tmdb'
 
 const C = {
@@ -19,7 +19,8 @@ const STATUS_LABELS = {
   matched: { label: 'Matchée', color: C.green },
   watching: { label: 'En cours', color: C.violet },
   watched: { label: 'Vue', color: '#6b7280' },
-  vetoed: { label: 'Vetoed', color: '#ef4444' },
+  vetoed: { label: 'Veto', color: '#ef4444' },
+  conflicted: { label: 'Conflit', color: '#f97316' },
 }
 
 const MOVIE_GENRES = [
@@ -132,13 +133,18 @@ const ADMIN_FILTERS = [
   { id: 'matched', label: 'Matchés' },
   { id: 'watching', label: 'En cours' },
   { id: 'watched', label: 'Vus' },
+  { id: 'conflicted', label: 'Conflits' },
+  { id: 'vetoed', label: 'Vetoed' },
 ]
 
 function AdminPanel({ watchlist, profile }) {
   const [filter, setFilter] = useState('all')
   const [pendingAction, setPendingAction] = useState(null) // itemId en cours de confirmation delete
 
-  const filtered = watchlist.items.filter(i => filter === 'all' || i.status === filter)
+  // Exclure uniquement les statuts qui n'ont pas de label (sécurité)
+  const filtered = watchlist.items.filter(i =>
+    (filter === 'all' || i.status === filter)
+  )
 
   const handleForceMatch = async (itemId) => {
     await watchlist.forceMatch(itemId)
@@ -244,6 +250,17 @@ function AdminPanel({ watchlist, profile }) {
 
               {/* Actions */}
               <div className="flex items-center gap-1.5 flex-shrink-0">
+                {/* Ressusciter (conflit) */}
+                {item.status === 'conflicted' && (
+                  <button
+                    onClick={() => watchlist.resurrectItem(item.id)}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 transition-all"
+                    title="Ressusciter (reset votes)"
+                    style={{ background: '#f9731620', border: '0.5px solid #f9731640' }}>
+                    <RefreshCw size={14} color="#f97316" />
+                  </button>
+                )}
+                {/* Force match */}
                 {item.status === 'to_watch' && (
                   <button
                     onClick={() => handleForceMatch(item.id)}
@@ -253,6 +270,7 @@ function AdminPanel({ watchlist, profile }) {
                     <Zap size={14} color={C.green} />
                   </button>
                 )}
+                {/* Passer en cours */}
                 {(item.status === 'to_watch' || item.status === 'matched') && (
                   <button
                     onClick={() => handleMarkWatching(item.id)}
@@ -262,16 +280,19 @@ function AdminPanel({ watchlist, profile }) {
                     <Play size={14} color={C.violet} />
                   </button>
                 )}
-                <button
-                  onClick={() => handleDelete(item.id)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 transition-all"
-                  title={isDeleting ? 'Confirmer suppression' : 'Supprimer'}
-                  style={{
-                    background: isDeleting ? '#ef444430' : `#ef444415`,
-                    border: `0.5px solid ${isDeleting ? '#ef4444' : '#ef444440'}`,
-                  }}>
-                  <Trash2 size={14} color={isDeleting ? '#ef4444' : '#ef444490'} />
-                </button>
+                {/* Supprimer */}
+                {item.status !== 'vetoed' && (
+                  <button
+                    onClick={() => handleDelete(item.id)}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 transition-all"
+                    title={isDeleting ? 'Confirmer suppression' : 'Supprimer'}
+                    style={{
+                      background: isDeleting ? '#ef444430' : '#ef444415',
+                      border: `0.5px solid ${isDeleting ? '#ef4444' : '#ef444440'}`,
+                    }}>
+                    <Trash2 size={14} color={isDeleting ? '#ef4444' : '#ef444490'} />
+                  </button>
+                )}
               </div>
             </div>
           )

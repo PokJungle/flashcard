@@ -12,7 +12,6 @@ export function useWatchlist(profile) {
     const { data } = await supabase
       .from('tisane_watchlist')
       .select('*')
-      .neq('status', 'vetoed')
       .order('created_at', { ascending: false })
     setItems(data ?? [])
     setLoading(false)
@@ -88,6 +87,7 @@ export function useWatchlist(profile) {
   }, [profile, load])
 
   // Voter sur un item (heart | later | skip)
+  // later = soft dislike : enregistre timestamp pour cooldown 90j + détecte conflit
   // Retourne true si le vote crée un match
   const vote = useCallback(async (itemId, voteType) => {
     if (!profile?.id || voteType === 'skip') return false
@@ -97,24 +97,31 @@ export function useWatchlist(profile) {
 
     const liked = [...new Set([...(item.liked_by ?? [])])]
     const passed = [...new Set([...(item.passed_by ?? [])])]
+    const dislikedAt = { ...(item.disliked_at ?? {}) }
 
     if (voteType === 'heart') {
       if (!liked.includes(profile.id)) liked.push(profile.id)
       const idx = passed.indexOf(profile.id)
       if (idx > -1) passed.splice(idx, 1)
+      delete dislikedAt[profile.id]
     } else if (voteType === 'later') {
       if (!passed.includes(profile.id)) passed.push(profile.id)
+      dislikedAt[profile.id] = new Date().toISOString()
       const idx = liked.indexOf(profile.id)
       if (idx > -1) liked.splice(idx, 1)
     }
 
-    // Match si au moins 2 profils distincts ont liké
+    // Match si 2 profils distincts ont liké
     const isMatch = liked.length >= 2
+    // Conflit si quelqu'un a liké ET quelqu'un a disliké
+    const isConflict = liked.length > 0 && passed.length > 0 && !isMatch
 
     const updates = {
       liked_by: liked,
       passed_by: passed,
+      disliked_at: dislikedAt,
       ...(isMatch ? { status: 'matched' } : {}),
+      ...(isConflict ? { status: 'conflicted' } : {}),
     }
 
     await supabase.from('tisane_watchlist').update(updates).eq('id', itemId)
@@ -267,6 +274,17 @@ export function useWatchlist(profile) {
     await load()
   }, [load])
 
+  // Ressusciter un item conflictuel (admin) : remet à zéro tous les votes
+  const resurrectItem = useCallback(async (itemId) => {
+    await supabase.from('tisane_watchlist').update({
+      status: 'to_watch',
+      liked_by: [],
+      passed_by: [],
+      disliked_at: {},
+    }).eq('id', itemId)
+    await load()
+  }, [load])
+
   return {
     items,
     loading,
@@ -281,6 +299,7 @@ export function useWatchlist(profile) {
     markWatched,
     deleteItem,
     vetoItem,
+    resurrectItem,
     reload: load,
   }
 }

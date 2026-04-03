@@ -252,12 +252,22 @@ export default function MatchScreen({ items, profile, onVote, onAddFromGlobal })
     prevItemsRef.current = items
   }, [items])
 
-  // IDs déjà votés par moi (liked ou passed)
+  // IDs déjà votés : liked OU disliké dans les 90 derniers jours
+  const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000
   const votedSet = useMemo(() => new Set(
-    items
-      .filter(i => (i.liked_by ?? []).includes(profile?.id) || (i.passed_by ?? []).includes(profile?.id))
-      .map(i => `${i.tmdb_id}-${i.media_type}`)
-  ), [items, profile?.id])
+    items.filter(i => {
+      const pid = profile?.id
+      if (!pid) return false
+      if ((i.liked_by ?? []).includes(pid)) return true
+      if ((i.passed_by ?? []).includes(pid)) {
+        const ts = i.disliked_at?.[pid]
+        // Pas de timestamp = donnée ancienne → exclure par sécurité
+        if (!ts) return true
+        return (Date.now() - new Date(ts).getTime()) < NINETY_DAYS_MS
+      }
+      return false
+    }).map(i => `${i.tmdb_id}-${i.media_type}`)
+  ), [items, profile?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // P1 : partenaire a liké, moi pas encore — filtré par type sélectionné
   const priority1 = useMemo(() => items

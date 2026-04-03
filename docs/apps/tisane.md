@@ -52,9 +52,10 @@ Table partagée couple (pas de RLS).
 | `runtime`        | integer           | En minutes (films)                         |
 | `seasons_count`  | integer           | Nombre de saisons (séries)                 |
 | `added_by`       | text              | profile_id de l'ajouteur                   |
-| `status`         | text              | `to_watch`, `matched`, `watching`, `watched`, `vetoed` |
+| `status`         | text              | `to_watch`, `matched`, `watching`, `watched`, `vetoed`, `conflicted` |
 | `liked_by`       | text[]            | IDs des profils ayant voté ❤️              |
-| `passed_by`      | text[]            | IDs des profils ayant voté 😬              |
+| `passed_by`      | text[]            | IDs des profils ayant voté 😬 (soft dislike) |
+| `disliked_at`    | jsonb             | `{profileId: isoTimestamp}` — pour cooldown 90j |
 | `current_season` | integer           | Saison en cours (séries), défaut 1         |
 | `current_episode`| integer           | Épisode en cours (séries), défaut 0        |
 | `created_at`     | timestamptz       |                                            |
@@ -72,7 +73,22 @@ Contrainte unique : `(tmdb_id, media_type)`
 
 ---
 
-## SQL de création (à exécuter dans Supabase)
+## Migration (à exécuter dans Supabase SQL Editor)
+
+```sql
+-- Ajout colonne disliked_at pour cooldown 90j
+ALTER TABLE tisane_watchlist
+  ADD COLUMN IF NOT EXISTS disliked_at jsonb DEFAULT '{}'::jsonb;
+
+-- Mise à jour contrainte status pour inclure 'conflicted'
+ALTER TABLE tisane_watchlist
+  DROP CONSTRAINT IF EXISTS tisane_watchlist_status_check;
+ALTER TABLE tisane_watchlist
+  ADD CONSTRAINT tisane_watchlist_status_check
+  CHECK (status IN ('to_watch', 'matched', 'watching', 'watched', 'vetoed', 'conflicted'));
+```
+
+## SQL de création complète (à exécuter dans Supabase)
 
 ```sql
 CREATE TABLE IF NOT EXISTS tisane_watchlist (
@@ -89,9 +105,10 @@ CREATE TABLE IF NOT EXISTS tisane_watchlist (
   seasons_count integer,
   added_by text NOT NULL,
   status text NOT NULL DEFAULT 'to_watch'
-    CHECK (status IN ('to_watch', 'matched', 'watching', 'watched', 'vetoed')),
+    CHECK (status IN ('to_watch', 'matched', 'watching', 'watched', 'vetoed', 'conflicted')),
   liked_by text[] DEFAULT '{}',
   passed_by text[] DEFAULT '{}',
+  disliked_at jsonb DEFAULT '{}'::jsonb,
   current_season integer DEFAULT 1,
   current_episode integer DEFAULT 0,
   created_at timestamptz DEFAULT now(),
@@ -116,8 +133,18 @@ CREATE TABLE IF NOT EXISTS tisane_vetos (
 2. Utilisateur B vote ❤️ → `liked_by` = `['A', 'B']` → `status = 'matched'`
 3. Realtime Supabase notifie les deux écrans → overlay "Match !"
 
-Le vote 😬 ajoute à `passed_by` (pour éviter la répétition en mode watchlist).  
-Le vote ⏭️ ne persiste pas (juste passer à la carte suivante).
+### Vote Logique
+
+| Vote | Action DB | Effet |
+|------|-----------|-------|
+| ❤️ Swipe droit | `liked_by += profile.id` | Match si partenaire aussi ❤️ |
+| 😬 Swipe gauche | `passed_by += profile.id`, `disliked_at[id] = now()` | Cooldown 90j, réapparaît après |
+| ⏭️ Skip | aucune persistance | Juste passer la carte |
+| 🚫 Veto | `status = 'vetoed'` | Suppression permanente, consomme 1 jeton |
+
+**Conflit** : si A ❤️ et B 😬 → `status = 'conflicted'`. Caché des deux. Résurrection uniquement via Admin.
+
+**Cooldown 90j** : items dans `passed_by` réapparaissent dans le deck après 90 jours (vérification via `disliked_at` timestamp).
 
 ### Jetons Veto
 
