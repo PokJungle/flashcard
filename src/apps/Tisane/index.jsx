@@ -41,6 +41,7 @@ export default function Tisane({ profile }) {
             onAdvanceSeason={watchlist.advanceSeason}
             onSetEpisode={watchlist.setEpisode}
             onMarkWatched={watchlist.markWatched}
+            onDelete={watchlist.deleteItem}
             vetos={vetos}
           />
         )}
@@ -50,7 +51,6 @@ export default function Tisane({ profile }) {
             profile={profile}
             onVote={watchlist.vote}
             onAddFromGlobal={watchlist.addAndVote}
-            vetos={vetos}
           />
         )}
         {tab === 'discover' && (

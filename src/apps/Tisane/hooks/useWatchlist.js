@@ -34,7 +34,7 @@ export function useWatchlist(profile) {
     return () => { supabase.removeChannel(channel) }
   }, [load])
 
-  // Ajouter ou mettre à jour un item (upsert sur tmdb_id+media_type)
+  // Ajouter directement en matched (ajout depuis Découvrir — bypass swipe)
   const addItem = useCallback(async (tmdbItem) => {
     if (!profile?.id) return false
     const { error } = await supabase
@@ -52,7 +52,7 @@ export function useWatchlist(profile) {
           runtime: tmdbItem.runtime ?? null,
           seasons_count: tmdbItem.seasons_count ?? null,
           added_by: profile.id,
-          status: 'to_watch',
+          status: 'matched',
         },
         { onConflict: 'tmdb_id,media_type', ignoreDuplicates: true }
       )
@@ -212,7 +212,14 @@ export function useWatchlist(profile) {
   }, [load])
 
   // Retirer de la watchlist (soft delete via status vetoed)
-  const removeItem = useCallback(async (itemId) => {
+  // Suppression définitive (gratuite, pour les deux profils)
+  const deleteItem = useCallback(async (itemId) => {
+    await supabase.from('tisane_watchlist').delete().eq('id', itemId)
+    await load()
+  }, [load])
+
+  // Veto : status vetoed (consomme un jeton — géré dans useVetos)
+  const vetoItem = useCallback(async (itemId) => {
     await supabase.from('tisane_watchlist').update({ status: 'vetoed' }).eq('id', itemId)
     await load()
   }, [load])
@@ -227,7 +234,8 @@ export function useWatchlist(profile) {
     advanceSeason,
     setEpisode,
     markWatched,
-    removeItem,
+    deleteItem,
+    vetoItem,
     reload: load,
   }
 }

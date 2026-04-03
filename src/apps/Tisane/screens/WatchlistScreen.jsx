@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, Plus, Check, Zap, Bell, Pencil, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Plus, Check, Zap, Bell, Pencil, X, Trash2 } from 'lucide-react'
 import { getPosterUrl } from '../services/tmdb'
 import { useSeriesSync } from '../hooks/useSeriesSync'
 
@@ -34,8 +34,9 @@ function StatusBadge({ status }) {
 }
 
 // ─── Carte d'un item watchlist ────────────────────────────────────────────────
-function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onSetEpisode, onMarkWatched, onVeto, vetoAvailable, sync, lastVisitMs }) {
+function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onSetEpisode, onMarkWatched, onDelete, onVeto, vetoAvailable, sync, lastVisitMs }) {
   const [showActions, setShowActions] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmVeto, setConfirmVeto] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editS, setEditS] = useState(item.current_season ?? 1)
@@ -67,6 +68,11 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onSetEpisode, 
     const e = Math.max(0, parseInt(editE) || 0)
     await onSetEpisode(item.id, s, e)
     setEditing(false)
+  }
+
+  const handleDelete = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return }
+    await onDelete(item.id)
   }
 
   const handleVeto = async () => {
@@ -240,6 +246,18 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onSetEpisode, 
               <Check size={12} /> Terminé
             </button>
           )}
+          {/* Supprimer — gratuit, hard delete */}
+          <button
+            onClick={handleDelete}
+            className="flex items-center gap-1 text-[11px] px-3 py-1.5 rounded-lg active:scale-95 transition-all"
+            style={{
+              background: confirmDelete ? '#dc262620' : '#2d1059',
+              color: confirmDelete ? '#f87171' : C.textMuted,
+            }}>
+            <Trash2 size={12} />
+            {confirmDelete ? 'Supprimer ?' : 'Supprimer'}
+          </button>
+          {/* Veto — consomme un jeton */}
           <button
             onClick={handleVeto}
             className="flex items-center gap-1 text-[11px] px-3 py-1.5 rounded-lg active:scale-95 transition-all"
@@ -248,7 +266,7 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onSetEpisode, 
               color: confirmVeto ? '#f87171' : C.textMuted,
             }}>
             <Zap size={12} />
-            {confirmVeto ? 'Confirmer veto ?' : vetoAvailable ? 'Veto' : 'Veto (0)'}
+            {confirmVeto ? 'Confirmer veto ?' : vetoAvailable ? `Veto (${vetoAvailable})` : 'Veto (0)'}
           </button>
         </div>
       )}
@@ -257,7 +275,7 @@ function WatchlistItem({ item, onAdvanceEpisode, onAdvanceSeason, onSetEpisode, 
 }
 
 // ─── Groupe collapsible ───────────────────────────────────────────────────────
-function Group({ title, emoji, items, onAdvanceEpisode, onAdvanceSeason, onSetEpisode, onMarkWatched, onVeto, vetoAvailable, sync, lastVisitMs }) {
+function Group({ title, emoji, items, onAdvanceEpisode, onAdvanceSeason, onSetEpisode, onMarkWatched, onDelete, onVeto, vetoAvailable, sync, lastVisitMs }) {
   const [open, setOpen] = useState(true)
   if (items.length === 0) return null
 
@@ -294,6 +312,7 @@ function Group({ title, emoji, items, onAdvanceEpisode, onAdvanceSeason, onSetEp
               onAdvanceSeason={onAdvanceSeason}
               onSetEpisode={onSetEpisode}
               onMarkWatched={onMarkWatched}
+              onDelete={onDelete}
               onVeto={onVeto}
               vetoAvailable={vetoAvailable}
               sync={sync}
@@ -315,6 +334,7 @@ export default function WatchlistScreen({
   onAdvanceSeason,
   onSetEpisode,
   onMarkWatched,
+  onDelete,
   vetos,
 }) {
   const [tab, setTab] = useState('movies')
@@ -334,21 +354,23 @@ export default function WatchlistScreen({
   const movies = items.filter(i => i.media_type === 'movie')
   const series = tvItems
 
+  // Watchlist = matched + watching uniquement (to_watch est la queue privée du Match engine)
   const movieGroups = [
     { id: 'matched', title: 'Matchs', emoji: '❤️', items: movies.filter(i => i.status === 'matched') },
-    { id: 'to_watch', title: 'À voir', emoji: '🎬', items: movies.filter(i => i.status === 'to_watch') },
     { id: 'watched', title: 'Vus', emoji: '✅', items: movies.filter(i => i.status === 'watched') },
   ]
 
   const seriesGroups = [
     { id: 'watching', title: 'En cours', emoji: '▶️', items: series.filter(i => i.status === 'watching') },
     { id: 'matched', title: 'Matchs', emoji: '❤️', items: series.filter(i => i.status === 'matched') },
-    { id: 'to_watch', title: 'À voir', emoji: '📺', items: series.filter(i => i.status === 'to_watch') },
     { id: 'watched', title: 'Terminées', emoji: '✅', items: series.filter(i => i.status === 'watched') },
   ]
 
   const activeGroups = tab === 'movies' ? movieGroups : seriesGroups
-  const totalActive = tab === 'movies' ? movies.length : series.length
+  const activeItems = tab === 'movies'
+    ? movies.filter(i => i.status === 'matched' || i.status === 'watching' || i.status === 'watched')
+    : series.filter(i => i.status === 'matched' || i.status === 'watching' || i.status === 'watched')
+  const totalActive = activeItems.length
   const totalNewEp = series.filter(s => sync.hasNewEpisode(s, lastVisitMs)).length
 
   return (
@@ -368,8 +390,8 @@ export default function WatchlistScreen({
       <div className="px-4 mb-4">
         <div className="flex rounded-xl p-1" style={{ background: C.card, border: `0.5px solid ${C.border}` }}>
           {[
-            { id: 'movies', label: '🎬 Films', count: movies.length },
-            { id: 'series', label: '📺 Séries', count: series.length, badge: totalNewEp },
+            { id: 'movies', label: '🎬 Films', count: movies.filter(i => i.status === 'matched' || i.status === 'watching').length },
+            { id: 'series', label: '📺 Séries', count: series.filter(i => i.status === 'matched' || i.status === 'watching').length, badge: totalNewEp },
           ].map(t => (
             <button
               key={t.id}
@@ -405,10 +427,10 @@ export default function WatchlistScreen({
           <div className="text-center py-16">
             <p className="text-4xl mb-3">{tab === 'movies' ? '🎬' : '📺'}</p>
             <p className="font-medium" style={{ color: C.textSec }}>
-              {tab === 'movies' ? 'Aucun film' : 'Aucune série'}
+              {tab === 'movies' ? 'Aucun film dans la liste' : 'Aucune série dans la liste'}
             </p>
             <p className="text-sm mt-1" style={{ color: C.textMuted }}>
-              Cherche dans "Découvrir" ou lance un Match !
+              Ajoute depuis "Découvrir" ou fais un Match !
             </p>
           </div>
         )}
@@ -425,8 +447,9 @@ export default function WatchlistScreen({
                 onAdvanceSeason={onAdvanceSeason}
                 onSetEpisode={onSetEpisode}
                 onMarkWatched={onMarkWatched}
+                onDelete={onDelete}
                 onVeto={vetos.useVeto}
-                vetoAvailable={vetos.availableTokens > 0}
+                vetoAvailable={vetos.availableTokens}
                 sync={sync}
                 lastVisitMs={lastVisitMs}
               />
