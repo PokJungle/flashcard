@@ -205,6 +205,22 @@ export function useWatchlist(profile) {
     await load()
   }, [items, load])
 
+  // Forcer le statut matched (admin)
+  const forceMatch = useCallback(async (itemId) => {
+    await supabase.from('tisane_watchlist').update({ status: 'matched' }).eq('id', itemId)
+    await load()
+  }, [load])
+
+  // Passer directement en watching (admin)
+  const markWatching = useCallback(async (itemId) => {
+    const item = items.find(i => i.id === itemId)
+    await supabase.from('tisane_watchlist').update({
+      status: 'watching',
+      ...(item && (item.current_episode ?? 0) === 0 ? { current_episode: 1 } : {}),
+    }).eq('id', itemId)
+    await load()
+  }, [items, load])
+
   // Marquer comme terminé
   const markWatched = useCallback(async (itemId) => {
     await supabase.from('tisane_watchlist').update({ status: 'watched' }).eq('id', itemId)
@@ -233,6 +249,8 @@ export function useWatchlist(profile) {
     advanceEpisode,
     advanceSeason,
     setEpisode,
+    forceMatch,
+    markWatching,
     markWatched,
     deleteItem,
     vetoItem,

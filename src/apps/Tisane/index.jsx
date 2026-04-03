@@ -26,8 +26,6 @@ export default function Tisane({ profile }) {
   const watchlist = useWatchlist(profile)
   const vetos = useVetos(profile)
 
-  const watchlistIds = watchlist.items.map(i => `${i.tmdb_id}-${i.media_type}`)
-
   return (
     <div className="flex flex-col" style={{ minHeight: '100%', background: C.bg }}>
       {/* Contenu scrollable */}
@@ -57,7 +55,7 @@ export default function Tisane({ profile }) {
           <DiscoverScreen
             profile={profile}
             onAdd={watchlist.addItem}
-            watchlistIds={watchlistIds}
+            watchlist={watchlist}
           />
         )}
       </div>

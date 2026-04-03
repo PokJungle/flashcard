@@ -73,6 +73,39 @@ export async function discoverCeSoir() {
   return (data.results ?? []).map(r => ({ ...r, media_type: 'movie' }))
 }
 
+// Films disponibles en streaming FR (flatrate = abonnement)
+export async function getStreamingMovies(page = 1) {
+  const data = await get('/discover/movie', {
+    with_watch_monetization_types: 'flatrate',
+    watch_region: 'FR',
+    sort_by: 'popularity.desc',
+    'vote_count.gte': 50,
+    page,
+  })
+  if (!data) return []
+  return (data.results ?? []).map(r => ({ ...r, media_type: 'movie' }))
+}
+
+// Films actuellement en salle en France
+export async function getNowPlaying(page = 1) {
+  const data = await get('/movie/now_playing', { region: 'FR', page })
+  if (!data) return []
+  return (data.results ?? []).map(r => ({ ...r, media_type: 'movie' }))
+}
+
+// Séries populaires en streaming FR
+export async function getStreamingSeries(page = 1) {
+  const data = await get('/discover/tv', {
+    with_watch_monetization_types: 'flatrate',
+    watch_region: 'FR',
+    sort_by: 'popularity.desc',
+    'vote_count.gte': 50,
+    page,
+  })
+  if (!data) return []
+  return (data.results ?? []).map(r => ({ ...r, media_type: 'tv' }))
+}
+
 export async function getGenres(mediaType) {
   const data = await get(`/genre/${mediaType}/list`)
   return data?.genres ?? []
