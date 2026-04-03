@@ -168,22 +168,28 @@ export function useWatchlist(profile) {
     // Voter
     const liked = [...new Set([...(data.liked_by ?? [])])]
     const passed = [...new Set([...(data.passed_by ?? [])])]
+    const dislikedAt = { ...(data.disliked_at ?? {}) }
 
     if (voteType === 'heart') {
       if (!liked.includes(profile.id)) liked.push(profile.id)
       const idx = passed.indexOf(profile.id)
       if (idx > -1) passed.splice(idx, 1)
+      delete dislikedAt[profile.id]
     } else if (voteType === 'later') {
       if (!passed.includes(profile.id)) passed.push(profile.id)
+      dislikedAt[profile.id] = new Date().toISOString()
       const idx = liked.indexOf(profile.id)
       if (idx > -1) liked.splice(idx, 1)
     }
 
     const isMatch = liked.length >= 2
+    const isConflict = liked.length > 0 && passed.length > 0 && !isMatch
     const updates = {
       liked_by: liked,
       passed_by: passed,
+      disliked_at: dislikedAt,
       ...(isMatch ? { status: 'matched' } : {}),
+      ...(isConflict ? { status: 'conflicted' } : {}),
     }
 
     await supabase.from('tisane_watchlist').update(updates).eq('id', data.id)
