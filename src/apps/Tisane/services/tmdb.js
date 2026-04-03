@@ -61,49 +61,71 @@ export async function discoverByGenre(mediaType, genreId, page = 1, maxRuntime =
   return (data.results ?? []).map(r => ({ ...r, media_type: mediaType }))
 }
 
-export async function discoverCeSoir() {
-  // Films populaires < 100 min
-  const data = await get('/discover/movie', {
-    sort_by: 'popularity.desc',
+export async function discoverCeSoir(page = 1, genreId = null) {
+  // Films < 100 min, note min 6.0
+  const params = {
+    sort_by: 'vote_average.desc',
     'with_runtime.lte': 100,
     'with_runtime.gte': 60,
     'vote_count.gte': 100,
-  })
-  if (!data) return []
-  return (data.results ?? []).map(r => ({ ...r, media_type: 'movie' }))
+    'vote_average.gte': 6.0,
+    page,
+  }
+  if (genreId) params.with_genres = genreId
+  const data = await get('/discover/movie', params)
+  if (!data) return { results: [], total_pages: 0 }
+  return {
+    results: (data.results ?? []).map(r => ({ ...r, media_type: 'movie' })),
+    total_pages: data.total_pages ?? 1,
+  }
 }
 
-// Films disponibles en streaming FR (flatrate = abonnement)
-export async function getStreamingMovies(page = 1) {
-  const data = await get('/discover/movie', {
+// Films disponibles en streaming FR — triés par note (min 6.0)
+export async function getStreamingMovies(page = 1, genreId = null) {
+  const params = {
     with_watch_monetization_types: 'flatrate',
     watch_region: 'FR',
-    sort_by: 'popularity.desc',
-    'vote_count.gte': 50,
+    sort_by: 'vote_average.desc',
+    'vote_average.gte': 6.0,
+    'vote_count.gte': 100,
     page,
-  })
-  if (!data) return []
-  return (data.results ?? []).map(r => ({ ...r, media_type: 'movie' }))
+  }
+  if (genreId) params.with_genres = genreId
+  const data = await get('/discover/movie', params)
+  if (!data) return { results: [], total_pages: 0 }
+  return {
+    results: (data.results ?? []).map(r => ({ ...r, media_type: 'movie' })),
+    total_pages: data.total_pages ?? 1,
+  }
 }
 
 // Films actuellement en salle en France
 export async function getNowPlaying(page = 1) {
   const data = await get('/movie/now_playing', { region: 'FR', page })
-  if (!data) return []
-  return (data.results ?? []).map(r => ({ ...r, media_type: 'movie' }))
+  if (!data) return { results: [], total_pages: 0 }
+  return {
+    results: (data.results ?? []).map(r => ({ ...r, media_type: 'movie' })),
+    total_pages: data.total_pages ?? 1,
+  }
 }
 
-// Séries populaires en streaming FR
-export async function getStreamingSeries(page = 1) {
-  const data = await get('/discover/tv', {
+// Séries populaires en streaming FR — triées par note (min 6.0)
+export async function getStreamingSeries(page = 1, genreId = null) {
+  const params = {
     with_watch_monetization_types: 'flatrate',
     watch_region: 'FR',
-    sort_by: 'popularity.desc',
-    'vote_count.gte': 50,
+    sort_by: 'vote_average.desc',
+    'vote_average.gte': 6.0,
+    'vote_count.gte': 100,
     page,
-  })
-  if (!data) return []
-  return (data.results ?? []).map(r => ({ ...r, media_type: 'tv' }))
+  }
+  if (genreId) params.with_genres = genreId
+  const data = await get('/discover/tv', params)
+  if (!data) return { results: [], total_pages: 0 }
+  return {
+    results: (data.results ?? []).map(r => ({ ...r, media_type: 'tv' })),
+    total_pages: data.total_pages ?? 1,
+  }
 }
 
 export async function getGenres(mediaType) {

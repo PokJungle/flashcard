@@ -34,10 +34,12 @@ export function useWatchlist(profile) {
     return () => { supabase.removeChannel(channel) }
   }, [load])
 
-  // Ajouter directement en matched (ajout depuis Découvrir — bypass swipe)
+  // Ajouter depuis Découvrir : upsert + voter ❤️ (attend le vote du partenaire pour matcher)
   const addItem = useCallback(async (tmdbItem) => {
     if (!profile?.id) return false
-    const { error } = await supabase
+
+    // Upsert l'item (ignore si déjà présent)
+    await supabase
       .from('tisane_watchlist')
       .upsert(
         {
@@ -52,12 +54,37 @@ export function useWatchlist(profile) {
           runtime: tmdbItem.runtime ?? null,
           seasons_count: tmdbItem.seasons_count ?? null,
           added_by: profile.id,
-          status: 'matched',
+          status: 'to_watch',
         },
-        { onConflict: 'tmdb_id,media_type', ignoreDuplicates: true }
+        { onConflict: 'tmdb_id,media_type', ignoreDuplicates: false }
       )
-    if (!error) await load()
-    return !error
+
+    // Récupérer l'item (existant ou nouvellement créé)
+    const { data } = await supabase
+      .from('tisane_watchlist')
+      .select('*')
+      .eq('tmdb_id', tmdbItem.tmdb_id)
+      .eq('media_type', tmdbItem.media_type)
+      .single()
+
+    if (!data) return false
+
+    // Enregistrer le vote ❤️ de l'utilisateur courant
+    const liked = [...new Set([...(data.liked_by ?? []), profile.id])]
+    const passed = (data.passed_by ?? []).filter(id => id !== profile.id)
+    const isMatch = liked.length >= 2
+
+    await supabase
+      .from('tisane_watchlist')
+      .update({
+        liked_by: liked,
+        passed_by: passed,
+        ...(isMatch ? { status: 'matched' } : {}),
+      })
+      .eq('id', data.id)
+
+    await load()
+    return true
   }, [profile, load])
 
   // Voter sur un item (heart | later | skip)

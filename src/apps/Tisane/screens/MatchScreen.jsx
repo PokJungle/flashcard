@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { SkipForward, Info, Moon, Film, Tv, Clapperboard } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { SkipForward, Info, Film, Tv, ArrowLeft, Moon, Clapperboard } from 'lucide-react'
 import {
   getStreamingMovies, getNowPlaying, getStreamingSeries, discoverCeSoir,
   getDetails, getStreamingProviders, getCast,
@@ -18,6 +18,30 @@ const C = {
 }
 
 const SWIPE_THRESHOLD = 80
+
+const MOVIE_GENRES = [
+  { id: null, name: 'Tout' },
+  { id: 28, name: 'Action' },
+  { id: 35, name: 'Comédie' },
+  { id: 18, name: 'Drame' },
+  { id: 27, name: 'Horreur' },
+  { id: 10749, name: 'Romance' },
+  { id: 878, name: 'Sci-Fi' },
+  { id: 53, name: 'Thriller' },
+  { id: 16, name: 'Animation' },
+  { id: 14, name: 'Fantastique' },
+]
+
+const TV_GENRES = [
+  { id: null, name: 'Tout' },
+  { id: 18, name: 'Drame' },
+  { id: 35, name: 'Comédie' },
+  { id: 10759, name: 'Action' },
+  { id: 10765, name: 'Sci-Fi/Fantasy' },
+  { id: 9648, name: 'Mystère' },
+  { id: 80, name: 'Crime' },
+  { id: 16, name: 'Animation' },
+]
 
 // ─── Overlay Match ! ──────────────────────────────────────────────────────────
 function MatchOverlay({ item, onClose }) {
@@ -199,16 +223,24 @@ function SwipeCard({ item, onVote, flipped, onFlip, details, loadingDetails }) {
 
 // ─── MatchScreen ──────────────────────────────────────────────────────────────
 export default function MatchScreen({ items, profile, onVote, onAddFromGlobal }) {
-  const [mediaType, setMediaType] = useState('movie') // 'movie' | 'tv'
-  const [inTheaters, setInTheaters] = useState(false)  // films en salle (movies only)
-  const [toSoirMode, setToSoirMode] = useState(false)  // < 1h40 (movies only)
+  // ── Filtres pré-session ───────────────────────────────────────────────────
+  const [sessionStarted, setSessionStarted] = useState(false)
+  const [mediaType, setMediaType] = useState('movie')
+  const [filterGenre, setFilterGenre] = useState(null)
+  const [inTheaters, setInTheaters] = useState(false)
+  const [toSoirMode, setToSoirMode] = useState(false)
+
+  // ── État session ──────────────────────────────────────────────────────────
   const [catalogCards, setCatalogCards] = useState([])
+  const [catalogPage, setCatalogPage] = useState(1)
+  const [catalogTotalPages, setCatalogTotalPages] = useState(1)
   const [idx, setIdx] = useState(0)
   const [flipped, setFlipped] = useState(false)
   const [matchedItem, setMatchedItem] = useState(null)
   const [cardDetails, setCardDetails] = useState(null)
   const [loadingDetails, setLoadingDetails] = useState(false)
   const [loadingCatalog, setLoadingCatalog] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [voting, setVoting] = useState(false)
   const prevItemsRef = useRef([])
 
@@ -220,55 +252,83 @@ export default function MatchScreen({ items, profile, onVote, onAddFromGlobal })
     prevItemsRef.current = items
   }, [items])
 
-  // ── Priority 1 : partenaire a liké, je n'ai pas encore voté — filtré par mediaType
-  const priority1 = items
+  // IDs déjà votés par moi (liked ou passed)
+  const votedSet = useMemo(() => new Set(
+    items
+      .filter(i => (i.liked_by ?? []).includes(profile?.id) || (i.passed_by ?? []).includes(profile?.id))
+      .map(i => `${i.tmdb_id}-${i.media_type}`)
+  ), [items, profile?.id])
+
+  // P1 : partenaire a liké, moi pas encore — filtré par type sélectionné
+  const priority1 = useMemo(() => items
     .filter(i =>
       i.status === 'to_watch' &&
       i.media_type === mediaType &&
       (i.liked_by ?? []).length > 0 &&
       !(i.liked_by ?? []).includes(profile?.id)
     )
-    .map(i => ({ ...i, _source: 'watchlist', _partnerLiked: true }))
+    .map(i => ({ ...i, _source: 'watchlist', _partnerLiked: true })),
+  [items, mediaType, profile?.id])
 
-  // IDs déjà votés par moi
-  const votedIds = new Set(
-    items
-      .filter(i => (i.liked_by ?? []).includes(profile?.id) || (i.passed_by ?? []).includes(profile?.id))
-      .map(i => `${i.tmdb_id}-${i.media_type}`)
-  )
+  // Appel TMDB selon filtres courants
+  const fetchCatalogPage = useCallback(async (page) => {
+    if (mediaType === 'movie') {
+      if (toSoirMode) return discoverCeSoir(page, filterGenre)
+      if (inTheaters) return getNowPlaying(page)
+      return getStreamingMovies(page, filterGenre)
+    }
+    return getStreamingSeries(page, filterGenre)
+  }, [mediaType, filterGenre, toSoirMode, inTheaters])
 
-  const loadCatalog = useCallback(async () => {
+  // Démarrer une session (page 1)
+  const startSession = useCallback(async () => {
+    setSessionStarted(true)
+    setIdx(0)
+    setCatalogCards([])
+    setCatalogPage(1)
+    setFlipped(false)
     setLoadingCatalog(true)
     try {
-      let raw = []
-      if (mediaType === 'movie') {
-        if (toSoirMode) raw = await discoverCeSoir()
-        else if (inTheaters) raw = await getNowPlaying()
-        else raw = await getStreamingMovies()
-      } else {
-        raw = await getStreamingSeries()
-      }
-      setCatalogCards(raw.filter(c => !votedIds.has(`${c.id}-${c.media_type}`)))
+      const result = await fetchCatalogPage(1)
+      const filtered = result.results.filter(c => !votedSet.has(`${c.id}-${c.media_type}`))
+      setCatalogCards(filtered)
+      setCatalogTotalPages(result.total_pages ?? 1)
     } catch { setCatalogCards([]) }
     setLoadingCatalog(false)
-  }, [mediaType, inTheaters, toSoirMode, votedIds.size]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchCatalogPage, votedSet])
 
-  // Recharger le catalogue quand le type ou les filtres changent
-  useEffect(() => {
-    setIdx(0)
-    setFlipped(false)
-    loadCatalog()
-  }, [mediaType, inTheaters, toSoirMode]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Charger la page suivante et l'ajouter au deck
+  const fetchMore = useCallback(async () => {
+    if (loadingMore || catalogPage >= catalogTotalPages) return
+    setLoadingMore(true)
+    try {
+      const nextPage = catalogPage + 1
+      const result = await fetchCatalogPage(nextPage)
+      const filtered = result.results.filter(c => !votedSet.has(`${c.id}-${c.media_type}`))
+      setCatalogCards(prev => [...prev, ...filtered])
+      setCatalogPage(nextPage)
+    } catch {}
+    setLoadingMore(false)
+  }, [loadingMore, catalogPage, catalogTotalPages, fetchCatalogPage, votedSet])
 
-  const priority2 = catalogCards.map(c => ({ ...normalizeTmdbItem(c), _source: 'catalogue', _partnerLiked: false }))
-  const queue = [...priority1, ...priority2]
+  const priority2 = useMemo(() =>
+    catalogCards.map(c => ({ ...normalizeTmdbItem(c), _source: 'catalogue', _partnerLiked: false })),
+  [catalogCards])
+
+  const queue = useMemo(() => [...priority1, ...priority2], [priority1, priority2])
   const currentCard = queue[idx] ?? null
   const remaining = queue.length - idx
 
-  // Reset flip quand idx change
+  // Auto-fetch page suivante quand il reste < 5 cartes
+  useEffect(() => {
+    if (!sessionStarted || loadingCatalog || loadingMore) return
+    if (remaining < 5 && catalogPage < catalogTotalPages) fetchMore()
+  }, [remaining, catalogPage, catalogTotalPages, loadingCatalog, loadingMore, sessionStarted, fetchMore])
+
+  // Reset flip au changement de carte
   useEffect(() => { setFlipped(false); setCardDetails(null) }, [idx])
 
-  // Fetch détails TMDB quand la carte est retournée
+  // Détails TMDB à la lecture (face B)
   useEffect(() => {
     if (!flipped || !currentCard) return
     setCardDetails(null)
@@ -294,24 +354,28 @@ export default function MatchScreen({ items, profile, onVote, onAddFromGlobal })
   }
 
   const inP1 = idx < priority1.length
+  const genres = mediaType === 'movie' ? MOVIE_GENRES : TV_GENRES
+  const genreName = genres.find(g => g.id === filterGenre)?.name ?? 'Tout'
+  const sessionLabel = [
+    mediaType === 'movie' ? 'Films' : 'Séries',
+    genreName !== 'Tout' ? genreName : null,
+    toSoirMode ? 'Ce soir' : null,
+    inTheaters ? 'En salle' : null,
+  ].filter(Boolean).join(' · ')
 
-  return (
-    <div className="min-h-full" style={{ background: C.bg }}>
-      {matchedItem && <MatchOverlay item={matchedItem} onClose={() => setMatchedItem(null)} />}
+  // ── Écran pré-session ─────────────────────────────────────────────────────
+  if (!sessionStarted) {
+    return (
+      <div className="min-h-full px-4 pt-4 pb-8" style={{ background: C.bg }}>
+        <h2 className="text-xl font-bold mb-1" style={{ color: C.textPri }}>Match</h2>
+        <p className="text-sm mb-5" style={{ color: C.textMuted }}>Choisis tes filtres puis lance</p>
 
-      {/* Header */}
-      <div className="px-4 pt-4 pb-2 space-y-3">
-        <h2 className="text-xl font-bold" style={{ color: C.textPri }}>Match</h2>
-
-        {/* Toggle Films / Séries */}
-        <div className="flex rounded-xl p-1" style={{ background: C.card, border:`0.5px solid ${C.border}` }}>
-          {[
-            { id: 'movie', label: 'Films', Icon: Film },
-            { id: 'tv', label: 'Séries', Icon: Tv },
-          ].map(({ id, label, Icon }) => (
+        {/* Type */}
+        <div className="flex rounded-xl p-1 mb-5" style={{ background: C.card, border: `0.5px solid ${C.border}` }}>
+          {[{ id: 'movie', label: 'Films', Icon: Film }, { id: 'tv', label: 'Séries', Icon: Tv }].map(({ id, label, Icon }) => (
             <button key={id}
-              onClick={() => { setMediaType(id); setInTheaters(false); setToSoirMode(false) }}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all"
+              onClick={() => { setMediaType(id); setFilterGenre(null); setInTheaters(false); setToSoirMode(false) }}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all"
               style={{ background: mediaType === id ? C.violet : 'transparent', color: mediaType === id ? '#fff' : C.textMuted }}>
               <Icon size={14} />
               {label}
@@ -319,53 +383,103 @@ export default function MatchScreen({ items, profile, onVote, onAddFromGlobal })
           ))}
         </div>
 
-        {/* Filtres — Films uniquement */}
+        {/* Genre */}
+        <p className="text-[11px] uppercase tracking-widest mb-2" style={{ color: C.textMuted }}>Genre</p>
+        <div className="overflow-x-auto -mx-4 px-4 mb-5">
+          <div className="flex gap-2 pb-1" style={{ width: 'max-content' }}>
+            {genres.map(g => (
+              <button key={String(g.id)} onClick={() => setFilterGenre(g.id)}
+                className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95"
+                style={{
+                  background: filterGenre === g.id ? C.amber : C.card,
+                  color: filterGenre === g.id ? '#0d0620' : C.textSec,
+                  border: `0.5px solid ${filterGenre === g.id ? C.amber : C.border}`,
+                }}>
+                {g.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Options films */}
         {mediaType === 'movie' && (
-          <div className="flex gap-2">
-            {/* Ce soir */}
-            <button
-              onClick={() => { setToSoirMode(v => !v); setInTheaters(false) }}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all active:scale-95"
-              style={{
-                background: toSoirMode ? '#f59e0b20' : C.card,
-                border: `0.5px solid ${toSoirMode ? C.amber : C.border}`,
-              }}>
-              <Moon size={13} color={toSoirMode ? C.amber : C.textMuted} />
-              <span className="text-xs font-medium" style={{ color: toSoirMode ? C.amber : C.textMuted }}>Ce soir &lt;1h40</span>
-            </button>
-            {/* En salle */}
-            <button
-              onClick={() => { setInTheaters(v => !v); setToSoirMode(false) }}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all active:scale-95"
-              style={{
-                background: inTheaters ? '#7c3aed20' : C.card,
-                border: `0.5px solid ${inTheaters ? C.violet : C.border}`,
-              }}>
-              <Clapperboard size={13} color={inTheaters ? C.violet : C.textMuted} />
-              <span className="text-xs font-medium" style={{ color: inTheaters ? C.violet : C.textMuted }}>En salle</span>
-            </button>
+          <>
+            <p className="text-[11px] uppercase tracking-widest mb-2" style={{ color: C.textMuted }}>Options</p>
+            <div className="flex gap-2 mb-6">
+              <button onClick={() => { setToSoirMode(v => !v); setInTheaters(false) }}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl transition-all active:scale-95"
+                style={{ background: toSoirMode ? '#f59e0b20' : C.card, border: `0.5px solid ${toSoirMode ? C.amber : C.border}` }}>
+                <Moon size={13} color={toSoirMode ? C.amber : C.textMuted} />
+                <span className="text-xs font-medium" style={{ color: toSoirMode ? C.amber : C.textMuted }}>Ce soir &lt;1h40</span>
+              </button>
+              <button onClick={() => { setInTheaters(v => !v); setToSoirMode(false) }}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl transition-all active:scale-95"
+                style={{ background: inTheaters ? '#7c3aed20' : C.card, border: `0.5px solid ${inTheaters ? C.violet : C.border}` }}>
+                <Clapperboard size={13} color={inTheaters ? C.violet : C.textMuted} />
+                <span className="text-xs font-medium" style={{ color: inTheaters ? C.violet : C.textMuted }}>En salle</span>
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Bouton lancer */}
+        <button onClick={startSession}
+          className="w-full py-4 rounded-2xl font-bold text-base active:scale-95 transition-all"
+          style={{ background: C.violet, color: '#fff' }}>
+          Commencer le match ⚡
+        </button>
+
+        {/* Teaser P1 */}
+        {priority1.length > 0 && (
+          <div className="mt-4 px-3 py-2.5 rounded-xl flex items-center gap-2"
+            style={{ background: '#f59e0b15', border: `0.5px solid ${C.amber}40` }}>
+            <span className="text-sm">❤️</span>
+            <p className="text-xs font-medium" style={{ color: C.amber }}>
+              {priority1.length} {mediaType === 'tv' ? 'série' : 'film'}{priority1.length > 1 ? 's' : ''} en attente de ton vote
+            </p>
           </div>
         )}
       </div>
+    )
+  }
 
-      {/* Zone principale */}
-      <div className="px-4 pb-6 pt-2">
+  // ── Écran session ─────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-full" style={{ background: C.bg }}>
+      {matchedItem && <MatchOverlay item={matchedItem} onClose={() => setMatchedItem(null)} />}
 
-        {/* Banner Priority 1 */}
+      <div className="px-4 pt-4 pb-2">
+        {/* Header session */}
+        <div className="flex items-center gap-2 mb-3">
+          <button onClick={() => setSessionStarted(false)}
+            className="w-8 h-8 rounded-xl flex items-center justify-center active:scale-90 transition-all flex-shrink-0"
+            style={{ background: C.card, border: `0.5px solid ${C.border}` }}>
+            <ArrowLeft size={15} color={C.textMuted} />
+          </button>
+          <p className="text-sm font-medium flex-1 truncate" style={{ color: C.textSec }}>{sessionLabel || 'Match'}</p>
+          {loadingMore && (
+            <div className="w-4 h-4 rounded-full border-2 animate-spin flex-shrink-0"
+              style={{ borderColor: C.violet, borderTopColor: 'transparent' }} />
+          )}
+        </div>
+
+        {/* Banner P1 */}
         {priority1.length > 0 && inP1 && (
           <div className="mb-3 px-3 py-2 rounded-xl flex items-center gap-2"
-            style={{ background: '#f59e0b15', border:`0.5px solid ${C.amber}40` }}>
+            style={{ background: '#f59e0b15', border: `0.5px solid ${C.amber}40` }}>
             <span className="text-sm">❤️</span>
             <p className="text-xs font-medium" style={{ color: C.amber }}>
               Ton partenaire a aimé {priority1.length} {mediaType === 'tv' ? 'série' : 'film'}{priority1.length > 1 ? 's' : ''} — à toi !
             </p>
           </div>
         )}
+      </div>
 
+      <div className="px-4 pb-6 pt-2">
         {loadingCatalog && (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <div className="w-8 h-8 rounded-full border-2 animate-spin"
-              style={{ borderColor: C.violet, borderTopColor:'transparent' }} />
+              style={{ borderColor: C.violet, borderTopColor: 'transparent' }} />
             <p className="text-sm" style={{ color: C.textSec }}>Chargement…</p>
           </div>
         )}
@@ -380,7 +494,7 @@ export default function MatchScreen({ items, profile, onVote, onAddFromGlobal })
             <div className="relative mb-5">
               {remaining > 1 && (
                 <div className="absolute inset-x-0 top-2 mx-4 rounded-3xl"
-                  style={{ background: C.card, border:`1px solid ${C.border}`, height: 60, zIndex: 0 }} />
+                  style={{ background: C.card, border: `1px solid ${C.border}`, height: 60, zIndex: 0 }} />
               )}
               <div className="relative" style={{ zIndex: 1 }}>
                 <SwipeCard
@@ -396,17 +510,17 @@ export default function MatchScreen({ items, profile, onVote, onAddFromGlobal })
             <div className="flex items-center justify-center gap-5">
               <button onClick={() => !voting && handleVote('later')} disabled={voting}
                 className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all"
-                style={{ background:'#1a0836', border:'2px solid #ef444460' }}>
+                style={{ background: '#1a0836', border: '2px solid #ef444460' }}>
                 <span className="text-2xl">😬</span>
               </button>
               <button onClick={() => !voting && goNext()} disabled={voting}
                 className="w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition-all"
-                style={{ background: C.card, border:`1.5px solid ${C.border}` }}>
+                style={{ background: C.card, border: `1.5px solid ${C.border}` }}>
                 <SkipForward size={18} color={C.textMuted} />
               </button>
               <button onClick={() => !voting && handleVote('heart')} disabled={voting}
                 className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all"
-                style={{ background:'#7c3aed20', border:'2px solid #7c3aed80' }}>
+                style={{ background: '#7c3aed20', border: '2px solid #7c3aed80' }}>
                 <span className="text-2xl">❤️</span>
               </button>
             </div>
@@ -421,7 +535,7 @@ export default function MatchScreen({ items, profile, onVote, onAddFromGlobal })
             <p className="text-5xl mb-4">✨</p>
             <p className="font-bold text-lg mb-2" style={{ color: C.textPri }}>Tout exploré !</p>
             <p className="text-sm mb-6" style={{ color: C.textSec }}>Plus de contenus à voter pour le moment</p>
-            <button onClick={() => { setIdx(0); loadCatalog() }}
+            <button onClick={startSession}
               className="px-6 py-3 rounded-2xl font-bold text-sm active:scale-95 transition-all"
               style={{ background: C.violet, color: '#fff' }}>
               Recharger
