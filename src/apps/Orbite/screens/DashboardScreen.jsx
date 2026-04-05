@@ -78,7 +78,7 @@ function ProfileBar({ profile, props, maxProps, isMe, streak }) {
   )
 }
 
-function EditActivityModal({ activity, allProfiles, computeProps, onSave, onClose }) {
+function EditActivityModal({ activity, computeProps, onSave, onClose }) {
   const [type, setType] = useState(activity.type)
   const [unit, setUnit] = useState(activity.unit)
   const [value, setValue] = useState(String(activity.value))
@@ -218,7 +218,7 @@ export default function DashboardScreen({ profile, hook, onLog }) {
   const {
     allProfiles, propsByProfile, totalProps, rocketProgress, rocketLaunched,
     activities, pastActivities, updateActivity, computeProps, computeStreak,
-    encouragementMessage, settings, weekStart, weeklyTarget,
+    encouragementMessage, weekStart, weeklyTarget,
   } = hook
 
   const prevWeekStart = new Date(weekStart)
@@ -388,7 +388,6 @@ export default function DashboardScreen({ profile, hook, onLog }) {
       {editingActivity && (
         <EditActivityModal
           activity={editingActivity}
-          allProfiles={allProfiles}
           computeProps={computeProps}
           onSave={handleSave}
           onClose={() => setEditingActivity(null)}
