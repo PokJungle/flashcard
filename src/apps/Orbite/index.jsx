@@ -657,6 +657,24 @@ const CSS = `
     font-size: 12px;
     color: rgba(255,255,255,0.45);
   }
+
+  .orbite-week-sep { display: flex; align-items: center; gap: 10px; margin: 12px 0 8px; }
+  .orbite-week-sep-line { flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
+  .orbite-week-sep-label { font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 0.15em; color: rgba(255,255,255,0.25); white-space: nowrap; text-transform: uppercase; }
+  .orbite-activity-date { font-size: 11px; color: rgba(255,255,255,0.3); }
+  .orbite-activity-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .orbite-activity-action-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 4px 6px; border-radius: 6px; opacity: 0.45; transition: opacity 0.15s, background 0.15s; }
+  .orbite-activity-action-btn:hover { opacity: 1; background: rgba(255,255,255,0.06); }
+  .orbite-activity-action-btn--danger:hover { background: rgba(255,60,60,0.12); }
+  .orbite-confirm-delete { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+  .orbite-confirm-delete-yes { font-size: 11px; font-weight: 600; color: #ff4444; background: rgba(255,60,60,0.12); border: 1px solid rgba(255,60,60,0.3); border-radius: 6px; padding: 3px 8px; cursor: pointer; white-space: nowrap; }
+  .orbite-confirm-delete-no { font-size: 11px; color: rgba(255,255,255,0.4); background: none; border: none; cursor: pointer; padding: 3px 6px; }
+  .orbite-edit-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 200; display: flex; align-items: flex-end; justify-content: center; }
+  .orbite-edit-panel { background: #0f1520; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px 20px 0 0; padding: 20px 20px 32px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+  .orbite-edit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .orbite-edit-title { font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; color: rgba(255,255,255,0.6); }
+  .orbite-edit-close { background: none; border: none; color: rgba(255,255,255,0.4); font-size: 18px; cursor: pointer; padding: 4px; }
+  .orbite-type-btn--active { border-color: rgba(255,165,0,0.7) !important; background: rgba(255,165,0,0.1) !important; color: #ffa500 !important; }
 `
 
 // Stars background component

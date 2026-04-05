@@ -126,9 +126,20 @@ export function useOrbite(profile) {
 
   const deleteActivity = useCallback(async (id) => {
     const { error } = await supabase.from('orbite_activities').delete().eq('id', id)
-    if (!error) setActivities(prev => prev.filter(a => a.id !== id))
+    if (!error) await fetchAll()
     return { error }
-  }, [])
+  }, [fetchAll])
+
+  const updateActivity = useCallback(async (id, { type, value, unit, dateStr }) => {
+    const props = computeProps(type, value, unit)
+    const updateData = { type, value, unit, props }
+    if (dateStr) {
+      updateData.created_at = new Date(dateStr + 'T12:00:00').toISOString()
+    }
+    const { error } = await supabase.from('orbite_activities').update(updateData).eq('id', id)
+    if (!error) await fetchAll()
+    return { error }
+  }, [computeProps, fetchAll])
 
   // Stats semaine courante
   const propsByProfile = {}
@@ -181,6 +192,7 @@ export function useOrbite(profile) {
 
   return {
     activities,
+    pastActivities,
     allProfiles,
     settings,
     weekHistory,
@@ -195,6 +207,7 @@ export function useOrbite(profile) {
     logActivity,
     saveSettings,
     deleteActivity,
+    updateActivity,
     computeProps,
     computeStreak,
     encouragementMessage,
