@@ -5,7 +5,7 @@ import { useThemeColors } from '../../../hooks/useThemeColors'
 
 const MASTERED_LEVEL = 4
 
-export default function SessionEnd({ deck, stats, onBack, onRestart, profile, dark }) {
+export default function SessionEnd({ deck, stats, onBack, onRestart, profile, dark, nextDeck, queuePosition, onNextDeck }) {
   const [deckProgress, setDeckProgress] = useState([])
   const [loadingProgress, setLoadingProgress] = useState(true)
 
@@ -90,6 +90,11 @@ export default function SessionEnd({ deck, stats, onBack, onRestart, profile, da
         <p className="text-sm" style={{ color: textSec }}>
           {theme?.emoji} {deck?.name} · {total} carte{total > 1 ? 's' : ''} révisée{total > 1 ? 's' : ''}
         </p>
+        {queuePosition && (
+          <p className="text-xs mt-1 font-medium" style={{ color: textSec }}>
+            Deck {queuePosition.current} / {queuePosition.total}
+          </p>
+        )}
       </div>
 
       {/* Stats session */}
@@ -169,20 +174,33 @@ export default function SessionEnd({ deck, stats, onBack, onRestart, profile, da
 
       {/* Actions */}
       <div className="mx-4 space-y-3 pb-8">
-        <button onClick={onRestart}
-          className="w-full py-4 rounded-2xl text-white text-sm font-semibold active:scale-95 transition-transform"
-          style={{ background: color }}>
-          Continuer à réviser →
-        </button>
-        <button onClick={onBack}
-          className="w-full py-4 rounded-2xl text-sm font-semibold active:scale-95 transition-transform"
-          style={{
-            background: card,
-            border: `1px solid ${border}`,
-            color: textMed,
-          }}>
-          Retour à l'accueil
-        </button>
+        {nextDeck && onNextDeck ? (
+          <>
+            <button onClick={onNextDeck}
+              className="w-full py-4 rounded-2xl text-white text-sm font-semibold active:scale-95 transition-transform"
+              style={{ background: THEME_COLOR[nextDeck.theme] || '#7A7A8A' }}>
+              Deck suivant : {nextDeck.name} →
+            </button>
+            <button onClick={onBack}
+              className="w-full py-4 rounded-2xl text-sm font-semibold active:scale-95 transition-transform"
+              style={{ background: card, border: `1px solid ${border}`, color: textMed }}>
+              Retour à l'accueil
+            </button>
+          </>
+        ) : (
+          <>
+            <button onClick={onRestart}
+              className="w-full py-4 rounded-2xl text-white text-sm font-semibold active:scale-95 transition-transform"
+              style={{ background: color }}>
+              Continuer à réviser →
+            </button>
+            <button onClick={onBack}
+              className="w-full py-4 rounded-2xl text-sm font-semibold active:scale-95 transition-transform"
+              style={{ background: card, border: `1px solid ${border}`, color: textMed }}>
+              Retour à l'accueil
+            </button>
+          </>
+        )}
       </div>
     </div>
   )

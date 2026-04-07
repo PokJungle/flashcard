@@ -12,7 +12,7 @@ const ACTIVE_DECKS_KEY = (profileId) => `memoire-active-decks-${profileId}`
 
 export default function HomeMemoire({
   profile, decks, dueMap, progressMap, loading, dark,
-  onStartDeck, onManageDeck, onShowUpload, onDeckCreated,
+  onStartDeck, onManageDeck, onShowUpload, onDeckCreated, onStartAll,
 }) {
   const [filterMode, setFilterMode]   = useState(false)
   const [showNewDeck, setShowNewDeck] = useState(false)
@@ -51,13 +51,16 @@ export default function HomeMemoire({
         <div className="flex items-center justify-between mb-3">
           <div className="flex-1">
             {activeTotalDue > 0 && !filterMode && (
-              <div className="rounded-2xl px-4 py-2.5 flex items-center gap-3"
+              <button
+                onClick={onStartAll}
+                className="w-full rounded-2xl px-4 py-2.5 flex items-center gap-3 active:scale-95 transition-transform text-left"
                 style={{ background: dark ? '#1a2744' : '#E6F1FB', border: `0.5px solid ${dark ? '#2d4a8a' : '#B5D4F4'}` }}>
                 <span style={{ fontSize: 18 }}>🧠</span>
-                <p className="text-sm font-semibold" style={{ color: dark ? '#93c5fd' : '#185FA5' }}>
+                <p className="text-sm font-semibold flex-1" style={{ color: dark ? '#93c5fd' : '#185FA5' }}>
                   {activeTotalDue} critère{activeTotalDue > 1 ? 's' : ''} à réviser
                 </p>
-              </div>
+                <span className="text-sm font-semibold" style={{ color: dark ? '#93c5fd' : '#185FA5' }}>→</span>
+              </button>
             )}
             {filterMode && (
               <p className="text-sm font-semibold" style={{ color: dark ? '#e9d5ff' : '#374151' }}>Mes decks actifs</p>
