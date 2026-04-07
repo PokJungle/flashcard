@@ -36,6 +36,8 @@ export default function Flashcards({ profile, dark }) {
   const [tab, setTab]               = useState(TABS.MEMOIRE)
   const [screen, setScreen]         = useState(SCREENS.HOME)
   const [activeDeck, setActiveDeck] = useState(null)
+  const [deckQueue, setDeckQueue]   = useState([])
+  const [queueTotal, setQueueTotal] = useState(0)
   const [showUpload, setShowUpload]     = useState(false)
   const [uploadStatus, setUploadStatus] = useState(null)
   const [quizNb, setQuizNb]             = useState(10)
@@ -64,7 +66,19 @@ export default function Flashcards({ profile, dark }) {
     if (studyFinished) reload()
   }, [studyFinished])
 
-  const goHome = () => { setScreen(SCREENS.HOME); setActiveDeck(null); reload() }
+  const goHome = () => { setScreen(SCREENS.HOME); setActiveDeck(null); setDeckQueue([]); setQueueTotal(0); reload() }
+
+  const handleStartAll = () => {
+    const saved = ls.get(`memoire-active-decks-${profile?.id}`)
+    const activeDecks = saved === null ? decks : decks.filter(d => saved.includes(d.id))
+    const queue = activeDecks
+      .filter(d => (dueMap[d.id]?.badge ?? 0) > 0)
+      .sort((a, b) => (dueMap[b.id]?.badge ?? 0) - (dueMap[a.id]?.badge ?? 0))
+    if (!queue.length) return
+    setQueueTotal(queue.length)
+    setDeckQueue(queue.slice(1))
+    handleStartDeck(queue[0], null)
+  }
 
   const handleStartDeck = async (deck, limit = null) => {
     setActiveDeck(deck)
@@ -174,13 +188,31 @@ export default function Flashcards({ profile, dark }) {
             onManageDeck={handleManageDeck}
             onShowUpload={() => setShowUpload(true)}
             onDeckCreated={(deck) => { reload(); handleManageDeck(deck) }}
+            onStartAll={handleStartAll}
           />
         )
       }
 
       if (screen === SCREENS.STUDY) {
         if (studyFinished) {
-          return <SessionEnd deck={activeDeck} stats={sessionStats} profile={profile} dark={dark} onBack={goHome} onRestart={() => handleStartDeck(activeDeck)} />
+          const nextDeck = deckQueue[0] ?? null
+          const queuePosition = queueTotal > 1 ? { current: queueTotal - deckQueue.length, total: queueTotal } : null
+          return (
+            <SessionEnd
+              deck={activeDeck}
+              stats={sessionStats}
+              profile={profile}
+              dark={dark}
+              onBack={goHome}
+              onRestart={() => handleStartDeck(activeDeck)}
+              nextDeck={nextDeck}
+              queuePosition={queuePosition}
+              onNextDeck={nextDeck ? () => {
+                setDeckQueue(q => q.slice(1))
+                handleStartDeck(nextDeck, null)
+              } : null}
+            />
+          )
         }
         if (!sessionReady || studyLoading) return <Loader />
         return (
