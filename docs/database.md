@@ -78,10 +78,14 @@ canon_tastings (id, bottle_id, profile_id, date, nose, palate, finish, score, cr
 Watchlist couple partagée (films et séries). **RLS désactivé.**
 - `id`, `tmdb_id`, `media_type` (`movie`|`tv`), `title`, `poster_path`, `backdrop_path`, `overview`
 - `vote_average` numeric(3,1), `release_year`, `runtime` (minutes), `seasons_count`
-- `added_by` (profile_id), `status` (`to_watch`|`matched`|`watching`|`watched`|`vetoed`)
-- `liked_by text[]`, `passed_by text[]` — votes par profil (match quand liked_by a 2 IDs)
+- `added_by` (profile_id), `status` (`to_watch`|`matched`|`watching`|`watched`|`vetoed`|`conflicted`)
+- `liked_by text[]`, `passed_by text[]` — votes par profil
+- `disliked_at jsonb` — `{profileId: isoTimestamp}` pour cooldown 90j sur soft dislike
 - `current_season`, `current_episode` — suivi progression séries
 - Contrainte unique : `(tmdb_id, media_type)`
+- **Statuts** : match quand `liked_by` a 2 IDs ; conflit si ❤️+😬 simultané ; vetoed = hard permanent
+
+> Migration requise : voir `docs/apps/tisane.md` (ajout `disliked_at` + contrainte `conflicted`)
 
 ### `tisane_vetos`
 Jetons veto utilisés. **RLS désactivé.**

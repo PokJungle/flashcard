@@ -8,16 +8,17 @@ App duo ciné/série pour décider quoi regarder ensemble, sans friction.
 
 ```
 src/apps/Tisane/
-├── index.jsx             # Composant principal + tabs
+├── index.jsx                # Composant principal + tabs
 ├── services/
-│   └── tmdb.js           # Appels API TMDB
+│   └── tmdb.js              # Appels API TMDB
 ├── hooks/
-│   ├── useWatchlist.js   # Watchlist Supabase + Realtime
-│   └── useVetos.js       # Gestion jetons veto
+│   ├── useWatchlist.js      # Watchlist Supabase + Realtime + vote logic
+│   ├── useVetos.js          # Jetons veto (3 par profil, regen 7j)
+│   └── useSeriesSync.js     # Sync TMDB pour séries (épisodes, statut diffusion)
 └── screens/
     ├── WatchlistScreen.jsx  # Onglet Ma Liste
-    ├── MatchScreen.jsx      # Onglet Match (swipe)
-    └── DiscoverScreen.jsx   # Onglet Découvrir
+    ├── MatchScreen.jsx      # Onglet Match (swipe + pré-session)
+    └── DiscoverScreen.jsx   # Onglet Découvrir + Admin panel
 ```
 
 ---
@@ -52,7 +53,7 @@ Table partagée couple (pas de RLS).
 | `runtime`        | integer           | En minutes (films)                         |
 | `seasons_count`  | integer           | Nombre de saisons (séries)                 |
 | `added_by`       | text              | profile_id de l'ajouteur                   |
-| `status`         | text              | `to_watch`, `matched`, `watching`, `watched`, `vetoed`, `conflicted` |
+| `status`         | text              | Voir machine d'états ci-dessous            |
 | `liked_by`       | text[]            | IDs des profils ayant voté ❤️              |
 | `passed_by`      | text[]            | IDs des profils ayant voté 😬 (soft dislike) |
 | `disliked_at`    | jsonb             | `{profileId: isoTimestamp}` — pour cooldown 90j |
@@ -88,7 +89,7 @@ ALTER TABLE tisane_watchlist
   CHECK (status IN ('to_watch', 'matched', 'watching', 'watched', 'vetoed', 'conflicted'));
 ```
 
-## SQL de création complète (à exécuter dans Supabase)
+## SQL de création complète
 
 ```sql
 CREATE TABLE IF NOT EXISTS tisane_watchlist (
@@ -127,35 +128,110 @@ CREATE TABLE IF NOT EXISTS tisane_vetos (
 
 ## Logique métier
 
-### Système de Match
+### Machine d'états (statuts)
 
-1. Utilisateur A vote ❤️ → `liked_by` = `['A']`
-2. Utilisateur B vote ❤️ → `liked_by` = `['A', 'B']` → `status = 'matched'`
-3. Realtime Supabase notifie les deux écrans → overlay "Match !"
+```
+to_watch ──❤️❤️──→ matched
+to_watch ──❤️+😬─→ conflicted
+to_watch ──veto──→ vetoed
+
+matched ──+ep────→ watching
+matched ──veto──→ vetoed
+
+watching ──done──→ watched
+watching ──veto──→ vetoed
+
+conflicted ──admin↺──→ to_watch (reset votes)
+```
+
+### Visibilité par statut
+
+| Statut       | Ma Liste              | Match Deck                 | Admin |
+|--------------|-----------------------|----------------------------|-------|
+| `to_watch`   | ❌                   | ✅ P1 si partenaire a liké | ✅    |
+| `matched`    | ✅ groupe Matchs      | ❌ (déjà voté)             | ✅    |
+| `watching`   | ✅ groupe En cours    | ❌                         | ✅    |
+| `watched`    | ✅ groupe Vus         | ❌                         | ✅    |
+| `vetoed`     | ❌                   | ❌                         | ✅ lecture seule |
+| `conflicted` | ❌                   | ❌                         | ✅ + Ressusciter |
 
 ### Vote Logique
 
-| Vote | Action DB | Effet |
-|------|-----------|-------|
-| ❤️ Swipe droit | `liked_by += profile.id` | Match si partenaire aussi ❤️ |
-| 😬 Swipe gauche | `passed_by += profile.id`, `disliked_at[id] = now()` | Cooldown 90j, réapparaît après |
-| ⏭️ Skip | aucune persistance | Juste passer la carte |
-| 🚫 Veto | `status = 'vetoed'` | Suppression permanente, consomme 1 jeton |
+| Vote | Source | Action DB | Effet |
+|------|--------|-----------|-------|
+| ❤️ Swipe droit | P1 watchlist | `vote(id, 'heart')` | → `matched` si partenaire a liké |
+| ❤️ Swipe droit | P2 catalogue | `addAndVote(item, 'heart')` | upsert `to_watch` + `liked_by: [moi]` → P1 chez partenaire |
+| 😬 Swipe gauche | P1 watchlist | `vote(id, 'later')` | → `conflicted` (partenaire a liké) + timestamp 90j |
+| 😬 Swipe gauche | P2 catalogue | `addAndVote(item, 'later')` | upsert + `passed_by: [moi]` + timestamp 90j |
+| ⏭️ Skip | P1 ou P2 | aucune écriture | Réapparaît à la prochaine session |
+| ➕ Bouton Découvrir | catalogue | `addItem(item)` | upsert + vote ❤️ → `to_watch` + P1 chez partenaire |
+| 🚫 Veto | Ma Liste | `vetoItem(id)` + jeton | → `vetoed`, permanent pour les deux |
 
-**Conflit** : si A ❤️ et B 😬 → `status = 'conflicted'`. Caché des deux. Résurrection uniquement via Admin.
+**Conflit** : si A ❤️ et B 😬 → `status = 'conflicted'`. Caché des deux. Résurrection uniquement via Admin (↺ reset tous les votes).
 
-**Cooldown 90j** : items dans `passed_by` réapparaissent dans le deck après 90 jours (vérification via `disliked_at` timestamp).
+**Cooldown 90j** : items dans `passed_by` réapparaissent dans le deck après 90 jours. Vérification côté client via `disliked_at[profileId]`.
 
 ### Jetons Veto
 
-- 3 jetons par utilisateur
-- Chaque jeton utilisé se régénère après 7 jours
-- L'utilisation d'un veto met `status = 'vetoed'` et retire le contenu de toutes les sessions
+- 3 jetons par utilisateur (table `tisane_vetos`)
+- Chaque jeton utilisé se régénère après 7 jours (calcul client sur `used_at`)
+- Veto = `status: 'vetoed'` + hard permanent pour les deux profils
 
-### Suivi Séries
+### Suivi Séries (`useSeriesSync.js`)
 
-- `current_season` / `current_episode` incrémentés via bouton "+"
-- Statut passe automatiquement de `matched` → `watching` au premier épisode marqué vu
+- Sync TMDB à chaque ouverture : récupère nb d'épisodes réels par saison, date prochain épisode
+- Cache sessionStorage `tisane-series-sync-v1`, TTL 4h, clé `${tmdbId}:${currentSeason}`
+- Badges "Nouvel épisode" : ne s'affichent que si `air_date > lastVisitMs` (localStorage par profil)
+- `current_season` clampé à `number_of_seasons` pour éviter les 404 TMDB
+- Auto-avancement saison : si `current_episode >= episodesInSeason` → saison suivante
+
+---
+
+## Écrans
+
+### Ma Liste (WatchlistScreen)
+
+Groupes affichés : **Matchs** (`matched`) + **En cours** (`watching`) + **Vus** (`watched`)
+
+Actions disponibles par item :
+- Séries : compteur S/E éditable, bouton `+` (avance épisode, bloqué si pas encore sorti), `S+` en fin de saison
+- **Terminer** → `watched`
+- **Supprimer** → hard DELETE (gratuit, double confirmation)
+- **Veto** 🚫 → `vetoed` (consomme 1 jeton, affiche solde)
+
+### Match (MatchScreen)
+
+**Pré-session** (avant de lancer le deck) :
+- Toggle Films / Séries
+- Chips genre (Action, Comédie, Drame, Horreur, etc.)
+- Options films : Ce soir (<1h40) | En salle (now playing FR)
+- Bouton "Commencer le match ⚡" + teaser P1 si items en attente
+
+**Session** :
+- File unifiée : **P1** (partenaire a liké, mon vote attendu) → **P2** (catalogue TMDB)
+- Deck infini : batches de 20, auto-fetch page suivante quand < 5 cartes restantes
+- Catalogue : streaming flatrate FR, `vote_average ≥ 6.0`, `vote_count ≥ 100`, trié par note
+- Exclusion : items déjà votés (❤️ ou 😬 < 90j)
+- Carte face A : backdrop, titre, note, runtime, badge "❤️ partenaire" si P1
+- Carte face B (tap) : synopsis, casting, plateformes streaming FR
+- Bouton ← pour revenir au menu pré-session
+
+### Découvrir (DiscoverScreen)
+
+**Mode Catalogue** (défaut) :
+- Recherche TMDB avec debounce 400ms
+- Toggle Films / Séries + chips genre
+- Badge statut sur les posters des items déjà en DB (À voter / Matchée / En cours)
+- Bouton `+` : upsert + vote ❤️ (pas force-match ; attend le vote partenaire)
+
+**Mode Admin** (bouton Settings en haut) :
+- Liste tous les items en DB (tous statuts, y compris vetoed et conflicted)
+- Filtres : Tous | À voter | Matchés | En cours | Vus | Conflits | Vetoed
+- Actions :
+  - ⚡ Force Match (`to_watch` → `matched`)
+  - ▶ En cours (`to_watch`/`matched` → `watching`)
+  - ↺ Ressusciter (`conflicted` → `to_watch`, reset tous les votes)
+  - 🗑 Supprimer (hard DELETE, double-tap, désactivé sur `vetoed`)
 
 ---
 
@@ -163,9 +239,13 @@ CREATE TABLE IF NOT EXISTS tisane_vetos (
 
 - **Fond** : Violet nuit `#0d0620`
 - **Carte** : `#16082e`
+- **Bordure** : `#2d1059`
 - **CTA** : Ambre `#f59e0b`
+- **Action** : Violet `#7c3aed`
+- **Succès** : Vert `#10b981`
 - **Texte principal** : Blanc cassé `#f5f0ff`
 - **Secondaire** : Violet clair `#a78bfa`
+- **Muted** : `#6b4fa0`
 - Thème fixe (pas de toggle clair/sombre — l'ambiance ciné est toujours sombre)
 
 ---
@@ -181,3 +261,4 @@ CREATE TABLE IF NOT EXISTS tisane_vetos (
 | 56      | OCS           |
 | 350     | Apple TV+     |
 | 1899    | Max           |
+
