@@ -15,6 +15,7 @@ export default function PlanningScreen({
   profile,
   onGoToPlantes,
   astuce,
+  saison,
   popSet,
   onPop,
   textPri,
@@ -63,8 +64,23 @@ export default function PlanningScreen({
     })
   }
 
+  // Couleurs du bandeau saisonnier
+  const saisonStyle = saison?.coeff === 0.75
+    ? { bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.35)', text: '#d97706' }
+    : { bg: 'rgba(147,197,253,0.12)', border: 'rgba(147,197,253,0.35)', text: '#3b82f6' }
+
   return (
     <div className="px-4 py-4 max-w-lg mx-auto space-y-6">
+
+      {/* Bandeau saisonnier — affiché uniquement si coeff ≠ 1 */}
+      {saison?.icon && (
+        <div className="rounded-2xl px-4 py-3 flex items-start gap-3"
+          style={{ background: saisonStyle.bg, border: `1px solid ${saisonStyle.border}` }}>
+          <span className="text-xl flex-shrink-0 mt-0.5">{saison.icon}</span>
+          <p className="text-xs leading-relaxed" style={{ color: saisonStyle.text }}>{saison.message}</p>
+        </div>
+      )}
+
       {groupes.map(g => {
         if (g.plantes.length === 0) return null
         return (

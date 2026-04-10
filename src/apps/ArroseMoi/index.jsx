@@ -60,7 +60,7 @@ const EMPTY_FORM = { nom: '', emoji: '🪴', piece: 'Salon', frequence_j: 7, not
 export default function ArroseMoi({ profile, dark }) {
   const { bg, card, border, border2, textPri, textSec } = useThemeColors(dark)
   const { plantes, loading, addPlante, updatePlante, deletePlante } = usePlantes()
-  const { waterings, lastWateredMap, urgenceMap, arroser, wateringInProgress, allProfiles } = useWaterings(plantes)
+  const { waterings, lastWateredMap, urgenceMap, arroser, wateringInProgress, allProfiles, saison } = useWaterings(plantes)
 
   const [tab, setTab] = useState('planning')
   const [modal, setModal] = useState(null) // null | 'add' | plante (pour edit)
@@ -143,6 +143,7 @@ export default function ArroseMoi({ profile, dark }) {
             profile={profile}
             onGoToPlantes={() => setTab('plantes')}
             astuce={astuce}
+            saison={saison}
             popSet={popSet}
             onPop={handlePop}
             textPri={textPri}
