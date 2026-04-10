@@ -10,6 +10,7 @@ import Orbite from './apps/Orbite/index.jsx'
 import Traine from './apps/Traine/index.jsx'
 import Canon from './apps/Canon/index.jsx'
 import Tisane from './apps/Tisane/index.jsx'
+import ArroseMoi from './apps/ArroseMoi/index.jsx'
 
 import { useDarkMode } from './hooks/useDarkMode'
 import { getPreferredCity as getPreferredCityFromUtils, fetchCurrentHourWeather } from './apps/Meteo/meteo.utils'
@@ -31,12 +32,12 @@ const APPS = [
   { id:'traine',     name:'Ça Traîne',                 emoji:'🐌', color:'#10b981', component:Traine },
   { id:'canon',      name:'Canon',                     emoji:'🍷', color:'#9b1c1c', component:Canon },
   { id:'tisane',     name:'Tisane & Chauffeuse',        emoji:'🍵', color:'#7c3aed', component:Tisane },
+  { id:'arrosemoi',  name:'Arrose-moi',                 emoji:'💧', color:'#22c55e', component:ArroseMoi },
 ]
 const HUB_APPS = APPS.filter(a => a.id !== 'bisou')
 const APPS_EN_PREP = [
   { emoji:'🎸', name:'Jukebox' },
   { emoji:'👣', name:'Nos Empreintes' },
-  { emoji:'💧', name:'Arrose-moi' },
   { emoji:'🌙', name:'Parenthèse' },
 ]
 
