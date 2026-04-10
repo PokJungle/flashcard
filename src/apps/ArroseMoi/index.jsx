@@ -71,6 +71,8 @@ export default function ArroseMoi({ profile, dark }) {
   const inputBg = dark ? '#0f0a1e' : '#ffffff'
   const astuce = ASTUCES[new Date().getDate() % ASTUCES.length]
 
+  if (!profile) return <div className="h-full flex items-center justify-center"><Spinner /></div>
+
   const openAdd = () => { setForm(EMPTY_FORM); setModal('add') }
   const openEdit = (plante) => {
     setForm({
